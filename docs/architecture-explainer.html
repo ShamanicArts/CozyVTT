@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CozyVTT Architecture Field Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #f4f0e6;
+      --paper-2: #fffdf8;
+      --ink: #152238;
+      --muted: #5d6878;
+      --line: #c8c0ae;
+      --navy: #163a5f;
+      --blue: #2b6f97;
+      --sage: #5e7d63;
+      --gold: #b07a28;
+      --red: #a4493d;
+      --shadow: 0 14px 34px rgba(21, 34, 56, .10);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; overflow-x: clip; }
+    body {
+      margin: 0;
+      background:
+        linear-gradient(rgba(22,58,95,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(22,58,95,.035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 24px 24px;
+      color: var(--ink);
+      font-family: "DM Sans", sans-serif;
+      line-height: 1.55; overflow-x: clip;
+    }
+    a { color: var(--blue); }
+    code, .mono { font-family: "Fira Code", monospace; }
+    .shell { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: 100vh; }
+    aside {
+      position: sticky; top: 0; height: 100vh; overflow: auto;
+      background: rgba(255,253,248,.94); border-right: 1px solid var(--line);
+      padding: 26px 20px; backdrop-filter: blur(10px); z-index: 10;
+    }
+    .brand { font-weight: 700; letter-spacing: -.03em; font-size: 1.2rem; color: var(--navy); }
+    .brand small { display: block; color: var(--muted); font: 500 .68rem "Fira Code"; letter-spacing: .08em; text-transform: uppercase; margin-top: 4px; }
+    nav { margin-top: 26px; display: grid; gap: 4px; }
+    nav a { text-decoration: none; color: var(--muted); padding: 8px 10px; border-radius: 8px; font-size: .87rem; }
+    nav a:hover, nav a.active { color: var(--navy); background: #e8e3d7; }
+    .side-note { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 18px; color: var(--muted); font-size: .76rem; }
+    main { width: min(1240px, 100%); padding: 42px clamp(24px, 5vw, 72px) 90px; }
+    header.hero { padding: 34px 0 40px; border-bottom: 2px solid var(--navy); }
+    .eyebrow { font: 600 .74rem "Fira Code"; color: var(--red); letter-spacing: .12em; text-transform: uppercase; }
+    h1 { font-size: clamp(2.5rem, 6vw, 5.4rem); line-height: .96; letter-spacing: -.065em; margin: 15px 0 22px; max-width: 980px; }
+    h1 span { color: var(--blue); }
+    .lede { font-size: clamp(1.05rem, 2vw, 1.35rem); max-width: 880px; color: var(--muted); }
+    .verdict { margin-top: 26px; background: var(--navy); color: #fffdf8; padding: 20px 24px; border-radius: var(--radius); max-width: 980px; box-shadow: var(--shadow); }
+    .verdict strong { color: #f0c674; }
+    section { padding: 58px 0 18px; scroll-margin-top: 24px; }
+    .section-kicker { font: 600 .68rem "Fira Code"; color: var(--red); letter-spacing: .12em; text-transform: uppercase; }
+    h2 { font-size: clamp(1.8rem, 4vw, 3rem); line-height: 1.05; letter-spacing: -.045em; margin: 8px 0 12px; }
+    h3 { font-size: 1.08rem; margin: 0 0 8px; color: var(--navy); }
+    .section-intro { color: var(--muted); max-width: 830px; margin: 0 0 24px; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 28px; }
+    .metric { background: var(--paper-2); border: 1px solid var(--line); border-top: 4px solid var(--blue); padding: 17px; border-radius: 10px; }
+    .metric b { display: block; font-size: 1.65rem; letter-spacing: -.04em; color: var(--navy); }
+    .metric span { color: var(--muted); font-size: .79rem; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
+    .card { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; box-shadow: 0 6px 18px rgba(21,34,56,.05); }
+    .card p { color: var(--muted); margin: 7px 0 0; font-size: .91rem; }
+    .card.good { border-top: 4px solid var(--sage); }
+    .card.warn { border-top: 4px solid var(--gold); }
+    .card.risk { border-top: 4px solid var(--red); }
+    .tag { display: inline-block; font: 500 .68rem "Fira Code"; border: 1px solid currentColor; border-radius: 999px; padding: 3px 8px; margin: 2px 3px 2px 0; }
+    .diagram-card { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
+    .diagram-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+    .diagram-head p { margin: 3px 0 0; color: var(--muted); font-size: .82rem; }
+    .controls { display: flex; gap: 5px; flex-shrink: 0; }
+    .controls button { width: 30px; height: 30px; border: 1px solid var(--line); background: #fff; color: var(--navy); border-radius: 7px; cursor: pointer; font: 600 .78rem "Fira Code"; }
+    .controls button:hover { background: #e8e3d7; }
+    .mermaid-wrap { overflow: hidden; min-height: 400px; border-radius: 9px; background: #fbfaf5; cursor: grab; position: relative; }
+    .mermaid-wrap.dragging { cursor: grabbing; }
+    .mermaid { transform-origin: 0 0; min-width: 800px; padding: 18px; }
+    table { width: 100%; border-collapse: collapse; background: var(--paper-2); font-size: .84rem; }
+    th { text-align: left; color: #fff; background: var(--navy); padding: 11px 12px; position: sticky; top: 0; }
+    td { padding: 11px 12px; border-bottom: 1px solid #ddd5c6; vertical-align: top; }
+    tbody tr:hover { background: #f0ece2; }
+    .rating { font: 600 .7rem "Fira Code"; white-space: nowrap; }
+    .low { color: var(--red); } .mid { color: var(--gold); } .high { color: var(--sage); }
+    .timeline { display: grid; gap: 0; counter-reset: phase; }
+    .phase { counter-increment: phase; display: grid; grid-template-columns: 55px 170px minmax(0,1fr); gap: 16px; position: relative; padding-bottom: 26px; }
+    .phase::before { content: counter(phase); width: 38px; height: 38px; border-radius: 50%; background: var(--navy); color: white; display: grid; place-items: center; font: 600 .8rem "Fira Code"; z-index: 1; }
+    .phase:not(:last-child)::after { content: ""; position: absolute; left: 18px; top: 38px; bottom: 0; width: 2px; background: var(--line); }
+    .phase b { color: var(--navy); }
+    .phase p { margin: 0; color: var(--muted); }
+    details { background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 15px; margin: 8px 0; }
+    summary { cursor: pointer; font-weight: 600; color: var(--navy); }
+    details ul { margin-bottom: 4px; color: var(--muted); }
+    .callout { border-left: 5px solid var(--gold); background: #fff7df; padding: 16px 18px; margin: 18px 0; border-radius: 0 10px 10px 0; }
+    .callout p { margin: 4px 0 0; color: #59481f; }
+    .footer { margin-top: 70px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: .8rem; display: flex; justify-content: space-between; gap: 20px; }
+    @media (max-width: 920px) {
+      .shell { display: block; }
+      aside { position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 14px 18px; }
+      nav { display: flex; max-width: 100%; overflow-x: auto; margin-top: 12px; padding-bottom: 5px; }
+      nav a { white-space: nowrap; }
+      .side-note { display: none; }
+      main { padding-top: 24px; }
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      .grid-3 { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 650px) {
+      .grid-2, .metrics { grid-template-columns: 1fr; }
+      .phase { grid-template-columns: 45px 1fr; }
+      .phase > p { grid-column: 2; }
+      .diagram-head { display: block; }
+      .controls { margin-top: 10px; }
+      .footer { display: block; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <aside>
+    <div class="brand">CozyVTT Field Guide<small>Architecture audit · 20 Aug 2026</small></div>
+    <nav>
+      <a href="#verdict">00 · Verdict</a>
+      <a href="#today">01 · System today</a>
+      <a href="#runtime">02 · Runtime path</a>
+      <a href="#rendering">03 · Rendering</a>
+      <a href="#data">04 · Data model</a>
+      <a href="#heatmap">05 · Extensibility</a>
+      <a href="#target">06 · Target architecture</a>
+      <a href="#plugins">07 · Plugin kernel</a>
+      <a href="#agents">08 · Agent control</a>
+      <a href="#swap">09 · Renderer swap</a>
+      <a href="#roadmap">10 · Migration</a>
+      <a href="#evidence">11 · Evidence atlas</a>
+    </nav>
+    <div class="side-note">Drag diagrams to pan. Use the controls or Ctrl/Cmd + wheel to zoom. This file is standalone apart from fonts and Mermaid loaded from CDNs.</div>
+  </aside>
+
+  <main>
+    <header class="hero" id="verdict">
+      <div class="eyebrow">Repository reconnaissance / fork design brief</div>
+      <h1>From a capable VTT to an <span>extensible tabletop kernel.</span></h1>
+      <p class="lede">CozyVTT is a healthy conventional full-stack application with useful internal seams. It is straightforward to fork and modify, but it is not yet a runtime plugin platform, renderer-neutral engine, or safe agent control surface.</p>
+      <div class="verdict"><strong>The right name:</strong> a <b>hexagonal modular monolith</b> with a <b>microkernel plugin architecture</b>. Add a command/query bus for every human, network, plugin, and agent action; use Strategy/Bridge-style renderer adapters around a renderer-neutral scene kernel.</div>
+      <div class="metrics">
+        <div class="metric"><b>86,941</b><span>TypeScript / TSX source lines</span></div>
+        <div class="metric"><b>129 + 40</b><span>REST handlers + inbound socket events</span></div>
+        <div class="metric"><b>16</b><span>Prisma domain models</span></div>
+        <div class="metric"><b>0 cycles</b><span>Madge: 83 backend / 196 frontend modules</span></div>
+      </div>
+    </header>
+
+    <section id="today">
+      <div class="section-kicker">01 / Current topology</div>
+      <h2>How CozyVTT is assembled today</h2>
+      <p class="section-intro">The repository is a deployable modular monolith: React in the browser, Express and Socket.IO in one backend process, PostgreSQL through Prisma, and local filesystem uploads. The lines look clean at the package level; inside them, handlers often own too many concerns.</p>
+      <div class="diagram-card">
+        <div class="diagram-head"><div><h3>Component map</h3><p>Solid arrows are direct runtime dependencies; dashed arrows are realtime events.</p></div><div class="controls"><button data-z="out">−</button><button data-z="reset">1:1</button><button data-z="in">+</button></div></div>
+        <div class="mermaid-wrap"><pre class="mermaid">
+flowchart LR
+  subgraph Client["Browser · React / Vite"]
+    Pages["Pages & feature panels"]
+    Map["MapCanvas · 3,588 lines"]
+    Store["Zustand game store"]
+    Query["React Query"]
+    SocketClient["Socket service"]
+    Layers["Pure canvas layer draws"]
+    Pages --> Map
+    Pages --> Query
+    Map --> Store
+    Map --> SocketClient
+    Map --> Layers
+  end
+  subgraph Server["Node process · Express / Socket.IO"]
+    HTTP["13 REST route modules"]
+    WS["15 realtime handler modules"]
+    RBAC["Session + RBAC middleware"]
+    Services["Export / assets / utilities"]
+    Prisma["Global Prisma client"]
+    IO["Global Socket.IO server"]
+    HTTP --> RBAC
+    WS --> RBAC
+    HTTP --> Prisma
+    WS --> Prisma
+    Services --> Prisma
+    WS --> IO
+  end
+  DB[("PostgreSQL")]
+  FS[("Upload filesystem")]
+  Query -->|"HTTP / JSON"| HTTP
+  SocketClient -.->|"Socket.IO"| WS
+  Prisma --> DB
+  Services --> FS
+  HTTP --> FS
+  IO -.-> SocketClient
+  classDef hot fill:#f4d8d2,stroke:#a4493d,color:#152238
+  classDef good fill:#dce8dc,stroke:#5e7d63,color:#152238
+  class Map,HTTP,WS hot
+  class Layers,RBAC good
+        </pre></div>
+      </div>
+      <div class="grid-3" style="margin-top:16px">
+        <div class="card good"><h3>Strong foundations</h3><p>Strict TypeScript, clear monorepo split, pure drawing functions, normalized client state, composed RBAC, domain-grouped socket registrars, and no import cycles.</p></div>
+        <div class="card warn"><h3>Architectural reality</h3><p>The folders are modular-looking, but most business actions are implemented directly inside HTTP or socket adapters. That makes transport a de facto application layer.</p></div>
+        <div class="card risk"><h3>Highest-risk seam</h3><p>Tokens, walls, fog, lights, and annotations are whole JSON fields. Read–modify–replace updates can silently overwrite concurrent changes.</p></div>
+      </div>
+    </section>
+
+    <section id="runtime">
+      <div class="section-kicker">02 / Runtime path</div>
+      <h2>One token move crosses every boundary</h2>
+      <p class="section-intro">A token move is the best first refactoring slice: authorization, validation, scene state, persistence, visibility, and broadcast all meet here. Today the socket handler coordinates them directly.</p>
+      <div class="diagram-card">
+        <div class="diagram-head"><div><h3>Current token-move sequence</h3><p>The database commit and realtime publication are not one atomic operation.</p></div><div class="controls"><button data-z="out">−</button><button data-z="reset">1:1</button><button data-z="in">+</button></div></div>
+        <div class="mermaid-wrap"><pre class="mermaid">
+sequenceDiagram
+  participant U as Player UI
+  participant M as MapCanvas
+  participant S as Socket.IO handler
+  participant P as Prisma
+  participant D as PostgreSQL
+  participant R as Other clients
+  U->>M: drag token
+  M->>S: token.move payload
+  S->>S: authenticate + authorize
+  S->>P: read map JSON
+  P->>D: SELECT map
+  D-->>P: tokens JSON
+  S->>S: mutate array in memory
+  S->>P: replace full tokens JSON
+  P->>D: UPDATE map
+  D-->>S: committed row
+  S-->>R: broadcast token moved
+  Note over S,D: No expected revision / CAS
+  Note over D,R: Commit can succeed while broadcast fails
+        </pre></div>
+      </div>
+      <div class="callout"><b>Why this matters for agents:</b><p>Two humans can already race. Agents operate faster and concurrently, so a command layer needs idempotency keys, expected revisions, durable audit, and ordered events before autonomous control is safe.</p></div>
+    </section>
+
+    <section id="rendering">
+      <div class="section-kicker">03 / Frontend & rendering</div>
+      <h2>A good render loop trapped inside a god component</h2>
+      <p class="section-intro">CozyVTT’s three-canvas compositor and dirty-layer scheduler are worth preserving. The problem is ownership: MapCanvas also manages sockets, permissions, mutations, input arbitration, tool state, and much of the UI.</p>
+      <div class="diagram-card">
+        <div class="diagram-head"><div><h3>Current render pipeline</h3><p>Green pieces are reusable; red pieces need extraction behind stable contracts.</p></div><div class="controls"><button data-z="out">−</button><button data-z="reset">1:1</button><button data-z="in">+</button></div></div>
+        <div class="mermaid-wrap"><pre class="mermaid">
+flowchart TB
+  Gesture["Pointer / keyboard events"] --> Arbiter["MapCanvas gesture arbitration"]
+  Socket["Socket events"] --> MapCanvas["MapCanvas orchestration"]
+  Zustand["Zustand scene-ish state"] --> MapCanvas
+  Arbiter --> Mutations["Direct state mutations + socket emits"]
+  Mutations --> MapCanvas
+  MapCanvas --> Scheduler["Dirty-layer rAF scheduler"]
+  Scheduler --> Terrain["Terrain canvas"]
+  Scheduler --> Token["Token canvas"]
+  Scheduler --> Overlay["Overlay canvas · receives input"]
+  Terrain --> Pure["Pure draw functions"]
+  Token --> Pure
+  Overlay --> Pure
+  MapCanvas --> Panels["Hard-coded tool panels / modals"]
+  classDef hot fill:#f4d8d2,stroke:#a4493d,color:#152238
+  classDef good fill:#dce8dc,stroke:#5e7d63,color:#152238
+  class MapCanvas,Arbiter,Mutations,Panels hot
+  class Scheduler,Terrain,Token,Overlay,Pure good
+        </pre></div>
+      </div>
+      <div class="grid-2" style="margin-top:16px">
+        <div class="card good"><h3>Keep</h3><p>The layer invalidation model, recording-context tests, vision math, normalized entity store, and current Canvas2D implementation as the first adapter.</p></div>
+        <div class="card risk"><h3>Untangle</h3><p>Hard-coded layer order, canvas-specific draw signatures, tool precedence chain, direct socket emissions, and closed switch statements for systems and panels.</p></div>
+      </div>
+    </section>
+
+    <section id="data">
+      <div class="section-kicker">04 / Persistence model</div>
+      <h2>The relational spine—and the JSON scene island</h2>
+      <p class="section-intro">Campaign identity, membership, characters, sessions, chat, and assets are relational. High-frequency scene state is concentrated inside the Map row as JSON, which is convenient for snapshots but unsafe for concurrent granular edits.</p>
+      <div class="diagram-card">
+        <div class="diagram-head"><div><h3>Simplified domain relationship map</h3><p>Not every field is shown. The warning node represents several Map JSON columns.</p></div><div class="controls"><button data-z="out">−</button><button data-z="reset">1:1</button><button data-z="in">+</button></div></div>
+        <div class="mermaid-wrap"><pre class="mermaid">
+erDiagram
+  USER ||--o{ CAMPAIGN_MEMBER : joins
+  CAMPAIGN ||--o{ CAMPAIGN_MEMBER : contains
+  CAMPAIGN ||--o{ MAP : owns
+  CAMPAIGN ||--o{ CHARACTER : contains
+  CAMPAIGN ||--o{ GAME_SESSION : runs
+  CAMPAIGN ||--o{ MESSAGE : records
+  CAMPAIGN ||--o{ ASSET : stores
+  USER ||--o{ CHARACTER : controls
+  GAME_SESSION ||--o{ DICE_ROLL : records
+  MAP ||--|| SCENE_JSON : embeds
+  MAP {
+    string id
+    string campaignId
+    json tokens
+    json walls
+    json fog
+    json lights
+    json annotations
+  }
+  SCENE_JSON {
+    string concurrency "whole-field replacement"
+    string revision "missing"
+    string conflict_policy "last write wins"
+  }
+        </pre></div>
+      </div>
+    </section>
+
+    <section id="heatmap">
+      <div class="section-kicker">05 / Extension readiness</div>
+      <h2>What can be extended—and how safely</h2>
+      <p class="section-intro">“Possible in a fork” is different from “an extension point.” Today, most changes require editing core switch statements or handler registration arrays and rebuilding the application.</p>
+      <div style="overflow:auto; border-radius:var(--radius); border:1px solid var(--line)">
+        <table>
+          <thead><tr><th>Capability</th><th>Today</th><th>Existing seam</th><th>Missing contract</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>Fork and change behavior</td><td class="rating high">STRONG</td><td>Readable TypeScript monorepo</td><td>Stable domain boundary</td><td>Normal module development</td></tr>
+            <tr><td>Add REST / socket behavior</td><td class="rating mid">MODERATE</td><td>Route and registrar modules</td><td>Shared use-case API</td><td>Thin inbound adapters</td></tr>
+            <tr><td>Add a game system</td><td class="rating mid">MODERATE</td><td>System config modules</td><td>Open registry + schema versioning</td><td>GameSystem contribution</td></tr>
+            <tr><td>Add a map tool</td><td class="rating low">WEAK</td><td>Some isolated draw helpers</td><td>Tool lifecycle + UI slots</td><td>InteractionTool contribution</td></tr>
+            <tr><td>Swap renderer live</td><td class="rating low">ABSENT</td><td>Pure layer functions</td><td>SceneKernel + RendererAdapter</td><td>Canvas2D / WebGL / headless</td></tr>
+            <tr><td>Install runtime plugin</td><td class="rating low">ABSENT</td><td>None</td><td>Manifest, sandbox, broker, lifecycle</td><td>Signed, capability-scoped package</td></tr>
+            <tr><td>Control via agent</td><td class="rating low">WEAK</td><td>HTTP and socket actions exist</td><td>Service identity, commands, approvals</td><td>MCP/API adapters over command catalog</td></tr>
+            <tr><td>Audit / replay actions</td><td class="rating low">WEAK</td><td>Dice audit + system logs</td><td>Universal invocation/event ledger</td><td>Correlated immutable audit trail</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="target">
+      <div class="section-kicker">06 / Proposed core</div>
+      <h2>Target: hexagonal core, modular deployment</h2>
+      <p class="section-intro">Keep one deployable application at first. The architecture—not the number of services—is the point: every inbound technology calls the same use cases, and the core reaches infrastructure only through ports.</p>
+      <div class="diagram-card">
+        <div class="diagram-head"><div><h3>Ports and adapters blueprint</h3><p>Dependencies point inward. Events leave through a transactional outbox.</p></div><div class="controls"><button data-z="out">−</button><button data-z="reset">1:1</button><button data-z="in">+</button></div></div>
+        <div class="mermaid-wrap"><pre class="mermaid">
+flowchart TB
+  subgraph Inbound["Inbound adapters"]
+    React["React UI"]
+    Rest["REST API"]
+    Sock["Socket.IO"]
+    MCP["MCP agent tools"]
+    CLI["Admin CLI / jobs"]
+  end
+  subgraph App["Application layer"]
+    Cmd["Command bus"]
+    Qry["Query bus"]
+    Policy["Capability + approval policy"]
+    UOW["Unit of work / idempotency"]
+  end
+  subgraph Domain["Domain modules"]
+    Campaign["Campaign & membership"]
+    Scene["Scene / token / fog"]
+    Combat["Combat & dice"]
+    Character["Characters & systems"]
+    Chat["Chat & assets"]
+  end
+  subgraph Ports["Outbound ports"]
+    Repo["Repositories"]
+    Events["Event + outbox"]
+    Blob["Blob storage"]
+    Identity["Clock / IDs / dice"]
+    Presence["Presence / jobs / audit"]
+  end
+  subgraph Adapters["Infrastructure adapters"]
+    Prisma["Prisma / PostgreSQL"]
+    SocketIO["Socket.IO publisher"]
+    Storage["Filesystem / S3"]
+    Redis["Redis / workers"]
+  end
+  Inbound --> Cmd
+  Inbound --> Qry
+  Cmd --> Policy --> UOW --> Domain
+  Qry --> Policy
+  Domain --> Ports
+  Repo --> Prisma
+  Events --> Prisma
+  Events --> SocketIO
+  Blob --> Storage
+  Presence --> Redis
+  classDef core fill:#dce8dc,stroke:#5e7d63,color:#152238
+        </pre></div>
+      </div>
+      <div class="grid-3" style="margin-top:16px">
+        <div class="card"><h3>Hexagonal</h3><p>Business rules do not know Express, Socket.IO, Prisma, React, Canvas, or MCP.</p></div>
+        <div class="card"><h3>Modular monolith</h3><p>Clear domain boundaries without prematurely paying distributed-system costs.</p></div>
+        <div class="card"><h3>Event-driven, not event-sourced</h3><p>Durable domain events and an outbox first; full event sourcing is optional, not required.</p></div>
+      </div>
+    </section>
+
+    <section id="plugins">
+      <div class="section-kicker">07 / Runtime extensibility</div>
+      <h2>A microkernel, not a folder of callbacks</h2>
+      <p class="section-intro">The kernel owns identity, policy, commands, events, registries, compatibility, and lifecycle. Plugins contribute through narrow versioned contracts. Untrusted code never receives raw database, socket, filesystem, or network access.</p>
+      <div class="diagram-card">
+        <div class="diagram-head"><div><h3>Plugin contribution spider map</h3><p>Every spoke is mediated by capability grants and versioned host APIs.</p></div><div class="controls"><button data-z="out">−</button><button data-z="reset">1:1</button><button data-z="in">+</button></div></div>
+        <div class="mermaid-wrap"><pre class="mermaid">
+flowchart TB
+  Kernel(("Cozy kernel"))
+  Manifest["Signed manifest + lockfile"] --> Kernel
+  Broker["Capability broker"] --> Kernel
+  Lifecycle["Install / enable / update / disable"] --> Kernel
+  Kernel --> Commands["Commands & queries"]
+  Kernel --> Systems["Game systems & schemas"]
+  Kernel --> Tools["Interaction tools"]
+  Kernel --> Layers["Scene layers"]
+  Kernel --> Renderers["Renderer adapters"]
+  Kernel --> UISlots["Toolbar / sidebar / sheet slots"]
+  Kernel --> Importers["Import / export adapters"]
+  Kernel --> Automations["Event automations"]
+  Sandbox["WASM / worker / container"] --> Broker
+  Iframe["Sandboxed iframe UI"] --> UISlots
+  classDef hub fill:#163a5f,stroke:#163a5f,color:#fffdf8
+  classDef guard fill:#fff0c9,stroke:#b07a28,color:#152238
+  class Kernel hub
+  class Manifest,Broker,Lifecycle,Sandbox guard
+        </pre></div>
+      </div>
+      <div class="grid-2" style="margin-top:16px">
+        <div class="card good"><h3>Trusted bundled modules</h3><p>Can use native TypeScript/React contracts. Suitable for first-party renderers, core game systems, and performance-sensitive layers.</p></div>
+        <div class="card warn"><h3>Untrusted runtime plugins</h3><p>Backend in WASM/WASI or a separate worker/container; frontend in a sandboxed iframe. Default-deny networking and namespaced storage.</p></div>
+      </div>
+      <div class="diagram-card" style="margin-top:16px">
+        <div class="diagram-head"><div><h3>Plugin lifecycle</h3><p>Updates are side-by-side and campaign-pinned so rollback is boring.</p></div><div class="controls"><button data-z="out">−</button><button data-z="reset">1:1</button><button data-z="in">+</button></div></div>
+        <div class="mermaid-wrap"><pre class="mermaid">
+flowchart LR
+  Upload["Upload package"] --> Quarantine["Quarantine"]
+  Quarantine --> Verify{"Hash + signature + manifest valid?"}
+  Verify -->|"no"| Reject["Reject + audit"]
+  Verify -->|"yes"| Resolve["Resolve dependencies / host API"]
+  Resolve --> Approve["Human approves capabilities"]
+  Approve --> Migrate["Namespaced migration"]
+  Migrate --> Health["Health check in sandbox"]
+  Health --> Activate["Activate exact version"]
+  Activate --> Pin["Write campaign lockfile"]
+  Pin --> Observe["Observe + rate-limit + audit"]
+  Observe --> Rollback["Disable / rollback safely"]
+        </pre></div>
+      </div>
+    </section>
+
+    <section id="agents">
+      <div class="section-kicker">08 / Agent control plane</div>
+      <h2>Agents use the same doors as humans</h2>
+      <p class="section-intro">Do not bolt an agent onto Prisma or impersonate a user session. Give agents first-class service identities and expose a generated catalog of typed commands and visibility-filtered queries through MCP or API adapters.</p>
+      <div class="diagram-card">
+        <div class="diagram-head"><div><h3>Safe agent command sequence</h3><p>Consequential actions can stop at plan or approval without changing the command contract.</p></div><div class="controls"><button data-z="out">−</button><button data-z="reset">1:1</button><button data-z="in">+</button></div></div>
+        <div class="mermaid-wrap"><pre class="mermaid">
+sequenceDiagram
+  participant A as Agent
+  participant M as MCP adapter
+  participant C as Command catalog
+  participant P as Policy / approval
+  participant U as Unit of work
+  participant D as Domain
+  participant O as Audit + outbox
+  A->>M: MoveToken v1 + idempotency key
+  M->>C: validate typed input
+  C->>P: principal + capabilities + scope
+  alt approval required
+    P-->>A: approval_required + exact diff/hash
+    A->>P: approved single-use token
+  end
+  P->>U: execute with expected revision
+  U->>D: apply invariant-safe command
+  D-->>U: result + domain events
+  U->>O: persist state, invocation, outbox atomically
+  O-->>A: result + revisions + correlation id
+        </pre></div>
+      </div>
+      <div class="grid-3" style="margin-top:16px">
+        <div class="card"><h3>Principal</h3><p><span class="tag">HUMAN</span><span class="tag">SERVICE</span><span class="tag">AGENT</span><span class="tag">PLUGIN</span><br>Explicit delegator, campaign scope, and expiring grants.</p></div>
+        <div class="card"><h3>Command contract</h3><p>Name/version, Zod input/output, required capabilities, risk class, idempotency, expected revision, and execute method.</p></div>
+        <div class="card"><h3>Immutable audit</h3><p>Principal, sanitized I/O, policy, approval, before/after revisions, events, correlation, model and plugin provenance.</p></div>
+      </div>
+    </section>
+
+    <section id="swap">
+      <div class="section-kicker">09 / Renderer microkernel</div>
+      <h2>Make the scene stable; make rendering replaceable</h2>
+      <p class="section-intro">The scene kernel owns truth, viewport, normalized input, invalidation, command dispatch, and registry lifecycle. A renderer adapter only mounts a target, consumes an authorized snapshot, draws registered layers, and disposes cleanly.</p>
+      <div class="diagram-card">
+        <div class="diagram-head"><div><h3>Renderer-neutral scene architecture</h3><p>Canvas2D becomes the first adapter—not the definition of rendering.</p></div><div class="controls"><button data-z="out">−</button><button data-z="reset">1:1</button><button data-z="in">+</button></div></div>
+        <div class="mermaid-wrap"><pre class="mermaid">
+flowchart LR
+  Gateway["Session gateway"] --> Events["Typed scene events"]
+  Events --> Scene["SceneStore · live truth"]
+  Input["Normalized pointer / keys"] --> Kernel["SceneKernel"]
+  Tools["InteractionTool registry"] --> Kernel
+  Slots["UI slot registry"] --> Kernel
+  Scene --> Kernel
+  Kernel --> Commands["Shared command bus"]
+  Kernel --> RenderPort["RendererAdapter port"]
+  RenderPort --> C2D["Canvas2D adapter"]
+  RenderPort --> WebGL["Pixi / WebGL adapter"]
+  RenderPort --> Headless["Headless / deterministic adapter"]
+  Layers["SceneLayer registry"] --> RenderPort
+  Assets["Logical AssetResolver"] --> RenderPort
+  classDef core fill:#dce8dc,stroke:#5e7d63,color:#152238
+  class Kernel,Scene,RenderPort core
+        </pre></div>
+      </div>
+      <div class="diagram-card" style="margin-top:16px">
+        <div class="diagram-head"><div><h3>Hot-swap protocol</h3><p>Mount the candidate offscreen and roll back if it cannot become ready.</p></div><div class="controls"><button data-z="out">−</button><button data-z="reset">1:1</button><button data-z="in">+</button></div></div>
+        <div class="mermaid-wrap"><pre class="mermaid">
+flowchart LR
+  Pause["Pause input dispatch"] --> Save["Serialize viewport + selection"]
+  Save --> Mount["Mount candidate offscreen"]
+  Mount --> Snapshot["Send authorized scene snapshot"]
+  Snapshot --> Ready{"Renderer ready?"}
+  Ready -->|"yes"| Swap["Atomic surface swap"]
+  Swap --> Resume["Restore state + resume input"]
+  Resume --> Dispose["Dispose old adapter"]
+  Ready -->|"no"| Abort["Dispose candidate"]
+  Abort --> Old["Resume old renderer"]
+        </pre></div>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <div class="section-kicker">10 / Migration strategy</div>
+      <h2>Refactor by vertical slices, not a rewrite</h2>
+      <p class="section-intro">The sequence deliberately earns safe extension points before enabling third-party runtime code. Each phase leaves the product shippable.</p>
+      <div class="timeline">
+        <div class="phase"><b>Characterize</b><p>Lock behavior with socket contract tests, visual snapshots, concurrency tests, and a provisioned integration database in CI.</p></div>
+        <div class="phase"><b>Command spine</b><p>Introduce Principal, CommandBus, QueryBus, CapabilityService, UnitOfWork, ActionInvocation, and outbox. Move <span class="mono">MoveToken</span> first.</p></div>
+        <div class="phase"><b>Scene consistency</b><p>Add map revisions and compare-and-swap immediately; then move frequently edited scene entities to granular storage or an operation log.</p></div>
+        <div class="phase"><b>Frontend kernel</b><p>Extract SessionGateway, SceneStore, ToolStore, input normalization, and registries. Wrap today’s renderer as Canvas2DRendererAdapter.</p></div>
+        <div class="phase"><b>Prove the ports</b><p>Add a second renderer (Pixi/WebGL) and a headless renderer; migrate ruler or AoE as the first registered tool/layer.</p></div>
+        <div class="phase"><b>Agent adapter</b><p>Generate MCP/API tools from the command catalog. Add service identities, scoped grants, approval tokens, cancellation, and subscriptions.</p></div>
+        <div class="phase"><b>Plugin runtime</b><p>Add manifests, compatibility rules, sandboxing, contribution registry, UI slots, lifecycle management, lockfiles, and rollback.</p></div>
+      </div>
+      <div class="callout"><b>First production milestone:</b><p>A human UI, Socket.IO client, REST client, and test agent all invoke the same versioned <span class="mono">MoveToken</span> command; concurrent writes reject cleanly; state, audit, and outbox commit together.</p></div>
+    </section>
+
+    <section id="evidence">
+      <div class="section-kicker">11 / Evidence atlas</div>
+      <h2>Where the conclusions came from</h2>
+      <p class="section-intro">Use these landmarks to move from this explainer into the source. Line numbers describe the audited revision and will drift as the fork evolves.</p>
+      <details open><summary>Composition and backend boundaries</summary><ul>
+        <li><span class="mono">backend/src/server.ts:130</span> — manual REST composition root.</li>
+        <li><span class="mono">backend/src/websocket/events.ts:132</span> — manual socket registrar composition.</li>
+        <li><span class="mono">backend/src/config/database.ts:6</span> — global Prisma singleton.</li>
+        <li><span class="mono">backend/src/websocket/utils.ts:10,99</span> — global Socket.IO and mixed persistence/publication utility.</li>
+        <li><span class="mono">backend/src/middleware/compose.ts:14</span> and <span class="mono">rbac.ts:30</span> — good composable policy seam.</li>
+      </ul></details>
+      <details><summary>Concurrency and transaction risks</summary><ul>
+        <li><span class="mono">backend/prisma/schema.prisma:303</span> — scene state stored as Map JSON columns.</li>
+        <li><span class="mono">backend/src/websocket/handlers/tokens.ts:190</span> — read/mutate/replace token flow.</li>
+        <li><span class="mono">backend/src/websocket/handlers/walls.ts:37</span> and <span class="mono">fog.ts:41</span> — same lost-update shape.</li>
+        <li><span class="mono">backend/src/routes/campaigns.ts:123,1060</span> — multi-record workflows without a shared transaction boundary.</li>
+        <li><span class="mono">backend/src/routes/invitations.ts:124</span> — notable existing transaction example.</li>
+      </ul></details>
+      <details><summary>Rendering and frontend structure</summary><ul>
+        <li><span class="mono">frontend/src/components/MapCanvas.tsx:99,1206,1492,1612</span> — stacked canvases, fixed render order, dispatcher, and input precedence.</li>
+        <li><span class="mono">frontend/src/hooks/map/useRenderLoop.ts:19</span> — dirty-layer requestAnimationFrame scheduler.</li>
+        <li><span class="mono">frontend/src/components/map/layers/types.ts:1</span> — pure draw signature, coupled to Canvas2D.</li>
+        <li><span class="mono">frontend/src/stores/gameStore.ts:10</span> — normalized game state.</li>
+        <li><span class="mono">frontend/src/components/CharacterSheetRouter.tsx:14</span> — closed game-system switch.</li>
+      </ul></details>
+      <details><summary>Agent and plugin readiness</summary><ul>
+        <li><span class="mono">backend/prisma/schema.prisma:18,85</span> — human-only ADMIN/USER identity model.</li>
+        <li><span class="mono">backend/src/websocket/auth.ts:23,52</span> — cookie session and cached campaign authorization.</li>
+        <li><span class="mono">backend/docs/API_DOCUMENTATION.yaml:7</span> — cookie-only API auth contract.</li>
+        <li><span class="mono">frontend/src/services/socket.ts:212</span> — client sync methods without matching general server handlers.</li>
+        <li><span class="mono">backend/prisma/schema.prisma:530</span> — current SystemLog is not a universal action ledger.</li>
+      </ul></details>
+      <details><summary>Quality snapshot</summary><ul>
+        <li>Frontend: typecheck, lint, build, and 143 tests passed.</li>
+        <li>Backend: build passed; 210 tests passed and 3 skipped. Three DB-backed suites need a provisioned <span class="mono">DATABASE_URL</span>.</li>
+        <li>Dependency mapping: no circular dependencies found from backend server or frontend main entrypoints.</li>
+        <li>No GitHub Actions workflow was present at audit time.</li>
+      </ul></details>
+    </section>
+
+    <section>
+      <div class="section-kicker">Glossary / plain language</div>
+      <h2>The architecture vocabulary</h2>
+      <div class="grid-2">
+        <div class="card"><h3>Hexagonal / ports and adapters</h3><p>The game’s rules sit in the middle. Web servers, databases, sockets, renderers, and agents plug into named interfaces around the edge.</p></div>
+        <div class="card"><h3>Modular monolith</h3><p>One deployable application with genuinely enforced internal boundaries. It is not shorthand for “big ball of files.”</p></div>
+        <div class="card"><h3>Microkernel / plugin architecture</h3><p>A small trusted host manages lifecycle and registries; separately versioned features contribute through constrained extension points.</p></div>
+        <div class="card"><h3>Strategy + Bridge</h3><p>The scene asks a renderer interface to draw; Canvas2D, WebGL, and headless implementations can be selected or exchanged.</p></div>
+        <div class="card"><h3>Command / query bus</h3><p>Every action and read has one typed, policy-checked route, regardless of whether its caller is a person, socket, REST endpoint, or agent.</p></div>
+        <div class="card"><h3>Transactional outbox</h3><p>The state change and the promise to publish its event commit together, so clients cannot miss an update after the database succeeds.</p></div>
+      </div>
+    </section>
+
+    <div class="footer"><span>CozyVTT architectural field guide · generated from a read-only multi-perspective audit</span><span class="mono">fork: ShamanicArts/CozyVTT</span></div>
+  </main>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    securityLevel: 'loose',
+    flowchart: { curve: 'basis', useMaxWidth: false },
+    themeVariables: {
+      fontFamily: 'DM Sans',
+      fontSize: '15px',
+      primaryColor: '#e4edf2',
+      primaryTextColor: '#152238',
+      primaryBorderColor: '#2b6f97',
+      lineColor: '#657487',
+      secondaryColor: '#dce8dc',
+      tertiaryColor: '#fff0c9',
+      noteBkgColor: '#fff0c9',
+      noteBorderColor: '#b07a28',
+      actorBkg: '#e4edf2',
+      actorBorder: '#2b6f97',
+      actorTextColor: '#152238',
+      signalColor: '#163a5f',
+      signalTextColor: '#152238'
+    }
+  });
+  await mermaid.run({ querySelector: '.mermaid' });
+
+  document.querySelectorAll('.mermaid-wrap').forEach((wrap) => {
+    const canvas = wrap.querySelector('.mermaid');
+    const card = wrap.closest('.diagram-card');
+    let scale = 1, x = 0, y = 0, dragging = false, sx = 0, sy = 0;
+    const apply = () => { canvas.style.transform = `translate(${x}px, ${y}px) scale(${scale})`; };
+    card.querySelectorAll('[data-z]').forEach((button) => button.addEventListener('click', () => {
+      const action = button.dataset.z;
+      if (action === 'reset') { scale = 1; x = 0; y = 0; }
+      if (action === 'in') scale = Math.min(2.5, scale + .15);
+      if (action === 'out') scale = Math.max(.45, scale - .15);
+      apply();
+    }));
+    wrap.addEventListener('wheel', (event) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      event.preventDefault();
+      scale = Math.max(.45, Math.min(2.5, scale + (event.deltaY < 0 ? .1 : -.1)));
+      apply();
+    }, { passive: false });
+    wrap.addEventListener('pointerdown', (event) => { dragging = true; sx = event.clientX - x; sy = event.clientY - y; wrap.classList.add('dragging'); wrap.setPointerCapture(event.pointerId); });
+    wrap.addEventListener('pointermove', (event) => { if (!dragging) return; x = event.clientX - sx; y = event.clientY - sy; apply(); });
+    wrap.addEventListener('pointerup', () => { dragging = false; wrap.classList.remove('dragging'); });
+  });
+
+  const sections = [...document.querySelectorAll('main [id]')];
+  const links = [...document.querySelectorAll('nav a')];
+  const observer = new IntersectionObserver((entries) => {
+    entries.filter(e => e.isIntersecting).forEach(entry => {
+      links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === `#${entry.target.id}`));
+    });
+  }, { rootMargin: '-25% 0px -65% 0px' });
+  sections.forEach(section => observer.observe(section));
+</script>
+</body>
+</html>

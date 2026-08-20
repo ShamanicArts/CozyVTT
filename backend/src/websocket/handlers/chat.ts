@@ -7,6 +7,27 @@ import { AuthenticatedSocket } from '../auth';
 import { prisma } from '../../config/database';
 import logger from '../../utils/logger';
 import { chatMessageLimiter } from '../shared';
+import { CommandBus } from '../../application/commands/CommandBus';
+import {
+  SEND_CHAT_MESSAGE,
+  SendChatMessage,
+  SendChatMessageCommand,
+  SendChatMessageResult,
+} from '../../application/chat/SendChatMessage';
+import { ChatMessageError } from '../../domain/chat/ChatMessage';
+import { PrismaChatMessageRepository } from '../../adapters/persistence/PrismaChatMessageRepository';
+import { SocketCampaignChatCooldownGate } from '../../adapters/rateLimiting/SocketCampaignChatCooldownGate';
+
+// Socket.IO authenticates the actor and fans out the result, while the
+// command owns validation, cooldown policy, user lookup, and persistence.
+const chatCommands = new CommandBus();
+chatCommands.register(
+  SEND_CHAT_MESSAGE,
+  new SendChatMessage(
+    new PrismaChatMessageRepository(prisma),
+    new SocketCampaignChatCooldownGate(chatMessageLimiter)
+  )
+);
 
 export function registerChatHandlers(io: Server, socket: AuthenticatedSocket): void {
   /**
@@ -22,74 +43,23 @@ export function registerChatHandlers(io: Server, socket: AuthenticatedSocket): v
         return;
       }
 
-      const { content, type } = data;
-
-      // Validate content is provided
-      if (!content || typeof content !== 'string' || content.trim().length === 0) {
-        socket.emit('error', { message: 'Message content required' });
-        return;
-      }
-
-      // Validate message length (max 2000 characters)
-      if (content.length > 2000) {
-        socket.emit('error', { message: 'Message too long. Maximum 2000 characters.' });
-        return;
-      }
-
-      // Validate message type
-      if (type !== 'PLAYER' && type !== 'DM') {
-        socket.emit('error', { message: 'Invalid message type. Must be PLAYER or DM.' });
-        return;
-      }
-
-      // Rate limiting: respect campaign's chatCooldown settings
-      const campaignSettings = await prisma.campaign.findUnique({
-        where: { id: socket.campaignId },
-        select: { chatCooldownEnabled: true, chatCooldownSeconds: true },
-      });
-
-      if (campaignSettings?.chatCooldownEnabled) {
-        const windowMs = (campaignSettings.chatCooldownSeconds ?? 5) * 1000;
-        if (!chatMessageLimiter.check(`${socket.userId}:${socket.campaignId}`, 1, windowMs)) {
-          socket.emit('error', { message: `Rate limit: wait ${campaignSettings.chatCooldownSeconds}s between messages.` });
-          return;
-        }
-      }
-
-      // Get user information
-      const user = await prisma.user.findUnique({
-        where: { id: socket.userId },
-        select: { displayName: true },
-      });
-
-      if (!user) {
-        socket.emit('error', { message: 'User not found' });
-        return;
-      }
-
-      // Save to database
-      const message = await prisma.message.create({
-        data: {
-          campaignId: socket.campaignId,
-          userId: socket.userId!,
-          type,
-          content: content.trim(),
-          // metadata is optional for chat messages
-        },
+      const message = await chatCommands.dispatch<SendChatMessageCommand, SendChatMessageResult>({
+        type: SEND_CHAT_MESSAGE,
+        campaignId: socket.campaignId,
+        userId: socket.userId!,
+        content: data?.content,
+        messageType: data?.type,
       });
 
       // Broadcast to all campaign members (including sender)
-      io.to(socket.campaignId).emit('chat.message', {
-        id: message.id,
-        userId: socket.userId,
-        userName: user.displayName,
-        content: content.trim(),
-        type,
-        timestamp: message.createdAt.toISOString(),
-      });
+      io.to(socket.campaignId).emit('chat.message', message);
 
-      logger.debug('chat.message', { type, userId: socket.userId, campaignId: socket.campaignId });
+      logger.debug('chat.message', { type: message.type, userId: socket.userId, campaignId: socket.campaignId });
     } catch (error) {
+      if (error instanceof ChatMessageError) {
+        socket.emit('error', { message: error.message });
+        return;
+      }
       logger.error('chat.message failed', { err: error });
       socket.emit('error', { message: 'Failed to send chat message' });
     }

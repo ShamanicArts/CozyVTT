@@ -5,9 +5,24 @@
 import { Server } from 'socket.io';
 import { AuthenticatedSocket } from '../auth';
 import { prisma } from '../../config/database';
-import { rollDice, parseDiceExpression, DiceParserError } from '../../utils/dice-parser';
 import logger from '../../utils/logger';
 import { diceRollLimiter } from '../shared';
+import { CommandBus } from '../../application/commands/CommandBus';
+import { ROLL_DICE, RollDice, RollDiceCommand, RollDiceResult } from '../../application/dice/RollDice';
+import { DiceRollError } from '../../domain/dice/DiceRoll';
+import { PrismaDiceRollRepository } from '../../adapters/persistence/PrismaDiceRollRepository';
+import { DiceParserExpressionRoller } from '../../adapters/dice/DiceParserExpressionRoller';
+import { SocketCampaignDiceRollRateGate } from '../../adapters/rateLimiting/SocketCampaignDiceRollRateGate';
+
+const diceCommands = new CommandBus();
+diceCommands.register(
+  ROLL_DICE,
+  new RollDice(
+    new PrismaDiceRollRepository(prisma),
+    new DiceParserExpressionRoller(),
+    new SocketCampaignDiceRollRateGate(diceRollLimiter)
+  )
+);
 
 export function registerDiceHandlers(io: Server, socket: AuthenticatedSocket): void {
   /**
@@ -23,94 +38,17 @@ export function registerDiceHandlers(io: Server, socket: AuthenticatedSocket): v
         return;
       }
 
-      const { expression, characterName, purpose, secret } = data;
-
-      // Validate expression is provided
-      if (!expression || typeof expression !== 'string') {
-        socket.emit('error', { message: 'Dice expression required' });
-        return;
-      }
-
-      // Rate limiting: 30 rolls per minute per user
-      if (!diceRollLimiter.check(socket.userId!, 30, 60 * 1000)) {
-        socket.emit('error', { message: 'Rate limit exceeded. Maximum 30 dice rolls per minute.' });
-        return;
-      }
-
-      // Validate expression syntax (without rolling)
-      try {
-        parseDiceExpression(expression);
-      } catch (error) {
-        if (error instanceof DiceParserError) {
-          socket.emit('error', { message: `Invalid dice expression: ${error.message}` });
-          return;
-        }
-        throw error;
-      }
-
-      // Roll the dice
-      const rollResult = rollDice(expression);
-
-      // Get user information
-      const user = await prisma.user.findUnique({
-        where: { id: socket.userId },
-        select: { displayName: true },
+      const rollData = await diceCommands.dispatch<RollDiceCommand, RollDiceResult>({
+        type: ROLL_DICE,
+        campaignId: socket.campaignId,
+        userId: socket.userId!,
+        expression: data?.expression,
+        characterName: data?.characterName,
+        purpose: data?.purpose,
+        secret: data?.secret,
       });
 
-      if (!user) {
-        socket.emit('error', { message: 'User not found' });
-        return;
-      }
-
-      // SECURITY: Save ALL rolls to database (including secret rolls for audit)
-      // Secret rolls are marked but still saved for DM oversight and dispute resolution
-      const diceRoll = await prisma.diceRoll.create({
-        data: {
-          campaignId: socket.campaignId,
-          userId: socket.userId!,
-          expression,
-          result: rollResult.total,
-          breakdown: rollResult as any, // Store full RollResult
-          characterName: characterName || null,
-          purpose: purpose || null,
-          secret: secret || false, // Mark as secret for visibility filtering
-        },
-      });
-
-      // Create system message for dice roll
-      // Secret rolls are marked differently in chat
-      await prisma.message.create({
-        data: {
-          campaignId: socket.campaignId,
-          userId: socket.userId,
-          type: 'DICE_ROLL',
-          content: `${user.displayName}${characterName ? ` (${characterName})` : ''} rolled ${expression}${purpose ? ` for ${purpose}` : ''}${secret ? ' (SECRET)' : ''}`,
-          metadata: {
-            diceRollId: diceRoll.id,
-            expression,
-            result: rollResult.total,
-            breakdown: JSON.parse(JSON.stringify(rollResult)),
-            characterName: characterName || null,
-            purpose: purpose || null,
-            secret: secret || false, // Mark in metadata for client filtering
-          } as any,
-        },
-      });
-
-      // Broadcast result with role-based filtering
-      const rollData = {
-        userId: socket.userId,
-        userName: user.displayName,
-        characterName: characterName || null,
-        expression,
-        result: rollResult.total,
-        breakdown: rollResult,
-        purpose: purpose || null,
-        timestamp: new Date().toISOString(),
-        secret: secret || false,
-      };
-
-      if (secret) {
+      if (rollData.secret) {
         // Secret roll - send to roller (always)
         socket.emit('dice.rolled', rollData);
 
@@ -133,14 +71,19 @@ export function registerDiceHandlers(io: Server, socket: AuthenticatedSocket): v
         io.to(socket.campaignId).emit('dice.rolled', rollData);
       }
 
-      logger.debug('dice.roll', { expression, result: rollResult.total, userId: socket.userId, secret: secret || false, campaignId: socket.campaignId });
+      logger.debug('dice.roll', { expression: rollData.expression, result: rollData.result, userId: socket.userId, secret: rollData.secret, campaignId: socket.campaignId });
     } catch (error) {
-      logger.error('dice.roll failed', { err: error });
-      if (error instanceof DiceParserError) {
-        socket.emit('error', { message: `Dice roll failed: ${error.message}` });
-      } else {
-        socket.emit('error', { message: 'Failed to roll dice' });
+      if (error instanceof DiceRollError) {
+        const message = error.code === 'INVALID_EXPRESSION'
+          ? `Invalid dice expression: ${error.message}`
+          : error.code === 'ROLL_FAILED'
+            ? `Dice roll failed: ${error.message}`
+            : error.message;
+        socket.emit('error', { message });
+        return;
       }
+      logger.error('dice.roll failed', { err: error });
+      socket.emit('error', { message: 'Failed to roll dice' });
     }
   });
 
