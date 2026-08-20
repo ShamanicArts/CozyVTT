@@ -95,9 +95,16 @@ same core-host transaction/outbox coverage for that path.
 
 Authenticated clients may fetch active data-only theme contributions from
 `/api/extensions/contributions`. ThemeHost validates complete semantic palettes
-before registration. This does not permit arbitrary CSS, frontend bundle
-loading, or renderer replacement; renderer extensions remain controlled
-in-process canvas registrations.
+before registration, and validated themes appear in the standard theme picker.
+Active trusted packages may also declare a self-contained browser renderer
+entrypoint. The server rechecks the installed package checksum and serves only
+that declared JavaScript file; the browser gives it a versioned, scoped API for
+registering or replacing map-canvas layers. Sandboxed installations cannot
+serve renderer code. This does not permit arbitrary CSS, React route/component
+injection, or undeclared frontend files.
 
-There is no MCP server, public package marketplace, or arbitrary agent HTTP,
-database, shell, or Socket.IO access in the current host.
+The campaign-scoped MCP endpoint at `/api/mcp/campaigns/:campaignId` is another
+adapter over the existing credential, grant, query/command, confirmation,
+idempotency, and audit boundaries. It does not expose arbitrary HTTP, database,
+shell, or Socket.IO access. Packages remain local operator-controlled files;
+there is intentionally no public package marketplace or remote package store.

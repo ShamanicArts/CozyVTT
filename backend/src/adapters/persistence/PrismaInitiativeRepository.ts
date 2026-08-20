@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { InitiativeMap, InitiativeToken } from '../../domain/initiative/Initiative';
 import { InitiativeRepository } from '../../ports/InitiativeRepository';
+import { updateMapAtRevision } from './PrismaMapRevision';
 
 /** Prisma implementation for the map JSON token array used by initiative. */
 export class PrismaInitiativeRepository implements InitiativeRepository {
@@ -9,7 +10,7 @@ export class PrismaInitiativeRepository implements InitiativeRepository {
   async findMap(mapId: string): Promise<InitiativeMap | null> {
     const map = await this.client.map.findUnique({
       where: { id: mapId },
-      select: { id: true, campaignId: true, tokens: true },
+      select: { id: true, revision: true, campaignId: true, tokens: true },
     });
     if (!map) return null;
     return {
@@ -18,11 +19,11 @@ export class PrismaInitiativeRepository implements InitiativeRepository {
     };
   }
 
-  async updateTokens(mapId: string, tokens: InitiativeToken[]): Promise<void> {
-    await this.client.map.update({
-      where: { id: mapId },
-      data: { tokens: tokens as unknown as Prisma.InputJsonValue },
+  async updateTokens(mapId: string, expectedRevision: number, tokens: InitiativeToken[]): Promise<number> {
+    const map = await updateMapAtRevision(this.client, mapId, expectedRevision, {
+      tokens: tokens as unknown as Prisma.InputJsonValue,
     });
+    return map.revision;
   }
 
   async findUserDisplayName(userId: string): Promise<string | null> {

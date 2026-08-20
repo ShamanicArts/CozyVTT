@@ -12,6 +12,10 @@ export interface ExtensionPackageCatalog {
   load(
     discovered: DiscoveredExtensionPackage,
   ): Promise<ReviewedExtensionPackage>;
+  readBrowserModule(
+    discovered: DiscoveredExtensionPackage,
+    relativePath: string,
+  ): Promise<Buffer>;
 }
 
 export interface ExtensionTrustAllowlist {

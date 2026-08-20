@@ -22,7 +22,7 @@ const light = (id = 'light-1'): LightSource => ({
 
 function mapWith(overrides: Partial<SceneMap> = {}): SceneMap {
   return {
-    id: 'map-1', campaignId: 'campaign-1', width: 10, height: 8, gridSize: 50,
+    id: 'map-1', revision: 4, campaignId: 'campaign-1', width: 10, height: 8, gridSize: 50,
     wallSegments: [wall()], fogData: null, lights: [light()], lightingEnabled: false, ...overrides,
   };
 }
@@ -30,10 +30,10 @@ function mapWith(overrides: Partial<SceneMap> = {}): SceneMap {
 function repositoryFor(map: SceneMap | null = mapWith()): jest.Mocked<SceneMutationRepository> {
   return {
     findMap: jest.fn(async (_mapId: string) => map),
-    updateWallSegments: jest.fn(async (_mapId: string, _wallSegments: WallSegment[]) => undefined),
-    updateFog: jest.fn(async (_mapId: string, _fog: FogState) => undefined),
-    updateLights: jest.fn(async (_mapId: string, _lights: LightSource[]) => undefined),
-    updateLightingEnabled: jest.fn(async (_mapId: string, _enabled: boolean) => undefined),
+    updateWallSegments: jest.fn(async (_mapId: string, _revision: number, _segments: WallSegment[]) => 5),
+    updateFog: jest.fn(async (_mapId: string, _revision: number, _fog: FogState) => 5),
+    updateLights: jest.fn(async (_mapId: string, _revision: number, _lights: LightSource[]) => 5),
+    updateLightingEnabled: jest.fn(async (_mapId: string, _revision: number, _enabled: boolean) => 5),
   };
 }
 
@@ -50,7 +50,7 @@ describe('scene mutation commands', () => {
     });
 
     expect(result).toEqual([wall(), segment]);
-    expect(repository.updateWallSegments).toHaveBeenCalledWith('map-1', [wall(), segment]);
+    expect(repository.updateWallSegments).toHaveBeenCalledWith('map-1', 4, [wall(), segment]);
   });
 
   it('preserves the DM-only guard before reading or writing the map', async () => {
@@ -68,7 +68,7 @@ describe('scene mutation commands', () => {
     await new UpdateWallSegment(unlockedRepository).execute({
       type: UPDATE_WALL_SEGMENT, actor: player, mapId: 'map-1', segment: wall('door-1', 'door-open'),
     });
-    expect(unlockedRepository.updateWallSegments).toHaveBeenCalledWith('map-1', [wall('door-1', 'door-open')]);
+    expect(unlockedRepository.updateWallSegments).toHaveBeenCalledWith('map-1', 4, [wall('door-1', 'door-open')]);
 
     const lockedRepository = repositoryFor(mapWith({ wallSegments: [wall('door-1', 'door-locked')] }));
     await expect(new UpdateWallSegment(lockedRepository).execute({
@@ -91,7 +91,7 @@ describe('scene mutation commands', () => {
     });
 
     expect(fog).toEqual({ fogCols: 3, fogRows: 2, cellPx: 25, revealed: [true, false, false, true, false, false] });
-    expect(repository.updateFog).toHaveBeenCalledWith('map-1', fog);
+    expect(repository.updateFog).toHaveBeenCalledWith('map-1', 4, fog);
   });
 
   it('enforces the light-source cap before persisting', async () => {
@@ -109,6 +109,6 @@ describe('scene mutation commands', () => {
     await expect(new SetSceneLightingEnabled(repository).execute({
       type: SET_SCENE_LIGHTING_ENABLED, actor: dm, mapId: 'map-1', enabled: true,
     })).resolves.toBe(true);
-    expect(repository.updateLightingEnabled).toHaveBeenCalledWith('map-1', true);
+    expect(repository.updateLightingEnabled).toHaveBeenCalledWith('map-1', 4, true);
   });
 });

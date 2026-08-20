@@ -10,8 +10,8 @@
  * - Map annotations
  */
 
-import { prisma } from '../config/database';
-import logger from '../utils/logger';
+import { prisma } from "../config/database";
+import logger from "../utils/logger";
 
 /**
  * Game State Interface
@@ -37,7 +37,7 @@ export interface GameState {
  */
 export async function captureGameState(
   campaignId: string,
-  sessionId?: string
+  sessionId?: string,
 ): Promise<GameState> {
   try {
     // Get campaign with current map
@@ -55,7 +55,7 @@ export async function captureGameState(
     });
 
     if (!campaign) {
-      throw new Error('Campaign not found');
+      throw new Error("Campaign not found");
     }
 
     // Build state object
@@ -63,16 +63,24 @@ export async function captureGameState(
       sessionId: sessionId || undefined,
       savedAt: new Date().toISOString(),
       mapId: campaign.currentMapId,
-      tokens: campaign.currentMap?.tokens ? (Array.isArray(campaign.currentMap.tokens) ? campaign.currentMap.tokens : []) : [],
+      tokens: campaign.currentMap?.tokens
+        ? Array.isArray(campaign.currentMap.tokens)
+          ? campaign.currentMap.tokens
+          : []
+        : [],
       spiritLayerVisible: campaign.spiritLayerEnabled,
       currentVibe: campaign.currentVibe,
-      annotations: campaign.currentMap?.annotations ? (Array.isArray(campaign.currentMap.annotations) ? campaign.currentMap.annotations : []) : [],
+      annotations: campaign.currentMap?.annotations
+        ? Array.isArray(campaign.currentMap.annotations)
+          ? campaign.currentMap.annotations
+          : []
+        : [],
     };
 
     logger.info(`📸 Captured game state for campaign ${campaignId}`);
     return state;
   } catch (error) {
-    logger.error('❌ Error capturing game state', { err: error });
+    logger.error("❌ Error capturing game state", { err: error });
     throw error;
   }
 }
@@ -86,7 +94,7 @@ export async function captureGameState(
  */
 export async function restoreGameState(
   campaignId: string,
-  state: GameState
+  state: GameState,
 ): Promise<void> {
   try {
     // Validate campaign exists
@@ -95,7 +103,7 @@ export async function restoreGameState(
     });
 
     if (!campaign) {
-      throw new Error('Campaign not found');
+      throw new Error("Campaign not found");
     }
 
     // Update campaign settings
@@ -124,18 +132,23 @@ export async function restoreGameState(
           data: {
             tokens: state.tokens as any,
             annotations: state.annotations as any,
+            revision: { increment: 1 },
           },
         });
 
-        logger.info(`✅ Restored game state for campaign ${campaignId} (map: ${state.mapId})`);
+        logger.info(
+          `✅ Restored game state for campaign ${campaignId} (map: ${state.mapId})`,
+        );
       } else {
-        logger.warn(`⚠️ Map ${state.mapId} not found or doesn't belong to campaign ${campaignId}`);
+        logger.warn(
+          `⚠️ Map ${state.mapId} not found or doesn't belong to campaign ${campaignId}`,
+        );
       }
     }
 
     logger.info(`✅ Restored game state for campaign ${campaignId}`);
   } catch (error) {
-    logger.error('❌ Error restoring game state', { err: error });
+    logger.error("❌ Error restoring game state", { err: error });
     throw error;
   }
 }
@@ -150,7 +163,7 @@ export async function restoreGameState(
 export async function getLastSession(campaignId: string) {
   return await prisma.session.findFirst({
     where: { campaignId },
-    orderBy: { startedAt: 'desc' },
+    orderBy: { startedAt: "desc" },
   });
 }
 
@@ -161,10 +174,12 @@ export async function getLastSession(campaignId: string) {
  * @param campaignId - Campaign ID
  * @returns Next session number
  */
-export async function getNextSessionNumber(campaignId: string): Promise<number> {
+export async function getNextSessionNumber(
+  campaignId: string,
+): Promise<number> {
   const lastSession = await prisma.session.findFirst({
     where: { campaignId },
-    orderBy: { sessionNumber: 'desc' },
+    orderBy: { sessionNumber: "desc" },
     select: { sessionNumber: true },
   });
 

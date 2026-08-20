@@ -59,6 +59,7 @@ import {
   UpdateMapCommand,
 } from "../application/maps/MapLifecycleCommands";
 import { MapLifecycleError } from "../domain/maps/MapLifecycle";
+import { MapRevisionConflictError } from "../domain/maps/MapRevision";
 import {
   CREATE_MAP_TOKEN,
   CreateMapTokenCommand,
@@ -101,6 +102,14 @@ const mapCoreCommands = productionCommandBus;
 const uvttImportCommands = productionCommandBus;
 
 function sendMapLifecycleError(res: Response, error: unknown): boolean {
+  if (error instanceof MapRevisionConflictError) {
+    res.status(409).json({
+      error: "Conflict",
+      message: "Map state changed; refresh the map and retry",
+      expectedRevision: error.expectedRevision,
+    });
+    return true;
+  }
   if (!(error instanceof MapLifecycleError)) return false;
   res.status(error.status).json({ error: error.error, message: error.message });
   return true;
@@ -653,6 +662,7 @@ router.post(
         map: result.map,
       });
     } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
       if (error instanceof MapTokenError) {
         return res
           .status(error.status)
@@ -701,6 +711,7 @@ router.put(
         map: result.map,
       });
     } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
       if (error instanceof MapTokenError) {
         return res
           .status(error.status)
@@ -735,6 +746,7 @@ router.delete(
       });
       return res.status(200).json({ message: "Token removed successfully" });
     } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
       if (error instanceof MapTokenError) {
         return res
           .status(error.status)
@@ -836,6 +848,7 @@ router.put(
 
       return res.status(200).json({ segments });
     } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
       logger.error("Error replacing wall segments", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",
@@ -892,6 +905,7 @@ router.post(
         .status(201)
         .json({ segment: parsed.data, total: segments.length });
     } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
       logger.error("Error adding wall segment", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",
@@ -933,6 +947,7 @@ router.delete(
       });
       return res.status(200).json({ message: "Wall segment deleted" });
     } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
       logger.error("Error deleting wall segment", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",
@@ -988,6 +1003,7 @@ router.patch(
 
       return res.status(200).json({ segment });
     } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
       logger.error("Error updating wall segment", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",
@@ -1062,6 +1078,7 @@ router.put(
       broadcastToCampaign(campaignId, "lights:replaced", { mapId: id, lights });
       return res.status(200).json({ lights });
     } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
       logger.error("Error replacing light sources:", error);
       return res.status(500).json({
         error: "Internal Server Error",
@@ -1120,6 +1137,7 @@ router.post(
       });
       return res.status(201).json({ light: parsed.data, total: lights.length });
     } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
       logger.error("Error adding light source:", error);
       return res.status(500).json({
         error: "Internal Server Error",
@@ -1172,6 +1190,7 @@ router.patch(
       broadcastToCampaign(campaignId, "light:updated", { mapId: id, light });
       return res.status(200).json({ light });
     } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
       logger.error("Error updating light source:", error);
       return res.status(500).json({
         error: "Internal Server Error",
@@ -1215,6 +1234,7 @@ router.delete(
       broadcastToCampaign(campaignId, "light:removed", { mapId: id, lightId });
       return res.status(200).json({ message: "Light source deleted" });
     } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
       logger.error("Error deleting light source:", error);
       return res.status(500).json({
         error: "Internal Server Error",
@@ -1287,6 +1307,7 @@ router.post(
 
       return res.status(200).json({ fogState: fog });
     } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
       logger.error("Error applying fog operation", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",
@@ -1339,6 +1360,7 @@ router.put(
 
       return res.status(200).json({ lightingEnabled });
     } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
       logger.error("Error updating lighting setting", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",

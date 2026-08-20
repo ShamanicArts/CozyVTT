@@ -166,7 +166,7 @@ export class SetInitiativeValue extends InitiativeCommandBase implements Command
       const tokens = [...map.tokens];
       tokens[tokenIndex] = { ...tokens[tokenIndex], initiative: command.value as number | null };
       // Preserve old ordering: persistence happens before in-memory state changes.
-      await this.repository.updateTokens(map.id, tokens);
+      await this.repository.updateTokens(map.id, map.revision, tokens);
     }
 
     const state = this.stateStore.get(command.context.campaignId);
@@ -214,7 +214,7 @@ export class RollInitiative extends InitiativeCommandBase implements CommandHand
     const tokens = [...map.tokens];
     tokens[tokenIndex] = { ...token, initiative: rolledValue };
     // Maintain legacy durability-before-broadcast/state ordering.
-    await this.repository.updateTokens(map.id, tokens);
+    await this.repository.updateTokens(map.id, map.revision, tokens);
 
     const state = this.stateStore.get(command.context.campaignId);
     const existingIndex = state.combatants.findIndex((combatant) => combatant.tokenId === command.tokenId);

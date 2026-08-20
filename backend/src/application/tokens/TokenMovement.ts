@@ -147,7 +147,7 @@ export class FinalizeTokenMove extends TokenMoveCommandBase implements CommandHa
     const movedToken: MapToken = { ...token, position: { ...command.position } };
     const tokens = map.tokens.map((candidate) => candidate.id === command.tokenId ? movedToken : candidate);
 
-    await this.repository.updateTokens(command.mapId, tokens);
+    await this.repository.updateTokens(command.mapId, map.revision, tokens);
     return { map, token: movedToken, tokens };
   }
 }

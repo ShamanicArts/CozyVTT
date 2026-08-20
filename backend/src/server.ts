@@ -23,6 +23,7 @@ import tokenTemplateRoutes from "./routes/tokenTemplates";
 import adminRoutes from "./routes/admin";
 import configRoutes from "./routes/config";
 import agentRoutes from "./routes/agent";
+import mcpRoutes from "./routes/mcp";
 import extensionRoutes from "./routes/extensions";
 import extensionContributionRoutes from "./routes/extensionContributions";
 import { initializeWebSocket } from "./websocket";
@@ -157,6 +158,7 @@ app.use("/api/config", configRoutes);
 
 // Controlled agent and trusted-extension administration boundaries.
 app.use("/api/agent", agentRoutes);
+app.use("/api/mcp", mcpRoutes);
 app.use("/api/admin/extensions", extensionRoutes);
 app.use("/api/extensions", extensionContributionRoutes);
 

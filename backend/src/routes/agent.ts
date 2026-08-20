@@ -1,6 +1,15 @@
 import { createHash, randomBytes } from "crypto";
 import { Request, Response, Router } from "express";
-import { SET_ATMOSPHERE_EFFECT } from "../application/campaigns/RealtimeCampaignCommands";
+import {
+  CORE_AGENT_COMMANDS,
+  CORE_AGENT_EXTENSION_ID,
+  findCoreAgentCommand,
+  type CoreAgentCommand,
+} from "../application/agents/CoreAgentCatalog";
+import {
+  AgentPrincipalAuthenticator,
+  type AgentIdentity,
+} from "../application/agents/AgentPrincipalAuthenticator";
 import { productionApplicationHost } from "../composition/productionApplicationHost";
 import {
   digestCanonical,
@@ -28,55 +37,13 @@ import { productionExtensionRuntime } from "../composition/productionExtensionRu
 import { productionQueryHost } from "../composition/productionQueryHost";
 
 const router = Router();
-const CORE_AGENT_EXTENSION_ID = "cozyvtt.core-agent";
 const CONFIRMATION_TTL_MS = 5 * 60_000;
 const grants = new PrismaExtensionGrantPort(prisma);
 const agentAudit = new PrismaAgentAuditPort(prisma);
 const idempotency = new PrismaIdempotencyPort(prisma);
 const access = new PrismaAgentAccessRepository(prisma);
 const credentials = new AgentCredentialService(access, digest);
-
-interface CoreAgentCommand {
-  id: string;
-  title: string;
-  description: string;
-  risk: "read" | "medium" | "high";
-  inputSchema: JsonSchema;
-  outputSchema: JsonSchema;
-  requiresConfirmation: boolean;
-  write: boolean;
-}
-interface AgentIdentity {
-  credentialId: string;
-  delegatedUserId: string;
-  campaignId: string;
-}
-
-const CORE_AGENT_COMMANDS: readonly CoreAgentCommand[] = [
-  {
-    id: SET_ATMOSPHERE_EFFECT,
-    title: "Set campaign atmosphere effect",
-    description:
-      "Set or clear the active visual atmosphere effect for a campaign.",
-    risk: "medium",
-    inputSchema: {
-      type: "object",
-      properties: {
-        campaignId: { type: "string", minLength: 1, maxLength: 128 },
-        effect: {
-          enum: [null, "rain", "mist", "leaves", "sparkles", "snow", "wind"],
-        },
-      },
-      required: ["campaignId", "effect"],
-      additionalProperties: false,
-    },
-    outputSchema: {
-      enum: [null, "rain", "mist", "leaves", "sparkles", "snow", "wind"],
-    },
-    requiresConfirmation: true,
-    write: true,
-  },
-];
+const principalAuthenticator = new AgentPrincipalAuthenticator(access);
 
 router.post("/credentials", requireAuth, async (req, res) => {
   const campaignId =
@@ -481,35 +448,18 @@ async function agentIdentity(
     });
     return null;
   }
-  const credential = await access.findCredentialByHash(
-    digest(token),
-    new Date(),
-  );
-  if (
-    !credential ||
-    credential.campaignId !== campaignId ||
-    !(await access.campaignMembershipExists(
-      credential.delegatedUserId,
-      campaignId,
-    ))
-  ) {
+  const identity = await principalAuthenticator.authenticate(token, campaignId);
+  if (!identity) {
     res.status(401).json({
       error: "Unauthorized",
       message: "A valid agent bearer credential is required",
     });
     return null;
   }
-  await access.markCredentialUsed(credential.id, new Date());
-  return {
-    credentialId: credential.id,
-    delegatedUserId: credential.delegatedUserId,
-    campaignId,
-  };
+  return identity;
 }
 function findCommand(commandId: unknown): CoreAgentCommand | undefined {
-  return typeof commandId === "string"
-    ? CORE_AGENT_COMMANDS.find((command) => command.id === commandId)
-    : undefined;
+  return findCoreAgentCommand(commandId);
 }
 function findDynamicTool(toolId: unknown):
   | {

@@ -9,7 +9,7 @@ import {
 export interface MapCoreRepository {
   findMap(mapId: string): Promise<MapCoreRecord | null>;
   createMap(data: MapCoreCreateData): Promise<MapCoreRecord>;
-  updateMap(mapId: string, data: MapCoreUpdateData): Promise<MapCoreRecord>;
+  updateMap(mapId: string, expectedRevision: number, data: MapCoreUpdateData): Promise<MapCoreRecord>;
   deleteMap(mapId: string): Promise<void>;
   findCurrentMapId(campaignId: string): Promise<string | null>;
   setCurrentMap(campaignId: string, mapId: string): Promise<CurrentMapCampaign>;

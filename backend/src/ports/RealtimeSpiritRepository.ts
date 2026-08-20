@@ -1,5 +1,6 @@
 export interface RealtimeSpiritMap {
   id: string;
+  revision: number;
   campaignId: string;
   tokens: unknown;
   annotations?: unknown;
@@ -9,5 +10,5 @@ export interface RealtimeSpiritRepository {
   setSpiritLayerEnabled(campaignId: string, visible: boolean): Promise<void>;
   findCurrentMapId(campaignId: string): Promise<string | null>;
   findMap(mapId: string): Promise<RealtimeSpiritMap | null>;
-  updateMapTokens(mapId: string, tokens: unknown): Promise<void>;
+  updateMapTokens(mapId: string, expectedRevision: number, tokens: unknown): Promise<number>;
 }

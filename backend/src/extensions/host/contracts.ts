@@ -12,7 +12,10 @@ export interface ExtensionPackageManifest {
   readonly checksum: string;
   readonly signature?: string;
   readonly dependencies: Readonly<Record<string, string>>;
-  readonly contributions: { readonly themes: readonly ThemeContribution[] };
+  readonly contributions: {
+    readonly themes: readonly ThemeContribution[];
+    readonly renderers: readonly RendererContribution[];
+  };
 }
 
 /** Data-only frontend contribution; executable renderer bundles remain local trusted registrations. */
@@ -21,6 +24,20 @@ export interface ThemeContribution {
   readonly name: string;
   readonly contractVersion: "1.0";
   readonly tokens: Readonly<Record<string, string>>;
+}
+
+/** Executable browser contribution available only from active trusted packages. */
+export interface RendererContribution {
+  readonly id: string;
+  readonly name: string;
+  readonly contractVersion: "1.0.0";
+  /** Self-contained JavaScript module exporting `activateMapRenderer`. */
+  readonly browserEntrypoint: string;
+}
+
+export interface ExtensionBrowserModule {
+  readonly contents: Buffer;
+  readonly checksum: string;
 }
 
 export interface DiscoveredExtensionPackage {

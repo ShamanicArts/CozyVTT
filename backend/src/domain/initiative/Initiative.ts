@@ -39,6 +39,7 @@ export interface InitiativeState {
 
 export interface InitiativeMap {
   id: string;
+  revision: number;
   campaignId: string;
   tokens: InitiativeToken[];
 }

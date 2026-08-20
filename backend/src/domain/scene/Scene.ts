@@ -47,6 +47,7 @@ export type FogOperation =
 
 export interface SceneMap {
   id: string;
+  revision: number;
   campaignId: string;
   width: number;
   height: number;

@@ -124,6 +124,41 @@ export class LocalExtensionPackageCatalog implements ExtensionPackageCatalog {
     return { ...current, module: { ...module, manifest: loadedManifest } };
   }
 
+  public async readBrowserModule(
+    discovered: DiscoveredExtensionPackage,
+    relativePath: string,
+  ): Promise<Buffer> {
+    const current = await this.readPackage(discovered.packagePath);
+    if (
+      current.computedChecksum !== discovered.computedChecksum ||
+      JSON.stringify(current.packageManifest) !==
+        JSON.stringify(discovered.packageManifest)
+    ) {
+      throw new ExtensionHostError(
+        "Extension package changed after review",
+        "CHECKSUM_MISMATCH",
+      );
+    }
+    if (
+      path.isAbsolute(relativePath) ||
+      relativePath.split(/[\\/]/).includes("..") ||
+      !/\.(?:c?js|mjs)$/.test(relativePath)
+    ) {
+      throw new ExtensionHostError(
+        "Browser module path is invalid",
+        "PACKAGE_OUTSIDE_ROOT",
+      );
+    }
+    const candidate = path.resolve(current.packagePath, relativePath);
+    assertContained(current.packagePath, candidate);
+    const realCandidate = await realpathOrHostError(
+      candidate,
+      "Browser module is unavailable",
+    );
+    assertContained(current.packagePath, realCandidate);
+    return fs.readFile(realCandidate);
+  }
+
   private async readPackage(
     requestedPath: string,
   ): Promise<DiscoveredExtensionPackage> {

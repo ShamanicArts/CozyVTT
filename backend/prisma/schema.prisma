@@ -358,6 +358,7 @@ model Character {
 
 model Map {
   id String @id @default(uuid())
+  revision Int @default(0)
 
   // Ownership
   campaignId String

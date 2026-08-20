@@ -34,6 +34,14 @@ const themeContributionSchema = z
       .refine((tokens) => Object.keys(tokens).length <= 128),
   })
   .strict();
+const rendererContributionSchema = z
+  .object({
+    id: z.string().regex(/^[a-z][a-z0-9-]{2,63}$/),
+    name: z.string().trim().min(1).max(120),
+    contractVersion: z.literal("1.0.0"),
+    browserEntrypoint: packageEntrypointSchema,
+  })
+  .strict();
 
 export const extensionPackageManifestSchema: z.ZodType<ExtensionPackageManifest> =
   z
@@ -70,9 +78,10 @@ export const extensionPackageManifestSchema: z.ZodType<ExtensionPackageManifest>
       contributions: z
         .object({
           themes: z.array(themeContributionSchema).max(32).default([]),
+          renderers: z.array(rendererContributionSchema).max(16).default([]),
         })
         .strict()
-        .default({ themes: [] }),
+        .default({ themes: [], renderers: [] }),
     })
     .strict();
 

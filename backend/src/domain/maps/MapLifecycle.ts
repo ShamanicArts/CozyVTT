@@ -4,6 +4,7 @@ export type DiagonalRule = 'flat' | 'alternating';
 
 export interface MapCoreRecord {
   id: string;
+  revision: number;
   campaignId: string;
   name: string;
   imageUrl: string;

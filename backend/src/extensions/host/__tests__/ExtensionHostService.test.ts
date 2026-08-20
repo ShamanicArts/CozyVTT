@@ -35,6 +35,7 @@ function manifest(id: string, version = "1.0.0"): ExtensionManifest {
 function packageFor(
   id: string,
   dependencies: Record<string, string> = {},
+  renderer = false,
 ): DiscoveredExtensionPackage {
   const extensionManifest = manifest(id);
   const packageManifest: ExtensionPackageManifest = {
@@ -44,7 +45,19 @@ function packageFor(
     checksum,
     signature: "hmac-sha256:test",
     dependencies,
-    contributions: { themes: [] },
+    contributions: {
+      themes: [],
+      renderers: renderer
+        ? [
+            {
+              id: "glow",
+              name: "Glow",
+              contractVersion: "1.0.0",
+              browserEntrypoint: "renderer.mjs",
+            },
+          ]
+        : [],
+    },
   };
   return {
     packagePath: `/reviewed/${id}`,
@@ -112,6 +125,10 @@ class FakeCatalog implements ExtensionPackageCatalog {
     );
     if (!result) throw new Error(`No installed package at ${packagePath}`);
     return result;
+  }
+
+  async readBrowserModule(): Promise<Buffer> {
+    return Buffer.from("export const activateMapRenderer = () => undefined;");
   }
 
   async load(
@@ -253,5 +270,48 @@ describe("ExtensionHostService", () => {
     await expect(service.uninstall("cozyvtt.dice")).rejects.toMatchObject({
       code: "ACTIVE_DEPENDENT",
     });
+  });
+
+  it("serves browser renderer modules only for active trusted installations", async () => {
+    const trusted = packageFor("cozyvtt.renderer", {}, true);
+    const sandboxed = packageFor("cozyvtt.sandbox-renderer", {}, true);
+    const { service, repository } = trustedService(
+      new Map([
+        ["cozyvtt.renderer", trusted],
+        ["cozyvtt.sandbox-renderer", sandboxed],
+      ]),
+    );
+
+    await service.install("cozyvtt.renderer");
+    await service.activate("cozyvtt.renderer");
+    await repository.save({
+      extensionId: "cozyvtt.sandbox-renderer",
+      version: "1.0.0",
+      packagePath: sandboxed.packagePath,
+      packageChecksum: sandboxed.computedChecksum,
+      packageManifest: sandboxed.packageManifest,
+      installMode: "sandboxed",
+      state: "active",
+      lastError: null,
+      activatedAt: new Date("2026-08-20T00:00:00.000Z"),
+    });
+
+    await expect(service.listActiveRendererContributions()).resolves.toEqual([
+      {
+        extensionId: "cozyvtt.renderer",
+        renderer: trusted.packageManifest.contributions.renderers[0],
+      },
+    ]);
+    await expect(
+      service.readActiveRendererModule("cozyvtt.renderer", "glow"),
+    ).resolves.toEqual({
+      contents: Buffer.from(
+        "export const activateMapRenderer = () => undefined;",
+      ),
+      checksum,
+    });
+    await expect(
+      service.readActiveRendererModule("cozyvtt.sandbox-renderer", "glow"),
+    ).rejects.toMatchObject({ code: "UNKNOWN_INSTALLATION" });
   });
 });

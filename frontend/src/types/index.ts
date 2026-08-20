@@ -11,79 +11,79 @@
  * Game system enum - mirrors backend GameSystem enum
  */
 export enum GameSystem {
-  DND_5E = 'DND_5E',
-  PATHFINDER_2E = 'PATHFINDER_2E',
-  SHADOWRUN_6E = 'SHADOWRUN_6E',
-  CALL_OF_CTHULHU_7E = 'CALL_OF_CTHULHU_7E',
+  DND_5E = "DND_5E",
+  PATHFINDER_2E = "PATHFINDER_2E",
+  SHADOWRUN_6E = "SHADOWRUN_6E",
+  CALL_OF_CTHULHU_7E = "CALL_OF_CTHULHU_7E",
 }
 
 export enum PlatformRole {
-  ADMIN = 'ADMIN',
-  USER = 'USER',
+  ADMIN = "ADMIN",
+  USER = "USER",
 }
 
 export enum CampaignRole {
-  DM = 'DM',
-  PLAYER = 'PLAYER',
-  SPECTATOR = 'SPECTATOR',
+  DM = "DM",
+  PLAYER = "PLAYER",
+  SPECTATOR = "SPECTATOR",
 }
 
 export enum CampaignStatus {
-  PREPARATION = 'PREPARATION',
-  ACTIVE = 'ACTIVE',
-  PAUSED = 'PAUSED',
-  INACTIVE = 'INACTIVE',
-  COMPLETED = 'COMPLETED',
-  ARCHIVED = 'ARCHIVED',
+  PREPARATION = "PREPARATION",
+  ACTIVE = "ACTIVE",
+  PAUSED = "PAUSED",
+  INACTIVE = "INACTIVE",
+  COMPLETED = "COMPLETED",
+  ARCHIVED = "ARCHIVED",
 }
 
 export enum InvitationStatus {
-  PENDING = 'PENDING',
-  ACCEPTED = 'ACCEPTED',
-  DECLINED = 'DECLINED',
+  PENDING = "PENDING",
+  ACCEPTED = "ACCEPTED",
+  DECLINED = "DECLINED",
 }
 
 export enum AssetType {
-  MAP = 'MAP',
-  TOKEN = 'TOKEN',
-  AUDIO = 'AUDIO',
-  AVATAR = 'AVATAR',
-  DOCUMENT = 'DOCUMENT',
-  OTHER = 'OTHER',
+  MAP = "MAP",
+  TOKEN = "TOKEN",
+  AUDIO = "AUDIO",
+  AVATAR = "AVATAR",
+  DOCUMENT = "DOCUMENT",
+  OTHER = "OTHER",
 }
 
 export enum AssetScope {
-  GLOBAL = 'GLOBAL',
-  USER = 'USER',
-  CAMPAIGN = 'CAMPAIGN',
+  GLOBAL = "GLOBAL",
+  USER = "USER",
+  CAMPAIGN = "CAMPAIGN",
 }
 
 export enum MessageType {
-  PLAYER = 'PLAYER',
-  DM = 'DM',
-  SYSTEM = 'SYSTEM',
-  DICE_ROLL = 'DICE_ROLL',
-  CHARACTER_ACTION = 'CHARACTER_ACTION',
+  PLAYER = "PLAYER",
+  DM = "DM",
+  SYSTEM = "SYSTEM",
+  DICE_ROLL = "DICE_ROLL",
+  CHARACTER_ACTION = "CHARACTER_ACTION",
 }
 
 export enum TokenLayer {
-  TOKEN = 'token',
-  SPIRIT = 'spirit',
+  TOKEN = "token",
+  SPIRIT = "spirit",
 }
 
 export enum TokenType {
-  PLAYER = 'player',
-  NPC    = 'npc',
-  OBJECT = 'object',
+  PLAYER = "player",
+  NPC = "npc",
+  OBJECT = "object",
 }
 
 export enum TokenDisposition {
-  FRIENDLY = 'friendly',
-  NEUTRAL  = 'neutral',
-  HOSTILE  = 'hostile',
+  FRIENDLY = "friendly",
+  NEUTRAL = "neutral",
+  HOSTILE = "hostile",
 }
 
-export type TokenDisplayMode = 'pog' | 'top-down' | 'full-art';
+export type TokenDisplayMode = "pog" | "top-down" | "full-art";
 
 /** NPC stat block — game-system-agnostic container for combat stats. */
 export interface NpcStatBlock {
@@ -169,8 +169,8 @@ export interface CreatureTemplate {
 
 export interface TokenHp {
   current: number;
-  max:     number;
-  temp:    number;
+  max: number;
+  temp: number;
 }
 
 /** Reusable token template — saved configuration for placing tokens across maps. */
@@ -401,7 +401,11 @@ export interface Campaign {
   maps?: Map[];
   characters?: Character[];
   /** Most recent open (non-ended) session, if any — populated by GET /campaigns/:id */
-  activeSession?: { id: string; sessionNumber: number; startedAt: string } | null;
+  activeSession?: {
+    id: string;
+    sessionNumber: number;
+    startedAt: string;
+  } | null;
 }
 
 export interface VibeSettings {
@@ -490,10 +494,10 @@ export interface Character {
  * Import specific types from './game-systems' for type-safe access
  */
 export type CharacterData =
-  | import('./game-systems').DnD5eCharacterData
-  | import('./game-systems').PF2eCharacterData
-  | import('./game-systems').SR6CharacterData
-  | import('./game-systems').CoC7eCharacterData;
+  | import("./game-systems").DnD5eCharacterData
+  | import("./game-systems").PF2eCharacterData
+  | import("./game-systems").SR6CharacterData
+  | import("./game-systems").CoC7eCharacterData;
 
 // ============================================
 // Map & Tokens
@@ -501,6 +505,7 @@ export type CharacterData =
 
 export interface Map {
   id: string;
+  revision: number;
   campaignId: string;
   name: string;
   imageUrl: string;
@@ -510,13 +515,13 @@ export interface Map {
   height: number;
   gridSize: number;
   feetPerSquare: number;
-  diagonalRule: 'flat' | 'alternating';
+  diagonalRule: "flat" | "alternating";
   tokens: Token[];
   annotations: Annotation[];
-  wallSegments?: import('./walls').WallSegment[];
-  fogData?: import('./walls').FogState | null;
+  wallSegments?: import("./walls").WallSegment[];
+  fogData?: import("./walls").FogState | null;
   lightingEnabled?: boolean;
-  lights?: import('./walls').LightSource[];
+  lights?: import("./walls").LightSource[];
   createdAt: string;
   updatedAt: string;
 }
@@ -535,12 +540,12 @@ export interface Token {
   conditions: string[];
   metadata: Record<string, any>;
   // Token type system
-  type:        TokenType;
+  type: TokenType;
   disposition: TokenDisposition | null;
-  hp:          TokenHp | null;
-  showHpBar:   boolean;
-  notes:       string;
-  initiative:  number | null;
+  hp: TokenHp | null;
+  showHpBar: boolean;
+  notes: string;
+  initiative: number | null;
   /** Sight radius in grid squares (0 = unlimited). Used by dynamic lighting. */
   sightRadius?: number;
   /** Display mode: pog (circular + border), top-down (circular, no border), full-art (rectangular, alpha). Default: pog */
@@ -563,7 +568,7 @@ export interface Size {
 
 export interface Annotation {
   id: string;
-  type: 'circle' | 'line' | 'rectangle' | 'polygon';
+  type: "circle" | "line" | "rectangle" | "polygon";
   position: Position;
   color: string;
   [key: string]: any;
@@ -649,7 +654,7 @@ export interface DiceRollBreakdown {
 }
 
 export interface DiceRollDetail {
-  type: 'dice' | 'modifier';
+  type: "dice" | "modifier";
   notation?: string;
   count?: number;
   sides?: number;
@@ -783,7 +788,7 @@ export interface CreateMapRequest {
   height: number;
   gridSize?: number;
   feetPerSquare?: number;
-  diagonalRule?: 'flat' | 'alternating';
+  diagonalRule?: "flat" | "alternating";
   spiritLayerUrl?: string;
 }
 
@@ -793,7 +798,7 @@ export interface UpdateMapRequest {
   height?: number;
   gridSize?: number;
   feetPerSquare?: number;
-  diagonalRule?: 'flat' | 'alternating';
+  diagonalRule?: "flat" | "alternating";
   imageUrl?: string;
   spiritLayerUrl?: string | null;
   lightingEnabled?: boolean;
@@ -1027,8 +1032,8 @@ export interface CombatantEntry {
   imageUrl: string;
   initiative: number | null;
   hp: { current: number; max: number; temp: number } | null;
-  type: 'player' | 'npc' | 'object';
-  disposition: 'friendly' | 'neutral' | 'hostile' | null;
+  type: "player" | "npc" | "object";
+  disposition: "friendly" | "neutral" | "hostile" | null;
 }
 
 export interface CombatState {
@@ -1038,11 +1043,27 @@ export interface CombatState {
   combatants: CombatantEntry[];
 }
 
-export interface InitiativeAddEvent    { tokenId: string; mapId: string; }
-export interface InitiativeRemoveEvent { tokenId: string; }
-export interface InitiativeSetEvent    { tokenId: string; mapId: string; value: number | null; }
-export interface InitiativeRollEvent   { tokenId: string; mapId: string; expression: string; characterName?: string; }
-export interface InitiativeReorderEvent { orderedTokenIds: string[]; }
+export interface InitiativeAddEvent {
+  tokenId: string;
+  mapId: string;
+}
+export interface InitiativeRemoveEvent {
+  tokenId: string;
+}
+export interface InitiativeSetEvent {
+  tokenId: string;
+  mapId: string;
+  value: number | null;
+}
+export interface InitiativeRollEvent {
+  tokenId: string;
+  mapId: string;
+  expression: string;
+  characterName?: string;
+}
+export interface InitiativeReorderEvent {
+  orderedTokenIds: string[];
+}
 
 // ============================================
 // User Preferences (per-user theme + font)
@@ -1063,4 +1084,4 @@ export interface UserPreferences {
 // Game System Types
 // ============================================
 
-export * from './game-systems';
+export * from "./game-systems";

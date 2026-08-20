@@ -12,6 +12,7 @@ import { useMapPointerHandlers } from "../useMapPointerHandlers";
 
 const map: CampaignMap = {
   id: "map-1",
+  revision: 0,
   name: "Map",
   width: 20,
   height: 20,

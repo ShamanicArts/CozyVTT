@@ -16,7 +16,7 @@ import { MapCoreRepository } from '../../ports/MapCoreRepository';
 
 function mapWith(overrides: Partial<MapCoreRecord> = {}): MapCoreRecord {
   return {
-    id: 'map-1', campaignId: 'campaign-1', name: 'Old Map', imageUrl: '/api/assets/maps/old',
+    id: 'map-1', revision: 7, campaignId: 'campaign-1', name: 'Old Map', imageUrl: '/api/assets/maps/old',
     baseLayerUrl: '/api/assets/maps/old', width: 20, height: 15, gridSize: 50, feetPerSquare: 5,
     diagonalRule: 'flat', spiritLayerUrl: null, tokens: [], annotations: [], wallSegments: [], fogData: null,
     lightingEnabled: false, lights: [], createdAt: new Date('2025-01-01'), updatedAt: new Date('2025-01-01'), ...overrides,
@@ -27,7 +27,7 @@ function repositoryFor(map: MapCoreRecord | null = mapWith()): jest.Mocked<MapCo
   return {
     findMap: jest.fn(async (_mapId: string) => map),
     createMap: jest.fn(async (data) => mapWith({ ...data })),
-    updateMap: jest.fn(async (_mapId: string, data) => mapWith(data)),
+    updateMap: jest.fn(async (_mapId: string, _expectedRevision: number, data) => mapWith({ ...data, revision: 8 })),
     deleteMap: jest.fn(async (_mapId: string) => undefined),
     findCurrentMapId: jest.fn(async (_campaignId: string) => null),
     setCurrentMap: jest.fn(async (_campaignId: string, _mapId: string): Promise<CurrentMapCampaign> => ({ currentMap: { id: 'map-1', name: 'Old Map', imageUrl: '/api/assets/maps/old' } })),
@@ -67,7 +67,7 @@ describe('map lifecycle commands', () => {
     const result = await new UpdateMap(repository, assets).execute({
       type: UPDATE_MAP, campaignId: 'campaign-1', mapId: 'map-1', input: { imageUrl: 'replacement', lightingEnabled: true },
     });
-    expect(repository.updateMap).toHaveBeenCalledWith('map-1', {
+    expect(repository.updateMap).toHaveBeenCalledWith('map-1', 7, {
       imageUrl: '/api/assets/maps/replacement', baseLayerUrl: '/api/assets/maps/replacement',
     });
     expect(result.lightingEnabled).toBe(true);

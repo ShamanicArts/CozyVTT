@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { FogState, LightSource, SceneMap, WallSegment } from '../../domain/scene/Scene';
 import { SceneMutationRepository } from '../../ports/SceneMutationRepository';
+import { updateMapAtRevision } from './PrismaMapRevision';
 
 /** Prisma adapter for the scene JSON fields embedded in a map record. */
 export class PrismaSceneMutationRepository implements SceneMutationRepository {
@@ -11,6 +12,7 @@ export class PrismaSceneMutationRepository implements SceneMutationRepository {
       where: { id: mapId },
       select: {
         id: true,
+        revision: true,
         campaignId: true,
         width: true,
         height: true,
@@ -31,31 +33,31 @@ export class PrismaSceneMutationRepository implements SceneMutationRepository {
     };
   }
 
-  async updateWallSegments(mapId: string, wallSegments: WallSegment[]): Promise<void> {
-    await this.client.map.update({
-      where: { id: mapId },
-      data: { wallSegments: wallSegments as unknown as Prisma.InputJsonValue },
+  async updateWallSegments(mapId: string, expectedRevision: number, wallSegments: WallSegment[]): Promise<number> {
+    const map = await updateMapAtRevision(this.client, mapId, expectedRevision, {
+      wallSegments: wallSegments as unknown as Prisma.InputJsonValue,
     });
+    return map.revision;
   }
 
-  async updateFog(mapId: string, fog: FogState): Promise<void> {
-    await this.client.map.update({
-      where: { id: mapId },
-      data: { fogData: fog as unknown as Prisma.InputJsonValue },
+  async updateFog(mapId: string, expectedRevision: number, fog: FogState): Promise<number> {
+    const map = await updateMapAtRevision(this.client, mapId, expectedRevision, {
+      fogData: fog as unknown as Prisma.InputJsonValue,
     });
+    return map.revision;
   }
 
-  async updateLights(mapId: string, lights: LightSource[]): Promise<void> {
-    await this.client.map.update({
-      where: { id: mapId },
-      data: { lights: lights as unknown as Prisma.InputJsonValue },
+  async updateLights(mapId: string, expectedRevision: number, lights: LightSource[]): Promise<number> {
+    const map = await updateMapAtRevision(this.client, mapId, expectedRevision, {
+      lights: lights as unknown as Prisma.InputJsonValue,
     });
+    return map.revision;
   }
 
-  async updateLightingEnabled(mapId: string, enabled: boolean): Promise<void> {
-    await this.client.map.update({
-      where: { id: mapId },
-      data: { lightingEnabled: enabled },
+  async updateLightingEnabled(mapId: string, expectedRevision: number, enabled: boolean): Promise<number> {
+    const map = await updateMapAtRevision(this.client, mapId, expectedRevision, {
+      lightingEnabled: enabled,
     });
+    return map.revision;
   }
 }
