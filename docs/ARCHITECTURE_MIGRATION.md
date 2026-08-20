@@ -20,8 +20,10 @@ flowchart LR
   Rest --> Bus[Shared production CommandBus]
   Socket --> Bus
 
-  Agent[Bearer agent HTTP adapter] --> Host[Production ApplicationHost]
-  MCP[MCP Streamable HTTP adapter] --> Host
+  User[Signed-in campaign user] --> OAuth[OAuth PKCE approval]
+  OAuth --> MCP[MCP Streamable HTTP adapter]
+  Agent[Legacy JSON agent adapter] --> Host[Production ApplicationHost]
+  MCP --> Host
   Host --> Guard[Durable execution middleware]
   Guard --> Bus
 
@@ -33,7 +35,7 @@ flowchart LR
 
   Bus --> Ports[Application ports]
   Ports --> Prisma[Prisma persistence adapters]
-  Guard --> Durable[(grants, audit, idempotency, outbox)]
+  Guard --> Durable[(delegation, audit, idempotency, outbox)]
   Durable --> Worker[Outbox dispatcher]
 
   Browser --> Theme[ThemeHost]
@@ -77,8 +79,9 @@ host's durable middleware:
 
 1. computes a canonical SHA-256 input digest and records value-free audit
    decisions;
-2. requires an extension identity and an exact durable grant for every
-   command permission;
+2. verifies a self-delegated MCP credential against its user and campaign
+   membership; non-user extension/service origins still require explicit
+   durable grants;
 3. registers and completes a durable idempotency key when the command is
    idempotent;
 4. executes the protected persistence, idempotency completion, and outbox
@@ -96,40 +99,45 @@ This transaction/outbox guarantee applies to protected `ApplicationHost`
 dispatches. It must not be inferred for every legacy/direct `CommandBus`
 transport path.
 
-### Agent control plane and human confirmation
+### MCP connection and human confirmation
 
-`/api/agent` is a narrow bearer-token HTTP adapter. An authenticated campaign
-member can issue a campaign-scoped credential, list it, and revoke it. The
-plaintext credential is returned only at issuance; persistence stores a
-SHA-256 hash. Credential use is denied if its delegated user no longer belongs
-to the campaign.
+`/api/mcp` is the primary agent entrypoint. A client adds one stable URL, follows
+OAuth protected-resource and authorization-server discovery, dynamically
+registers as a public PKCE client, and opens CozyVTT. The signed-in user chooses
+a campaign and clicks Allow. Authorization codes, access tokens, and rotating
+refresh tokens are hash-only at rest and are never copied by the user.
 
 Core agent commands are discovered and executed through
-`productionApplicationHost`; they are campaign-scoped and need matching
-durable grants. Write commands require an `Idempotency-Key`. An agent may
-create a pending confirmation, but only the delegated user's authenticated
-session can approve or deny it. A successful approval produces a one-time,
-five-minute receipt bound to the credential, delegated user, campaign,
-extension, command, and canonical input digest.
+`productionApplicationHost`. They are campaign-scoped and use the approving
+user's existing campaign role rather than a duplicate administrator grant.
+Write commands require idempotency. An agent may create a pending confirmation,
+but only the delegated user's authenticated session can approve or deny it.
+The client retries with the same confirmation ID after approval; the ID is
+bound to credential, user, campaign, extension, command, and input digest and
+is consumed once. The human never relays a receipt or secret.
+
+`map.import-remote` is a concrete end-to-end example of this boundary. MCP
+injects the OAuth-bound campaign scope, the application command authorizes the
+delegated user, a bounded HTTP asset-ingress port fetches and validates the
+image, and the existing map/asset repositories persist the result. The command
+compensates map, asset, and file writes on failure and may activate the new map
+without using a browser or transport-specific route.
 
 The route can also list and invoke active extension tools through the extension
 bridge. That bridge has separate runtime bindings and policy/audit
 adapters, so it is not a general escape hatch to arbitrary REST, Socket.IO,
 database, shell, or network access.
 
-`/api/mcp/campaigns/:campaignId` is a Streamable HTTP MCP adapter over those
-same protected boundaries. It authenticates the same hash-only bearer
-credential on every request, filters tool discovery by exact campaign grants,
-exposes the finite production query catalogue as read tools, and dispatches
-core/extension writes through their existing hosts. Confirmation remains a
-separate human action in CozyVTT; the MCP client can only submit the resulting
-one-time receipt. `MCP_ALLOWED_HOSTS` can additionally restrict exact HTTP Host
-values at the deployment edge.
+The Streamable HTTP adapter exposes the finite production query catalogue and
+dispatches core and active local-extension writes through their existing
+hosts. It is not a generic HTTP/database/socket proxy. `MCP_ALLOWED_HOSTS` can
+restrict exact HTTP Host values at the deployment edge without changing the
+user flow.
 
-The Profile UI exposes credential issuance/list/revocation and the pending
-confirmation inbox. It never displays stored credential hashes or raw command
-input; the receipt returned after approval is intentionally shown once so it
-can be relayed to the waiting agent.
+The Profile UI exposes the one stable setup URL, a downloadable secret-free
+client configuration, connected-client revocation, and the pending confirmation
+inbox. It never displays stored credential hashes, OAuth tokens, raw command
+input, or approval secrets.
 
 ### Extension lifecycle
 
@@ -176,8 +184,9 @@ Partial palettes and arbitrary CSS variables are rejected.
 
 The Admin Extensions screen lists the local package catalogue and persisted
 installations, performs trusted/sandboxed lifecycle actions, and lists,
-creates, and revokes grants with trust/risk copy. This is a control plane, not
-a marketplace. Active validated extension themes now appear in the ordinary
+creates, and revokes advanced service grants with trust/risk copy. User MCP
+connections do not require those grants. This is a control plane, not a
+marketplace. Active validated extension themes now appear in the ordinary
 theme picker alongside built-in presets and use the same live-preview and
 preference persistence path.
 
@@ -202,9 +211,10 @@ snapshot.
    finite read-only catalogue and each adapter enforces campaign/tenant
    authorization. New reads must join that catalogue rather than being
    presented as write-command capabilities.
-3. **Treat declared permissions as requests, not authority.** A manifest or
-   tool descriptor does not grant access; protected execution checks durable,
-   campaign-scoped grants.
+3. **Treat declared permissions as capability limits.** A manifest or tool
+   descriptor cannot expand an installed extension beyond its reviewed
+   bindings. Self-delegated MCP calls reuse the user's campaign role;
+   unattended extension/service origins require explicit durable grants.
 4. **Keep agent attribution value-free.** Store identity, delegation,
    campaign, extension/command, digest, decision, and reason—not plaintext
    credentials, raw command input, or result payloads.

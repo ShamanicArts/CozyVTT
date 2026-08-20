@@ -1,5 +1,6 @@
 import { prisma } from "../config/database";
 import { PrismaTransactionContext } from "../adapters/persistence/PrismaTransactionContext";
+import { PrismaAgentAccessRepository } from "../adapters/persistence/PrismaAgentAccessRepository";
 import { CommandBus } from "../application/commands/CommandBus";
 import { ApplicationHost, CommandMetadata } from "./ApplicationHost";
 
@@ -54,6 +55,7 @@ import {
 } from "../application/scene/RealtimeSpiritCommands";
 import { PrismaMapCoreRepository } from "../adapters/persistence/PrismaMapCoreRepository";
 import { AssetUrlMapNormalizer } from "../adapters/assets/AssetUrlMapNormalizer";
+import { HttpRemoteMapAssetIngress } from "../adapters/assets/HttpRemoteMapAssetIngress";
 import {
   CHANGE_MAP,
   CREATE_MAP,
@@ -66,6 +68,10 @@ import {
   SetCurrentMap,
   UpdateMap,
 } from "../application/maps/MapLifecycleCommands";
+import {
+  IMPORT_REMOTE_MAP,
+  ImportRemoteMap,
+} from "../application/maps/RemoteMapImportCommands";
 import { PrismaMapTokenRepository } from "../adapters/persistence/PrismaMapTokenRepository";
 import { LegacyMapTokenAssetUrlNormalizer } from "../adapters/assets/LegacyMapTokenAssetUrlNormalizer";
 import {
@@ -490,6 +496,15 @@ productionCommandBus.register(
 const assetsRepository = new PrismaAssetMutationRepository(transactionalPrisma);
 const assetFiles = new FileSystemAssetFileStore();
 productionCommandBus.register(
+  IMPORT_REMOTE_MAP,
+  new ImportRemoteMap(
+    assetsRepository,
+    new HttpRemoteMapAssetIngress(),
+    maps,
+    assets,
+  ),
+);
+productionCommandBus.register(
   Assets.PREPARE_ASSET_UPLOAD,
   new Assets.PrepareAssetUpload(assetsRepository),
 );
@@ -659,6 +674,7 @@ productionApplicationHost.use(
     audit: new PrismaAgentAuditPort(prisma),
     idempotency: new PrismaIdempotencyPort(transactionalPrisma),
     outbox: new PrismaOutboxPort(transactionalPrisma),
+    delegatedAgentAccess: new PrismaAgentAccessRepository(prisma),
     unitOfWork: transactionContext,
   }),
 );

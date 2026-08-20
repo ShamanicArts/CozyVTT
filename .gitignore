@@ -71,6 +71,7 @@ coverage/
 cookies.txt
 *.tmp
 *.tmp.*
+.local/
 
 # ---- Generated API docs HTML (rebuild with `npx @redocly/cli build-docs`) ---
 # The HTML is a build artifact derived from API_DOCUMENTATION.yaml. Keeping

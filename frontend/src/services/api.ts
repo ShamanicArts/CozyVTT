@@ -58,6 +58,7 @@ import type {
   ExtensionInstallation,
   ExtensionInstallMode,
   ExtensionPackage,
+  McpAuthorizationRequest,
   PendingAgentConfirmation,
 } from "@/types/extensions";
 
@@ -562,6 +563,42 @@ class ApiClient {
     return response.data;
   }
 
+  async getMcpSetup(): Promise<{ url: string }> {
+    const response = await this.client.get<{ url: string }>(
+      "/api/agent/mcp-setup",
+    );
+    return response.data;
+  }
+
+  async getMcpAuthorizationRequest(
+    requestId: string,
+  ): Promise<McpAuthorizationRequest> {
+    const response = await this.client.get<McpAuthorizationRequest>(
+      `/api/mcp/oauth/requests/${encodeURIComponent(requestId)}`,
+    );
+    return response.data;
+  }
+
+  async approveMcpAuthorization(
+    requestId: string,
+    campaignId: string,
+  ): Promise<{ redirectUrl: string }> {
+    const response = await this.client.post<{ redirectUrl: string }>(
+      `/api/mcp/oauth/requests/${encodeURIComponent(requestId)}/approve`,
+      { campaignId },
+    );
+    return response.data;
+  }
+
+  async denyMcpAuthorization(
+    requestId: string,
+  ): Promise<{ redirectUrl: string }> {
+    const response = await this.client.post<{ redirectUrl: string }>(
+      `/api/mcp/oauth/requests/${encodeURIComponent(requestId)}/deny`,
+    );
+    return response.data;
+  }
+
   async listAgentCredentials(): Promise<AgentCredential[]> {
     const response = await this.client.get<{ credentials: AgentCredential[] }>(
       "/api/agent/credentials",
@@ -584,11 +621,8 @@ class ApiClient {
 
   async approveAgentConfirmation(
     confirmationId: string,
-  ): Promise<{ receipt: string; expiresInSeconds: number }> {
-    const response = await this.client.post<{
-      receipt: string;
-      expiresInSeconds: number;
-    }>(
+  ): Promise<{ approved: true }> {
+    const response = await this.client.post<{ approved: true }>(
       `/api/agent/confirmations/${encodeURIComponent(confirmationId)}/approve`,
     );
     return response.data;
@@ -837,9 +871,7 @@ class ApiClient {
     return response.data;
   }
 
-  async validateCharacter(
-    id: string,
-  ): Promise<{
+  async validateCharacter(id: string): Promise<{
     isValid: boolean;
     errors?: Array<{ path: string; message: string; code: string }>;
   }> {
@@ -1110,9 +1142,7 @@ class ApiClient {
     return response.data;
   }
 
-  async getSeedStatus(
-    campaignId: string,
-  ): Promise<{
+  async getSeedStatus(campaignId: string): Promise<{
     srdCount: number;
     customCount: number;
     seedInProgress: boolean;
@@ -1123,9 +1153,7 @@ class ApiClient {
     return response.data;
   }
 
-  async seedSrdCreatures(
-    campaignId: string,
-  ): Promise<{
+  async seedSrdCreatures(campaignId: string): Promise<{
     message: string;
     fetched: number;
     created: number;

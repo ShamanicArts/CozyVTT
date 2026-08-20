@@ -2,8 +2,8 @@
 
 ## Status and scope
 
-CozyVTT ships a controlled local-extension runtime, durable grant/audit
-foundations, bearer-agent HTTP and MCP transports, and runtime renderer/theme
+CozyVTT ships a controlled local-extension runtime, durable audit/idempotency
+foundations, OAuth-connected HTTP and MCP transports, and runtime renderer/theme
 contributions. Its purpose is to make one self-hosted VTT easy to adapt for its
 operators. A public package marketplace, remote store, publishing platform,
 and unreviewed package acquisition are non-goals by design.
@@ -27,14 +27,16 @@ flowchart LR
   R --> Bridge[ExtensionCommandBridge]
   Bridge --> EBus[Extension runtime CommandBus]
 
-  User[Delegated campaign user] --> AgentApi[/api/agent]
-  Agent[MCP client] --> McpApi[/api/mcp/campaigns/:campaignId]
+  User[Campaign user] --> OAuth[One-click OAuth approval]
+  OAuth --> Agent[MCP client]
+  User --> AgentApi[/api/agent]
+  Agent --> McpApi[/api/mcp]
   AgentApi --> Core[Production ApplicationHost]
   McpApi --> Core
   Core --> CoreBus[Shared core CommandBus]
   AgentApi --> Bridge
   McpApi --> Bridge
-  Core --> Durable[(grant / audit / idempotency / outbox)]
+  Core --> Durable[(membership / audit / idempotency / outbox)]
   Bridge --> Durable
 ```
 
@@ -43,7 +45,7 @@ There are two execution surfaces:
 - The built-in core agent catalog calls `productionApplicationHost`, which
   delegates to the shared core command registry and enforces durable middleware.
 - Installed extension tools call `ExtensionCommandBridge` and the extension
-  runtime's own registry/command bus. That runtime has durable grant and audit
+  runtime's own registry/command bus. That runtime has delegated-membership and audit
   adapters, but is not yet unified with the core host/outbox transaction path.
 
 Do not describe these as one universal plugin command bus until that joining
@@ -104,26 +106,30 @@ profile blocks the user namespace bubblewrap requires, while retaining
 `no-new-privileges`; deployments that reject that tradeoff should isolate the
 sandbox runner or leave the extension root disabled.
 
-## Agents, grants, and confirmation
+## Agents, connection, and confirmation
 
-The HTTP agent adapter authenticates a campaign-scoped bearer credential whose
-plaintext is issued once and whose SHA-256 hash is stored. It checks delegated
-membership on every use. Core write commands require an idempotency key;
-protected core host commands record canonical input digests and durable
-allowed/denied/executed/failed audit entries, require exact campaign grant(s),
-and produce transactional outbox events.
+MCP clients connect to the single `/api/mcp` URL and follow OAuth discovery,
+dynamic public-client registration, PKCE, and the existing CozyVTT login. The
+user chooses a campaign and clicks Allow once. OAuth authorization codes and
+credentials are hash-only at rest; their handling is automatic and never part
+of the user's setup. Every call rechecks that the delegated human still belongs
+to the selected campaign. Ordinary campaign roles authorize domain behavior;
+there is no MCP or per-extension administrator grant step.
 
-An agent requests a confirmation; it cannot approve one. Only the delegated
-human's authenticated session can approve or deny. Approval returns a
-five-minute, one-time receipt bound to credential, human, campaign, extension,
-command, and canonical input digest. The browser UI intentionally avoids
-rendering raw command input and stored hashes.
+Core writes require idempotency. Protected core host commands record canonical
+input digests and durable allowed/denied/executed/failed audit entries and
+produce transactional outbox events.
 
-The JSON agent API and the Streamable HTTP MCP adapter are sibling transports
-over the same credential, grant, command/query, confirmation, idempotency, and
-audit boundaries. MCP is mounted at
-`/api/mcp/campaigns/:campaignId`; discovery is grant-filtered and write tools
-retain the separate-human, one-time confirmation flow. Neither transport is an
+An agent can request confirmation but cannot approve it. Only the delegated
+human's authenticated session can approve or deny. The client retries with the
+already-issued confirmation ID; no receipt or secret is relayed through the
+human. The ID is bound to credential, human, campaign, extension, command, and
+canonical input digest and is atomically consumed once.
+
+The JSON agent API and Streamable HTTP MCP adapter are sibling transports over
+the same delegated identity, command/query, confirmation, idempotency, and
+audit boundaries. MCP is mounted at `/api/mcp`; tool discovery includes the
+finite core catalogue and active local extension tools. Neither transport is an
 arbitrary HTTP proxy, database accessor, shell tool, or raw Socket.IO capability.
 
 ## Frontend contributions
@@ -144,7 +150,8 @@ listed in the ordinary user/admin theme picker and follows the same preference
 storage and live-preview path as a built-in theme.
 
 The admin extensions panel manages discovery, trusted/sandboxed installation,
-lifecycle, and grants. It deliberately presents trust/risk information and is
+lifecycle, and advanced non-user service grants. MCP users need none of those
+grants. The panel deliberately presents trust/risk information and is
 not a package registry or publishing workflow.
 
 ## Remaining boundaries
@@ -157,8 +164,8 @@ not a package registry or publishing workflow.
 - Trusted renderer modules can extend or replace named map layers, but there is
   no general React component/route injection, arbitrary CSS, or iframe plugin UI.
 - MCP exposes the finite application query/command catalogues; it is not a
-  generic resource mirror. Persistent sandbox workers, sandbox network/storage
-  grants, and richer resource/observability controls remain absent.
+  generic resource mirror. Persistent sandbox workers and richer
+  resource/observability controls remain absent.
 
 New work should extend explicit ports and versioned contracts, preserve the
 separate core/extension boundary until it is intentionally unified, and add

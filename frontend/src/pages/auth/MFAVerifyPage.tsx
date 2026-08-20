@@ -4,19 +4,25 @@
 // Supports both TOTP tokens and backup codes
 // ============================================
 
-import { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import Button from '@/components/ui/Button';
+import { useState, FormEvent } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import Button from "@/components/ui/Button";
 
 export default function MFAVerifyPage() {
   const navigate = useNavigate();
+  const [search] = useSearchParams();
+  const requestedReturn = search.get("returnTo");
+  const returnTo =
+    requestedReturn?.startsWith("/") && !requestedReturn.startsWith("//")
+      ? requestedReturn
+      : "/dashboard";
   const { verifyMFA, verifyMFAWithBackupCode, mfaPending, authenticated } =
     useAuth();
 
   // Form state
-  const [token, setToken] = useState('');
-  const [backupCode, setBackupCode] = useState('');
+  const [token, setToken] = useState("");
+  const [backupCode, setBackupCode] = useState("");
   const [useBackupCode, setUseBackupCode] = useState(false);
 
   // UI state
@@ -25,13 +31,13 @@ export default function MFAVerifyPage() {
 
   // Redirect if authenticated (check this first!)
   if (authenticated) {
-    navigate('/dashboard');
+    navigate(returnTo);
     return null;
   }
 
   // Redirect if not in MFA flow
   if (!mfaPending) {
-    navigate('/auth/login');
+    navigate(`/auth/login?returnTo=${encodeURIComponent(returnTo)}`);
     return null;
   }
 
@@ -43,12 +49,12 @@ export default function MFAVerifyPage() {
     setError(null);
 
     if (!token) {
-      setError('Please enter your authentication code');
+      setError("Please enter your authentication code");
       return;
     }
 
     if (token.length !== 6) {
-      setError('Authentication code must be 6 digits');
+      setError("Authentication code must be 6 digits");
       return;
     }
 
@@ -58,16 +64,16 @@ export default function MFAVerifyPage() {
 
       // On success, user is logged in and will be redirected
     } catch (err: any) {
-      console.error('MFA verification error:', err);
+      console.error("MFA verification error:", err);
 
       if (err.response?.data?.error) {
         setError(err.response.data.error);
       } else if (err.response?.status === 401) {
-        setError('Invalid authentication code. Please try again.');
+        setError("Invalid authentication code. Please try again.");
       } else if (err.response?.status === 429) {
-        setError('Too many attempts. Please try again later.');
+        setError("Too many attempts. Please try again later.");
       } else {
-        setError('An error occurred during verification. Please try again.');
+        setError("An error occurred during verification. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -82,15 +88,15 @@ export default function MFAVerifyPage() {
     setError(null);
 
     if (!backupCode) {
-      setError('Please enter your backup code');
+      setError("Please enter your backup code");
       return;
     }
 
     // Remove any dashes or spaces from backup code
-    const cleanedCode = backupCode.replace(/[-\s]/g, '');
+    const cleanedCode = backupCode.replace(/[-\s]/g, "");
 
     if (cleanedCode.length !== 8) {
-      setError('Backup code must be 8 characters');
+      setError("Backup code must be 8 characters");
       return;
     }
 
@@ -100,16 +106,16 @@ export default function MFAVerifyPage() {
 
       // On success, user is logged in and will be redirected
     } catch (err: any) {
-      console.error('Backup code verification error:', err);
+      console.error("Backup code verification error:", err);
 
       if (err.response?.data?.error) {
         setError(err.response.data.error);
       } else if (err.response?.status === 401) {
-        setError('Invalid backup code. Please try again.');
+        setError("Invalid backup code. Please try again.");
       } else if (err.response?.status === 429) {
-        setError('Too many attempts. Please try again later.');
+        setError("Too many attempts. Please try again later.");
       } else {
-        setError('An error occurred during verification. Please try again.');
+        setError("An error occurred during verification. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -121,8 +127,8 @@ export default function MFAVerifyPage() {
    */
   const toggleInputMode = () => {
     setUseBackupCode(!useBackupCode);
-    setToken('');
-    setBackupCode('');
+    setToken("");
+    setBackupCode("");
     setError(null);
   };
 
@@ -153,8 +159,8 @@ export default function MFAVerifyPage() {
           </h1>
           <p className="mt-2 text-sm text-warm-gray">
             {useBackupCode
-              ? 'Enter one of your backup codes'
-              : 'Enter the 6-digit code from your authenticator app'}
+              ? "Enter one of your backup codes"
+              : "Enter the 6-digit code from your authenticator app"}
           </p>
         </div>
 
@@ -184,7 +190,7 @@ export default function MFAVerifyPage() {
                 value={token}
                 onChange={(e) => {
                   // Only allow numbers
-                  const value = e.target.value.replace(/[^0-9]/g, '');
+                  const value = e.target.value.replace(/[^0-9]/g, "");
                   setToken(value);
                   setError(null);
                 }}
@@ -228,7 +234,7 @@ export default function MFAVerifyPage() {
                   Verifying...
                 </span>
               ) : (
-                'Verify Code'
+                "Verify Code"
               )}
             </Button>
           </form>
@@ -251,11 +257,11 @@ export default function MFAVerifyPage() {
                 value={backupCode}
                 onChange={(e) => {
                   // Allow alphanumeric and dashes
-                  let value = e.target.value.replace(/[^a-zA-Z0-9-]/g, '');
+                  let value = e.target.value.replace(/[^a-zA-Z0-9-]/g, "");
 
                   // Auto-format with dash after 4 characters
-                  if (value.length === 4 && !value.includes('-')) {
-                    value = value + '-';
+                  if (value.length === 4 && !value.includes("-")) {
+                    value = value + "-";
                   }
 
                   setBackupCode(value);
@@ -274,7 +280,7 @@ export default function MFAVerifyPage() {
             <Button
               type="submit"
               disabled={
-              loading || backupCode.replace(/[-\s]/g, '').length !== 8
+                loading || backupCode.replace(/[-\s]/g, "").length !== 8
               }
               className="w-full"
             >
@@ -303,7 +309,7 @@ export default function MFAVerifyPage() {
                   Verifying...
                 </span>
               ) : (
-                'Verify Backup Code'
+                "Verify Backup Code"
               )}
             </Button>
           </form>
@@ -317,7 +323,7 @@ export default function MFAVerifyPage() {
             disabled={loading}
           >
             {useBackupCode
-              ? 'Use authenticator app instead'
+              ? "Use authenticator app instead"
               : "Can't access your app? Use a backup code"}
           </button>
         </div>
@@ -325,7 +331,7 @@ export default function MFAVerifyPage() {
         {/* Back to Login */}
         <div className="text-center pt-4 border-t border-warm-gray/20">
           <button
-            onClick={() => navigate('/auth/login')}
+            onClick={() => navigate("/auth/login")}
             className="text-sm text-warm-gray hover:text-moss-green transition-colors"
             disabled={loading}
           >

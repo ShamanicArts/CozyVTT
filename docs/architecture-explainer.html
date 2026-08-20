@@ -679,7 +679,10 @@ flowchart LR
             </div>
             <div class="step">
               <b>02 · POLICY</b
-              ><span>Default-deny durable grants gate protected callers.</span>
+              ><span
+                >Delegated users reuse campaign roles; unattended services use
+                explicit grants.</span
+              >
             </div>
             <div class="step">
               <b>03 · DEDUPE</b
@@ -725,10 +728,11 @@ flowchart LR
           <div class="head">
             <div class="num">03</div>
             <div>
-              <h2>Agents have a narrow, attributable door</h2>
+              <h2>One URL, one human decision</h2>
               <p class="intro">
-                Agents do not impersonate browser sessions or touch Prisma. They
-                receive campaign-scoped credentials and a filtered catalog.
+                Clients connect to one MCP URL, open CozyVTT, and ask the
+                signed-in user to choose a campaign. Tokens and grants are not
+                setup tasks.
               </p>
             </div>
           </div>
@@ -740,46 +744,47 @@ flowchart LR
             </div>
             <pre class="mermaid">
 sequenceDiagram
- participant H as Human session
- participant A as Agent
- participant API as Agent API or MCP
- participant P as Policy and audit
+ participant H as Human browser
+ participant A as MCP client
+ participant API as CozyVTT OAuth + MCP
  participant C as Application host
- H->>API: Issue campaign credential
- API-->>H: Bearer token shown once
- A->>API: Discover commands and queries
- API->>P: Filter by exact grants
- API-->>A: Safe catalog
- A->>API: Request risky action
- API-->>H: Pending confirmation metadata
- H->>API: Approve in authenticated session
- API-->>H: One-time receipt
- A->>API: Invoke with receipt and idempotency key
- API->>P: Bind credential campaign and digest
- P->>C: Dispatch authorized command
+ A->>API: Connect to /api/mcp
+ API-->>A: OAuth discovery challenge
+ A->>API: Dynamic registration + PKCE
+ API-->>H: Open normal CozyVTT approval
+ H->>API: Choose campaign and click Allow
+ API-->>A: Automatic code/token exchange
+ A->>API: Discover finite tool catalog
+ API-->>A: Queries, commands, local extensions
+ A->>API: Request sensitive action
+ API-->>H: Pending confirmation ID
+ H->>API: Click Approve
+ A->>API: Retry same ID + idempotency key
+ API->>C: Dispatch as campaign user
  C-->>A: Validated redacted result
-</pre>
+</pre
+            >
           </div>
           <div class="grid" style="margin-top: 14px">
             <div class="ve-card s4">
-              <h3>Credentials</h3>
+              <h3>Connection</h3>
               <p>
-                Only hashes persist. Tokens are campaign-bound, revocable,
-                expiring, and tied to a delegated human membership.
+                The client handles rotating OAuth credentials. CozyVTT stores
+                only hashes and rechecks campaign membership on every call.
               </p>
             </div>
             <div class="ve-card s4">
               <h3>Queries</h3>
               <p>
-                Eleven bounded reads apply role privacy. They need a READ grant,
-                not confirmation or idempotency.
+                Eleven bounded reads apply ordinary DM, player, and spectator
+                privacy without a duplicate MCP grant system.
               </p>
             </div>
             <div class="ve-card s4">
               <h3>Writes</h3>
               <p>
-                Approval receipts bind credential, user, campaign, command, and
-                canonical input digest, then consume once.
+                Confirmation IDs bind client, user, campaign, command, and
+                canonical input digest, then consume once—no copied secret.
               </p>
             </div>
           </div>
@@ -815,7 +820,8 @@ flowchart TB
  DESC --> BR[Grant + schema + confirmation bridge]
  BR --> EXEC[Lifecycle-owned command binding]
  EXEC --> AUD[Digest-only audit]
-</pre>
+</pre
+            >
           </div>
           <div class="grid" style="margin-top: 14px">
             <div class="ve-card s6">
@@ -837,9 +843,9 @@ flowchart TB
             <div class="ve-card s12">
               <h3>Durable lifecycle and UI</h3>
               <p>
-                Installations, state, errors, dependencies, grants, credentials,
-                and confirmations survive restart. Admins manage
-                lifecycle/grants; users manage agent access and approvals.
+                Installations, state, errors, OAuth connections, rotating token
+                hashes, and confirmations survive restart. Admins manage local
+                package lifecycle; users approve their own campaign access.
               </p>
             </div>
           </div>
@@ -934,14 +940,14 @@ flowchart TB
                 <tr>
                   <td>Agent security</td>
                   <td><span class="status done">shipped</span></td>
-                  <td>Hash credentials, grants, one-time receipts</td>
+                  <td>OAuth PKCE, campaign membership, confirmation IDs</td>
                   <td>Agent API → ApplicationHost</td>
                 </tr>
                 <tr>
                   <td>MCP transport</td>
                   <td><span class="status done">shipped</span></td>
                   <td>
-                    Protocol, HTTP auth/discovery/query, confirmation tests
+                    Discovery, DCR, browser approval, token and tool tests
                   </td>
                   <td>MCP → QueryHost / ApplicationHost / extension bridge</td>
                 </tr>

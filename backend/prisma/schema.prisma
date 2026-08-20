@@ -357,8 +357,8 @@ model Character {
 // ============================================
 
 model Map {
-  id String @id @default(uuid())
-  revision Int @default(0)
+  id       String @id @default(uuid())
+  revision Int    @default(0)
 
   // Ownership
   campaignId String
@@ -699,6 +699,58 @@ model AgentCredential {
 
   @@index([delegatedUserId, campaignId])
   @@index([expiresAt])
+}
+
+/// Dynamically registered MCP clients. CozyVTT supports public PKCE clients,
+/// so no reusable client secret needs to be retained.
+model McpOAuthClient {
+  clientId  String   @id
+  metadata  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Short-lived browser authorization handoff. The authorization code is
+/// stored only as a digest and atomically consumed during token exchange.
+model McpOAuthAuthorization {
+  id                    String    @id @default(uuid())
+  clientId              String
+  clientState           String?
+  redirectUri           String
+  codeChallenge         String
+  resource              String
+  scopes                Json
+  authorizationCodeHash String?   @unique
+  delegatedUserId       String?
+  campaignId            String?
+  expiresAt             DateTime
+  approvedAt            DateTime?
+  consumedAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([expiresAt, consumedAt])
+  @@index([delegatedUserId, campaignId])
+}
+
+/// Rotating OAuth refresh token. Like agent credentials, only a digest is
+/// retained; rotation revokes both the old refresh and access credentials.
+model McpOAuthRefreshToken {
+  id              String    @id @default(uuid())
+  tokenHash       String    @unique
+  clientId        String
+  credentialId    String
+  delegatedUserId String
+  campaignId      String
+  resource        String
+  scopes          Json
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([clientId, expiresAt, revokedAt])
+  @@index([credentialId])
 }
 
 /// A human approval request created by an agent. A receipt hash is written

@@ -20,12 +20,22 @@ const page = (input: Page) => ({
   limit: Math.min(100, Math.max(1, input.limit ?? 50)),
   offset: Math.max(0, input.offset ?? 0),
 });
-const meta = (id: string) => ({
+const inputSchema = {
+  type: "object",
+  properties: {
+    limit: { type: "integer", minimum: 1, maximum: 100 },
+    offset: { type: "integer", minimum: 0 },
+  },
+  additionalProperties: false,
+};
+const meta = (id: string, collection: boolean) => ({
   id,
   version: "1",
   risk: "READ" as const,
-  inputSchema: { type: "object" },
-  outputSchema: { type: "object" },
+  inputSchema,
+  outputSchema: collection
+    ? { type: "array", items: { type: "object" } }
+    : { type: ["object", "null"] },
 });
 export class CampaignQueryError extends Error {}
 export class CampaignQueries {
@@ -47,9 +57,10 @@ export class CampaignQueries {
       role: CampaignQueryRole,
       input: Page,
     ) => Promise<unknown>,
+    collection = false,
   ): Query<Page, unknown> {
     return {
-      metadata: meta(id),
+      metadata: meta(id, collection),
       execute: async (input, context) =>
         load(context.campaignId, await this.role(context), input),
     };
@@ -59,51 +70,86 @@ export class CampaignQueries {
       this.query(CAMPAIGN_SUMMARY, (campaignId) =>
         this.repository.summary(campaignId),
       ),
-      this.query(CAMPAIGN_MAPS, (campaignId, _role, input) => {
-        const p = page(input);
-        return this.repository.maps(campaignId, p.limit, p.offset);
-      }),
+      this.query(
+        CAMPAIGN_MAPS,
+        (campaignId, _role, input) => {
+          const p = page(input);
+          return this.repository.maps(campaignId, p.limit, p.offset);
+        },
+        true,
+      ),
       this.query(CAMPAIGN_CURRENT_MAP, (campaignId) =>
         this.repository.currentMap(campaignId),
       ),
-      this.query(CAMPAIGN_ROSTER, (campaignId, _role, input) => {
-        const p = page(input);
-        return this.repository.roster(campaignId, p.limit, p.offset);
-      }),
-      this.query(CAMPAIGN_CHARACTERS, (campaignId, _role, input) => {
-        const p = page(input);
-        return this.repository.characters(campaignId, p.limit, p.offset);
-      }),
+      this.query(
+        CAMPAIGN_ROSTER,
+        (campaignId, _role, input) => {
+          const p = page(input);
+          return this.repository.roster(campaignId, p.limit, p.offset);
+        },
+        true,
+      ),
+      this.query(
+        CAMPAIGN_CHARACTERS,
+        (campaignId, _role, input) => {
+          const p = page(input);
+          return this.repository.characters(campaignId, p.limit, p.offset);
+        },
+        true,
+      ),
       this.query(CAMPAIGN_INITIATIVE, (campaignId) =>
         this.repository.initiative(campaignId),
       ),
-      this.query(CAMPAIGN_CHAT, async (campaignId, role, input) => {
-        const messages = await this.repository.chat(
-          campaignId,
-          page(input).limit,
-        );
-        return role === "DM"
-          ? messages
-          : messages.filter((message) => message.type !== "DM");
-      }),
-      this.query(CAMPAIGN_DICE, async (campaignId, role, input) => {
-        const rolls = await this.repository.dice(campaignId, page(input).limit);
-        return role === "DM"
-          ? rolls
-          : rolls.filter((roll) => roll.secret !== true);
-      }),
-      this.query(CAMPAIGN_ASSETS, (campaignId, _role, input) => {
-        const p = page(input);
-        return this.repository.assets(campaignId, p.limit, p.offset);
-      }),
-      this.query(CAMPAIGN_TEMPLATES, (campaignId, _role, input) => {
-        const p = page(input);
-        return this.repository.templates(campaignId, p.limit, p.offset);
-      }),
-      this.query(CAMPAIGN_CREATURES, (campaignId, _role, input) => {
-        const p = page(input);
-        return this.repository.creatures(campaignId, p.limit, p.offset);
-      }),
+      this.query(
+        CAMPAIGN_CHAT,
+        async (campaignId, role, input) => {
+          const messages = await this.repository.chat(
+            campaignId,
+            page(input).limit,
+          );
+          return role === "DM"
+            ? messages
+            : messages.filter((message) => message.type !== "DM");
+        },
+        true,
+      ),
+      this.query(
+        CAMPAIGN_DICE,
+        async (campaignId, role, input) => {
+          const rolls = await this.repository.dice(
+            campaignId,
+            page(input).limit,
+          );
+          return role === "DM"
+            ? rolls
+            : rolls.filter((roll) => roll.secret !== true);
+        },
+        true,
+      ),
+      this.query(
+        CAMPAIGN_ASSETS,
+        (campaignId, _role, input) => {
+          const p = page(input);
+          return this.repository.assets(campaignId, p.limit, p.offset);
+        },
+        true,
+      ),
+      this.query(
+        CAMPAIGN_TEMPLATES,
+        (campaignId, _role, input) => {
+          const p = page(input);
+          return this.repository.templates(campaignId, p.limit, p.offset);
+        },
+        true,
+      ),
+      this.query(
+        CAMPAIGN_CREATURES,
+        (campaignId, _role, input) => {
+          const p = page(input);
+          return this.repository.creatures(campaignId, p.limit, p.offset);
+        },
+        true,
+      ),
     ];
   }
 }

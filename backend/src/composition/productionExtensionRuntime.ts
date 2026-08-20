@@ -1,8 +1,6 @@
 import { CommandBus } from "../application/commands/CommandBus";
-import {
-  PrismaAgentAuditPort,
-  PrismaExtensionGrantPort,
-} from "../adapters/persistence/PrismaDurableFoundations";
+import { PrismaAgentAuditPort } from "../adapters/persistence/PrismaDurableFoundations";
+import { PrismaAgentAccessRepository } from "../adapters/persistence/PrismaAgentAccessRepository";
 import { prisma } from "../config/database";
 import { ExtensionCommandBridge } from "../extensions/bridge/ExtensionCommandBridge";
 import type { AgentToolAuditPort } from "../extensions/bridge/contracts";
@@ -24,15 +22,21 @@ import {
 } from "../extensions/sandbox";
 
 class DurableBridgePolicy implements ExtensionPolicyPort {
-  public constructor(private readonly grants: PrismaExtensionGrantPort) {}
+  public constructor(private readonly access: PrismaAgentAccessRepository) {}
   async check(check: Parameters<ExtensionPolicyPort["check"]>[0]) {
-    const allowed = await this.grants.hasGrant({
-      principalType: "AGENT",
-      principalId: check.principal.id,
-      campaignId: check.scope.campaignId,
-      extensionId: check.extensionId,
-      permission: "EXECUTE",
-    });
+    const credential = await this.access.findCredentialById(
+      check.principal.id,
+      new Date(),
+    );
+    const allowed = Boolean(
+      credential &&
+        (await this.access.activeCredentialDelegates({
+          credentialId: credential.id,
+          delegatedUserId: credential.delegatedUserId,
+          campaignId: check.scope.campaignId,
+          now: new Date(),
+        })),
+    );
     return { allowed, missing: allowed ? [] : [...check.permissions] };
   }
 }
@@ -82,7 +86,7 @@ export function productionExtensionRuntime(): ProductionExtensionRuntime {
   const bridge = new ExtensionCommandBridge(
     registry,
     bus,
-    new DurableBridgePolicy(new PrismaExtensionGrantPort(prisma)),
+    new DurableBridgePolicy(new PrismaAgentAccessRepository(prisma)),
     new DurableBridgeAudit(new PrismaAgentAuditPort(prisma)),
     [],
   );

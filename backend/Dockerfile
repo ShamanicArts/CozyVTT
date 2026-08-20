@@ -6,7 +6,7 @@ FROM node:24-bookworm-slim
 # bubblewrap is the OS boundary for sandboxed extension packages.
 # bash is required by start.sh; postgresql-client provides pg_dump and psql.
 RUN apt-get update \
-  && apt-get install --no-install-recommends -y bash bubblewrap openssl postgresql-client \
+  && apt-get install --no-install-recommends -y bash bubblewrap gosu openssl postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -30,8 +30,6 @@ RUN sed -i 's/\r$//' /usr/local/bin/start.sh && chmod +x /usr/local/bin/start.sh
 
 # Create uploads and logs dirs, hand ownership to appuser
 RUN mkdir -p /app/uploads /app/logs && chown -R appuser:appgroup /app
-
-USER appuser
 
 EXPOSE 4000
 

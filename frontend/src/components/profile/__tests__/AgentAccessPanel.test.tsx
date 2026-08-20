@@ -7,7 +7,7 @@ const { api } = vi.hoisted(() => ({
     listCampaigns: vi.fn(),
     listAgentCredentials: vi.fn(),
     listPendingAgentConfirmations: vi.fn(),
-    issueAgentCredential: vi.fn(),
+    getMcpSetup: vi.fn(),
     revokeAgentCredential: vi.fn(),
     approveAgentConfirmation: vi.fn(),
     denyAgentConfirmation: vi.fn(),
@@ -43,35 +43,26 @@ describe("AgentAccessPanel", () => {
         expiresAt: "2026-01-01T01:00:00.000Z",
       },
     ]);
+    api.getMcpSetup.mockResolvedValue({ url: "http://localhost:4000/api/mcp" });
   });
 
-  it("reveals an issued credential once and does not expose hashes or agent input", async () => {
-    const user = userEvent.setup();
-    api.issueAgentCredential.mockResolvedValue({
-      credential: {
-        id: "credential-2",
-        campaignId: "campaign-1",
-        label: "Helper",
-        expiresAt: null,
-        revokedAt: null,
-      },
-      token: "plain-issued-token",
-    });
+  it("offers a single secret-free MCP URL instead of credential issuance", async () => {
     render(<AgentAccessPanel />);
     await screen.findByText("Existing");
-    await user.type(screen.getByLabelText("Label"), "Helper");
-    await user.click(screen.getByRole("button", { name: "Issue credential" }));
-    expect(await screen.findByText("plain-issued-token")).toBeInTheDocument();
-    expect(screen.queryByText(/hash/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/input digest/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText("http://localhost:4000/api/mcp"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /issue credential/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/no API keys or administrator grants/i),
+    ).toBeInTheDocument();
   });
 
   it("approves a pending confirmation without rendering its command input", async () => {
     const user = userEvent.setup();
-    api.approveAgentConfirmation.mockResolvedValue({
-      receipt: "one-time-receipt",
-      expiresInSeconds: 300,
-    });
+    api.approveAgentConfirmation.mockResolvedValue({ approved: true });
     render(<AgentAccessPanel />);
     await screen.findByText("campaign.atmosphere.set");
     await user.click(screen.getByRole("button", { name: "Approve" }));
@@ -83,6 +74,6 @@ describe("AgentAccessPanel", () => {
     expect(
       screen.queryByText("campaign.atmosphere.set"),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("one-time-receipt")).toBeInTheDocument();
+    expect(screen.queryByText(/receipt/i)).not.toBeInTheDocument();
   });
 });

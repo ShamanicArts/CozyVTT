@@ -5,6 +5,7 @@ export interface AgentIdentity {
   credentialId: string;
   delegatedUserId: string;
   campaignId: string;
+  expiresAt: Date | null;
 }
 
 /** Shared credential boundary for HTTP and MCP agent transports. */
@@ -37,6 +38,31 @@ export class AgentPrincipalAuthenticator {
       credentialId: credential.id,
       delegatedUserId: credential.delegatedUserId,
       campaignId,
+      expiresAt: credential.expiresAt,
+    };
+  }
+
+  public async authenticateAny(
+    bearerToken: string,
+  ): Promise<AgentIdentity | null> {
+    const credential = await this.access.findCredentialByHash(
+      sha256Digest(bearerToken),
+      this.now(),
+    );
+    if (
+      !credential ||
+      !(await this.access.campaignMembershipExists(
+        credential.delegatedUserId,
+        credential.campaignId,
+      ))
+    )
+      return null;
+    await this.access.markCredentialUsed(credential.id, this.now());
+    return {
+      credentialId: credential.id,
+      delegatedUserId: credential.delegatedUserId,
+      campaignId: credential.campaignId,
+      expiresAt: credential.expiresAt,
     };
   }
 }

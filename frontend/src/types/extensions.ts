@@ -97,3 +97,10 @@ export interface PendingAgentConfirmation {
   expiresAt: string;
   createdAt: string;
 }
+
+export interface McpAuthorizationRequest {
+  requestId: string;
+  clientName: string;
+  campaigns: Array<{ id: string; name: string; role: string }>;
+  expiresAt: string;
+}

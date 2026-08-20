@@ -10,6 +10,14 @@ export interface ExtensionGrantPort {
     now?: Date;
   }): Promise<boolean>;
 }
+export interface DelegatedAgentAccessPort {
+  activeCredentialDelegates(input: {
+    credentialId: string;
+    delegatedUserId: string;
+    campaignId: string;
+    now: Date;
+  }): Promise<boolean>;
+}
 export interface AgentAuditPort {
   append(input: {
     principalType: DurablePrincipalType;

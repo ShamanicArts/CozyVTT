@@ -30,8 +30,18 @@ describe("campaign query catalog", () => {
     for (const metadata of host.list())
       expect(metadata).toMatchObject({
         risk: "READ",
-        inputSchema: { type: "object" },
+        inputSchema: {
+          type: "object",
+          properties: {
+            limit: { type: "integer" },
+            offset: { type: "integer" },
+          },
+        },
       });
+    expect(
+      host.list().find((metadata) => metadata.id === CAMPAIGN_CHAT)
+        ?.outputSchema,
+    ).toEqual({ type: "array", items: { type: "object" } });
     await expect(
       host.dispatch(
         CAMPAIGN_CHAT,

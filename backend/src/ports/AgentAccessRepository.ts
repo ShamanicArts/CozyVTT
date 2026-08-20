@@ -26,11 +26,21 @@ export interface AgentAccessRepository {
     hash: string,
     now: Date,
   ): Promise<AgentCredentialRecord | null>;
+  findCredentialById(
+    id: string,
+    now: Date,
+  ): Promise<AgentCredentialRecord | null>;
   markCredentialUsed(id: string, now: Date): Promise<void>;
   campaignMembershipExists(
     userId: string,
     campaignId: string,
   ): Promise<boolean>;
+  activeCredentialDelegates(input: {
+    credentialId: string;
+    delegatedUserId: string;
+    campaignId: string;
+    now: Date;
+  }): Promise<boolean>;
   createConfirmation(input: {
     credentialId: string;
     delegatedUserId: string;
@@ -43,11 +53,10 @@ export interface AgentAccessRepository {
   approveConfirmation(input: {
     confirmationId: string;
     delegatedUserId: string;
-    receiptHash: string;
     now: Date;
   }): Promise<boolean>;
-  consumeApprovedConfirmation(input: {
-    receiptHash: string;
+  consumeApprovedConfirmationById(input: {
+    confirmationId: string;
     credentialId: string;
     delegatedUserId: string;
     campaignId: string;

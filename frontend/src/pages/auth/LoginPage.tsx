@@ -4,19 +4,21 @@
 // Supports MFA flow and "Remember Me" functionality
 // ============================================
 
-import { useState, useEffect, FormEvent } from 'react';
-import { Link, Navigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { isValidEmail } from '@/utils/validation';
-import { api } from '@/services/api';
-import Button from '@/components/ui/Button';
+import { useState, useEffect, FormEvent } from "react";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { isValidEmail } from "@/utils/validation";
+import { api } from "@/services/api";
+import Button from "@/components/ui/Button";
 
 export default function LoginPage() {
   const { login, authenticated, mfaPending } = useAuth();
+  const [search] = useSearchParams();
+  const returnTo = safeReturnTo(search.get("returnTo"));
 
   // Form state
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
 
   // UI state
@@ -30,19 +32,25 @@ export default function LoginPage() {
   // Registration availability — fetched once on mount
   const [registrationAllowed, setRegistrationAllowed] = useState(false);
   useEffect(() => {
-    api.getRegistrationStatus()
+    api
+      .getRegistrationStatus()
       .then((data) => setRegistrationAllowed(data.allowRegistration))
       .catch(() => setRegistrationAllowed(false));
   }, []);
 
   // Redirect if already authenticated (use <Navigate> not navigate() to avoid render-phase state update)
   if (authenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={returnTo} replace />;
   }
 
   // Redirect to MFA verification if MFA is pending
   if (mfaPending) {
-    return <Navigate to="/auth/mfa-verify" replace />;
+    return (
+      <Navigate
+        to={`/auth/mfa-verify?returnTo=${encodeURIComponent(returnTo)}`}
+        replace
+      />
+    );
   }
 
   /**
@@ -54,14 +62,14 @@ export default function LoginPage() {
 
     // Validate email
     if (!email) {
-      errors.email = 'Email is required';
+      errors.email = "Email is required";
     } else if (!isValidEmail(email)) {
-      errors.email = 'Please enter a valid email address';
+      errors.email = "Please enter a valid email address";
     }
 
     // Validate password
     if (!password) {
-      errors.password = 'Password is required';
+      errors.password = "Password is required";
     }
 
     setFieldErrors(errors);
@@ -92,11 +100,11 @@ export default function LoginPage() {
       if (err.response?.data?.error) {
         setError(err.response.data.error);
       } else if (err.response?.status === 401) {
-        setError('Invalid email or password');
+        setError("Invalid email or password");
       } else if (err.response?.status === 429) {
-        setError('Too many login attempts. Please try again later.');
+        setError("Too many login attempts. Please try again later.");
       } else {
-        setError('An error occurred during login. Please try again.');
+        setError("An error occurred during login. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -105,7 +113,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-soft-cream via-parchment to-warm-amber/20 px-4">
-      <main id="main-content" className="glass-panel max-w-md w-full p-8 space-y-6">
+      <main
+        id="main-content"
+        className="glass-panel max-w-md w-full p-8 space-y-6"
+      >
         {/* Header */}
         <div className="text-center">
           <h1 className="text-3xl font-bold text-moss-green font-heading">
@@ -118,7 +129,10 @@ export default function LoginPage() {
 
         {/* Error Alert */}
         {error && (
-          <div role="alert" className="bg-spirit-red/10 border border-spirit-red/30 rounded-lg p-4">
+          <div
+            role="alert"
+            className="bg-spirit-red/10 border border-spirit-red/30 rounded-lg p-4"
+          >
             <p className="text-sm text-spirit-red font-medium">{error}</p>
           </div>
         )}
@@ -143,16 +157,24 @@ export default function LoginPage() {
                 setFieldErrors((prev) => ({ ...prev, email: undefined }));
               }}
               className={`input-cozy w-full ${
-                fieldErrors.email ? 'border-spirit-red focus:ring-spirit-red' : ''
+                fieldErrors.email
+                  ? "border-spirit-red focus:ring-spirit-red"
+                  : ""
               }`}
               placeholder="your@email.com"
               disabled={loading}
               aria-required="true"
               aria-invalid={!!fieldErrors.email}
-              aria-describedby={fieldErrors.email ? 'email-error' : undefined}
+              aria-describedby={fieldErrors.email ? "email-error" : undefined}
             />
             {fieldErrors.email && (
-              <p id="email-error" role="alert" className="mt-1 text-xs text-spirit-red">{fieldErrors.email}</p>
+              <p
+                id="email-error"
+                role="alert"
+                className="mt-1 text-xs text-spirit-red"
+              >
+                {fieldErrors.email}
+              </p>
             )}
           </div>
 
@@ -174,16 +196,26 @@ export default function LoginPage() {
                 setFieldErrors((prev) => ({ ...prev, password: undefined }));
               }}
               className={`input-cozy w-full ${
-                fieldErrors.password ? 'border-spirit-red focus:ring-spirit-red' : ''
+                fieldErrors.password
+                  ? "border-spirit-red focus:ring-spirit-red"
+                  : ""
               }`}
               placeholder="Enter your password"
               disabled={loading}
               aria-required="true"
               aria-invalid={!!fieldErrors.password}
-              aria-describedby={fieldErrors.password ? 'password-error' : undefined}
+              aria-describedby={
+                fieldErrors.password ? "password-error" : undefined
+              }
             />
             {fieldErrors.password && (
-              <p id="password-error" role="alert" className="mt-1 text-xs text-spirit-red">{fieldErrors.password}</p>
+              <p
+                id="password-error"
+                role="alert"
+                className="mt-1 text-xs text-spirit-red"
+              >
+                {fieldErrors.password}
+              </p>
             )}
           </div>
 
@@ -215,11 +247,7 @@ export default function LoginPage() {
           </div>
 
           {/* Submit Button */}
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full"
-          >
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? (
               <span className="flex items-center justify-center">
                 <svg
@@ -245,7 +273,7 @@ export default function LoginPage() {
                 Signing in...
               </span>
             ) : (
-              'Sign In'
+              "Sign In"
             )}
           </Button>
         </form>
@@ -254,7 +282,7 @@ export default function LoginPage() {
         {registrationAllowed && (
           <div className="text-center">
             <p className="text-sm text-warm-gray">
-              Don't have an account?{' '}
+              Don't have an account?{" "}
               <Link
                 to="/auth/register"
                 className="text-moss-green hover:text-moss-green/80 font-medium transition-colors"
@@ -267,4 +295,10 @@ export default function LoginPage() {
       </main>
     </div>
   );
+}
+
+function safeReturnTo(value: string | null): string {
+  return value?.startsWith("/") && !value.startsWith("//")
+    ? value
+    : "/dashboard";
 }
