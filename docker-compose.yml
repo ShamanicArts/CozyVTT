@@ -73,14 +73,24 @@ services:
       NGINX_MAX_BODY_SIZE: ${NGINX_MAX_BODY_SIZE:-55M}
       # Rate limiting
       RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-300}
+      # Optional read-only extension package catalogue. Leaving this empty
+      # keeps the extension host disabled.
+      EXTENSION_PACKAGE_ROOT: ${EXTENSION_PACKAGE_ROOT:-}
     volumes:
       # Uploads persist on the host — back this directory up regularly
       - ./backend/uploads:/app/uploads
       # Logs persist on the host
       - ./backend/logs:/app/logs
+      - ./backend/extensions:/app/extensions:ro
     # Backend is only accessible internally — Nginx terminates public traffic
     expose:
       - "4000"
+    # bubblewrap requires user namespace creation, which Docker's default
+    # seccomp profile blocks. The backend still runs as an unprivileged user;
+    # each extension gets its own further-restricted bubblewrap namespace.
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=unconfined
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:4000/health || exit 1"]
       interval: 30s

@@ -55,12 +55,22 @@ services:
       # No bundled Nginx in dev — Vite proxies directly to the backend, so this
       # only affects the startup warning about proxy body caps.
       NGINX_MAX_BODY_SIZE: ${NGINX_MAX_BODY_SIZE:-}
+      # Optional read-only package catalogue. Omit EXTENSION_PACKAGE_ROOT to
+      # run a normal extension-disabled development server.
+      EXTENSION_PACKAGE_ROOT: ${EXTENSION_PACKAGE_ROOT:-}
     ports:
       - "4000:4000"
     volumes:
       - ./backend:/app
       - /app/node_modules
       - ./backend/uploads:/app/uploads
+      - ./backend/extensions:/app/extensions:ro
+    # Docker's default seccomp profile denies the user namespace creation that
+    # bubblewrap needs. The app remains unprivileged; bubblewrap then creates
+    # the narrower child namespace for each extension invocation.
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=unconfined
     command: npm run dev
 
   frontend:

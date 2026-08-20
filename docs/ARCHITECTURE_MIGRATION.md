@@ -1,331 +1,223 @@
-# Architecture migration: modular, agent-safe CozyVTT
+# Architecture migration: current executable state
 
-## Purpose and current status
+## Purpose
 
-CozyVTT is being migrated from a route-and-socket-centred application toward a
-**hexagonal (ports-and-adapters) core with a small extension microkernel**. The
-goal is not a rewrite. Existing REST and Socket.IO clients remain supported
-while behaviour moves, one use case at a time, behind explicit application
-commands and ports.
+CozyVTT is moving from a route- and Socket.IO-centred modular monolith toward
+ports-and-adapters (hexagonal) boundaries with a small, controlled extension
+runtime. This is an incremental migration, not a claim that every existing
+path has already been replaced or that arbitrary plugins can run safely.
 
-This document is the migration contract. It distinguishes code that is
-available now from work that must still happen before calling the system a
-general runtime-plugin or agent platform.
+This document describes code that is present in this repository. It separates
+the shipped execution model from planned work so it can be used for design and
+operational decisions without overstating the platform.
 
-## The architecture being introduced
+## Topology
 
 ```mermaid
 flowchart LR
-  UI[React UI] --> HTTP[Express REST adapter]
-  UI --> WS[Socket.IO adapter]
-  Agent[Agent / MCP adapter\nplanned transport] --> Bridge[Guarded agent-tool bridge]
-  Bridge --> Policy[Extension policy port]
-  Policy --> Commands[Application commands]
-  HTTP --> Commands
-  WS --> Commands
+  Browser[React application] --> Rest[Express REST adapters]
+  Browser --> Socket[Socket.IO adapters]
+  Rest --> Bus[Shared production CommandBus]
+  Socket --> Bus
 
-  Commands --> Domain[Domain models & rules]
-  Commands --> Ports[Ports]
-  Ports --> Prisma[Prisma/Postgres adapter]
-  Ports --> Events[Outbox / Socket event adapter\nplanned]
-  Ports --> Blobs[Filesystem / object-storage adapter]
+  Agent[Bearer agent HTTP adapter] --> Host[Production ApplicationHost]
+  Host --> Guard[Durable execution middleware]
+  Guard --> Bus
 
-  Extensions[Trusted extension modules\nmanifest + lifecycle] --> ExtensionHost[In-memory extension registry]
-  ExtensionHost --> Bridge
-  ExtensionHost --> Renderer[Per-MapCanvas renderer host]
+  Admin[Admin extension API] --> ExtHost[ExtensionHostService]
+  ExtHost --> Trusted[Reviewed trusted module]
+  ExtHost --> Sandbox[bwrap/Node sandbox child]
+  Sandbox --> ExtBridge[ExtensionCommandBridge]
+  ExtBridge --> ExtBus[Extension runtime CommandBus]
+
+  Bus --> Ports[Application ports]
+  Ports --> Prisma[Prisma persistence adapters]
+  Guard --> Durable[(grants, audit, idempotency, outbox)]
+  Durable --> Worker[Outbox dispatcher]
+
+  Browser --> Theme[ThemeHost]
+  Browser --> Renderer[Per-canvas MapCanvasRendererHost]
+  ExtHost -. active theme data .-> Theme
 ```
 
-### What is now executable
+The important distinction is intentional: the production `ApplicationHost`
+wraps the shared core `CommandBus`, while the installed-extension runtime owns
+its own registry and command bus. They share concepts and durable policy, but
+they are **not yet one universal command host**.
 
-* `POST /api/campaigns/:campaignId/token-templates` retains its public REST
-  contract, but is now an HTTP adapter. It validates the existing request,
-  dispatches `token-template.create`, and writes through
-  `TokenTemplateRepository`'s Prisma adapter.
-* The command publishes a `token-template.created` domain event through a
-  port. The current deployment selects a no-op publisher, so this introduces
-  no unexpected Socket.IO behaviour.
-* The existing `token.move.start`, high-frequency `token.move`, and
-  `token.move.end` Socket.IO flow now dispatches `token.move.start`,
-  `token.move.preview`, and `token.move.finalize` application commands. The
-  commands own map scope, bounds checks, token control, spectator/spirit-layer
-  rules, and the final persistence write; the socket handler remains the
-  recipient-filtering and wire-compatibility adapter.
-* Core map lifecycle REST writes—create, update, delete, and set-current—and
-  `map.change` now dispatch map-lifecycle commands through their ports. Map
-  token REST create, update, and delete operations similarly dispatch scoped
-  token commands. The route and Socket.IO adapters retain their existing
-  response/event shapes, filtered recipient broadcasts, and not-found/privacy
-  behavior.
-* `chat.message` and `dice.roll` now dispatch application commands as well.
-  The commands own validation, cooldown/rate enforcement, user lookup,
-  persistence, dice parsing, and creation of the dice audit message. Socket.IO
-  remains responsible for campaign fan-out and the existing secret-roll
-  visibility rules, preserving current event names and payloads.
-* Scene editing writes—`wall:add`, `wall:remove`, `wall:update`,
-  `walls:replace`, `fog:operation`, `light:add`, `light:remove`,
-  `light:update`, and `lights:replace`—now dispatch scene commands through a
-  `SceneMutationRepository`. Commands own map scope, role/door rules, fog
-  mutation, limits, and JSON-field persistence. The WebSocket adapters retain
-  legacy schema validation, rate limits, request/reconnect reads, and the
-  DM-versus-player fog broadcast filter. The REST wall, light, fog-operation,
-  and dedicated dynamic-lighting-toggle endpoints dispatch these same commands
-  after preserving their existing HTTP validation, status/error bodies,
-  campaign checks, and broadcasts.
-* Initiative mutations—add, remove, set, roll, reorder, start, advance, and
-  end—now dispatch application commands. The commands own DM authorization,
-  map/token lookup, combat-state transitions, initiative-value persistence,
-  and initiative-roll calculation. The socket adapter preserves the full
-  `initiative.state` payload and the legacy `dice.rolled` then
-  `initiative.state` ordering for a rolled initiative. `initiative.request_state`
-  remains a read-only adapter query.
-* Asset upload, deletion, and scope changes now dispatch `asset.upload.prepare`,
-  `asset.create`, `asset.delete`, and `asset.scope.update`. The HTTP adapter
-  still owns multipart parsing, magic-byte/MIME and size validation, and
-  thumbnail generation; commands own scope/campaign authorization, metadata
-  persistence, deletion policy, and cleanup decisions through
-  `AssetMutationRepository` and `AssetFileStore`. A metadata-create failure
-  rolls back both the original stored file and any generated thumbnail. The
-  current schema has no content-hash or de-duplication field, so this slice
-  intentionally does not claim a de-duplication feature.
-* Character create, update, delete, assign/unassign, and copy actions now
-  dispatch `character.*` commands. Their command layer owns user/campaign
-  authorization, game-system and character-data validation, token-image URL
-  normalization, membership updates, and existing best-effort campaign event
-  publication; HTTP retains response bodies and status mapping.
-* Campaign administration writes now dispatch `campaign.*` commands: create,
-  settings/vibe updates, delete (including campaign-asset re-homing), invite,
-  membership removal/role changes, and invitation accept/decline. Campaign
-  session lifecycle and import/export mutations remain legacy route/service
-  paths.
-* `BlobStorage` and its filesystem adapter establish a separate generic blob
-  boundary. Asset mutations currently use the narrower `AssetFileStore` port;
-  no object-store implementation or content-addressed asset store exists yet.
-* The extension package validates versioned manifests, compatibility,
-  capability declarations, permission declarations, command/tool references,
-  duplicate identifiers, and lifecycle transitions for **trusted in-process**
-  modules.
-* `MapCanvas` can receive a per-canvas `MapCanvasRendererHost`. Its terrain,
-  token, and overlay layers are stable, versioned replacement points; runtime
-  registrations cause the owning canvas to redraw. Without a supplied host,
-  it creates an equivalent private host so existing callers retain behaviour.
-* The guarded, transport-neutral `ExtensionCommandBridge` can enumerate active
-  agent tools for a scoped principal and invoke an **allowlisted command
-  binding**. It validates input/output schemas, checks an explicit policy
-  grant, requires the declared confirmation level, rejects contradictory
-  campaign input, recursively redacts secret-shaped output fields, and records
-  value-free audit events. It is intentionally inert without a host-provided
-  command binding and policy grant.
+## What ships now
 
-### What is intentionally not claimed yet
+### Core commands and transport boundaries
 
-There is no production extension installer, persistent registry, extension
-process/WASM sandbox, MCP/HTTP agent adapter, durable capability grant store,
-durable audit store, transactional command-event outbox, or
-extension-to-frontend bundle loader. The registry and bridge are therefore
-tested in-process kernels, not an end-user plugin marketplace. A manifest
-descriptor still cannot execute arbitrary extension code: it needs an
-explicitly registered, host-reviewed command binding.
+`productionCommandBus` is the central registry for the migrated core write
+use cases. REST and Socket.IO adapters dispatch it for map and token work,
+scene walls/fog/lights, initiative, chat and dice, campaigns and invitations,
+assets, characters, content-library actions, and administrative mutations.
+Those adapters retain their public wire contracts, recipient filtering, and
+transport-specific ingress checks.
 
-Likewise, a renderer host is an in-memory integration seam. It is supplied by
-the map owner; it is not remotely controllable and does not load renderer code
-from a plugin package. This is deliberate until the extension security model
-exists.
+`productionApplicationHost` derives a catalog from that same registered core
+command set and delegates to the exact handlers. Its command metadata carries
+an identifier, version, risk, permissions, idempotency/outbox settings, and
+descriptive input/output schemas. It is the protected façade used by the core
+agent HTTP command route.
 
-## Dependency direction
+Read/query paths are not a corresponding universal query host. Many remain
+scoped REST, Socket.IO, or repository read adapters, and command metadata is
+not a replacement for every route's existing validation. In particular, most
+interactive REST/Socket mutations currently enter `productionCommandBus`
+directly rather than traversing `productionApplicationHost`.
 
-```mermaid
-flowchart TB
-  Domain[domain/] --> Nothing[No framework imports]
-  Ports[ports/] --> Domain
-  Application[application/] --> Domain
-  Application --> Ports
-  Adapters[adapters/] --> Application
-  Adapters --> Ports
-  HTTP[routes/] --> Application
-  HTTP --> Adapters
-  Socket[websocket/] --> Application
-  Socket --> Adapters
-  Extensions[extensions/] --> Application
+### Durable protected execution
 
-  classDef forbidden fill:#fee,stroke:#b33,color:#400;
-  Prisma[(Prisma)]:::forbidden
-  Express[(Express)]:::forbidden
-  SocketIo[(Socket.IO)]:::forbidden
-  Domain -. must not import .-> Prisma
-  Domain -. must not import .-> Express
-  Application -. must not import .-> SocketIo
-```
+For calls with `origin: "AGENT"` or `origin: "EXTENSION"`, the application
+host's durable middleware:
 
-The frontend rendering boundary mirrors this rule. The renderer kernel owns
-ordering, compatibility, attachment, registration, and invalidation. The
-product-specific `MapCanvasRendererContext` owns only a narrow current-frame
-view of canvas/map/viewport state and safe callbacks. Renderer extensions must
-not reach into React component closures, Zustand stores, DOM query selectors,
-or socket singletons.
+1. computes a canonical SHA-256 input digest and records value-free audit
+   decisions;
+2. requires an extension identity and an exact durable grant for every
+   command permission;
+3. registers and completes a durable idempotency key when the command is
+   idempotent;
+4. executes the protected persistence, idempotency completion, and outbox
+   enqueue in the configured unit of work; and
+5. creates an `application.command.executed.v1` outbox event for non-read
+   host commands, then records execution or failure.
 
-## Extension and agent model
+Prisma adapters persist grants, audit entries, idempotency records, and outbox
+events. The production server starts an outbox dispatcher outside tests; its
+currently registered consumer logs successful delivery. It has polling,
+claiming, retry, and dead-letter mechanics, but it is not yet an external
+event-integration system.
 
-An agent adapter should receive a catalog of application tools, not raw HTTP
-or socket access. The current bridge implements that policy boundary in memory:
-each active tool resolves through a pre-registered command factory, and the
-bridge authorizes the principal in campaign scope before dispatch. A production
-MCP or HTTP adapter is intentionally still absent.
+This transaction/outbox guarantee applies to protected `ApplicationHost`
+dispatches. It must not be inferred for every legacy/direct `CommandBus`
+transport path.
 
-```mermaid
-sequenceDiagram
-  participant A as Agent adapter
-  participant C as Tool catalog
-  participant P as Policy gate
-  participant B as Command bus
-  participant U as Use case
-  participant O as Port adapters
+### Agent control plane and human confirmation
 
-  A->>C: discover permitted tools
-  A->>P: invoke tool(input, campaign, actor)
-  P->>P: schema + permission + confirmation + audit
-  P->>B: dispatch command
-  B->>U: execute
-  U->>O: persistence/event/blob operations
-  O-->>U: result
-  U-->>A: typed, redacted result
-```
+`/api/agent` is a narrow bearer-token HTTP adapter. An authenticated campaign
+member can issue a campaign-scoped credential, list it, and revoke it. The
+plaintext credential is returned only at issuance; persistence stores a
+SHA-256 hash. Credential use is denied if its delegated user no longer belongs
+to the campaign.
 
-The manifest's `requiredPermissions` are a request by an extension, not a
-grant. Tool permissions must include the command's requirements. High-risk
-tools cannot use `confirmation: never`. The bridge independently checks a
-scope-bound `ExtensionPolicyPort` grant and confirmation receipt; its current
-in-memory policy/audit adapters are deliberately not a production identity or
-audit system.
+Core agent commands are discovered and executed through
+`productionApplicationHost`; they are campaign-scoped and need matching
+durable grants. Write commands require an `Idempotency-Key`. An agent may
+create a pending confirmation, but only the delegated user's authenticated
+session can approve or deny it. A successful approval produces a one-time,
+five-minute receipt bound to the credential, delegated user, campaign,
+extension, command, and canonical input digest.
 
-## Renderer extension points
+The route can also list and invoke active extension tools through the extension
+bridge. That bridge has separate runtime bindings and policy/audit
+adapters, so it is not a general escape hatch to arbitrary REST, Socket.IO,
+database, shell, or network access. There is no MCP transport in this build.
 
-| Stable layer id | Surface | Default behaviour | Safe extension action |
-|---|---|---|---|
-| `cozyvtt.map.terrain` | terrain | Map, grid, fog, spirit artwork | register another ordered terrain layer or replace explicitly |
-| `cozyvtt.map.tokens` | tokens | Map tokens and drag state | register another ordered token layer or replace explicitly |
-| `cozyvtt.map.overlay` | overlay | Interaction and visual overlays | register another ordered overlay layer or replace explicitly |
+The Profile UI exposes credential issuance/list/revocation and the pending
+confirmation inbox. It never displays stored credential hashes or raw command
+input; the receipt returned after approval is intentionally shown once so it
+can be relayed to the waiting agent.
 
-Layer registration validates its contract version, identifier, and ordering.
-Registration/swap/disposal invalidate only the affected canvas surface. Hosts
-are per canvas, so a renderer must never assume one global map or bind a host
-to more than one canvas.
+### Extension lifecycle
 
-## Invariants (non-negotiable)
+`ExtensionHostService` persists package installation state and supports
+discovering local packages, install, activate, deactivate, uninstall, and
+durable grant administration. `/api/admin/extensions` is protected by session
+authentication and platform-admin authorization. Installation accepts a local
+catalogue package ID—not a filesystem path or uploaded archive—and supports
+`trusted` or `sandboxed` mode.
 
-1. **Compatibility first.** A migrated REST or Socket.IO action preserves its
-   validation, authorization, status codes, response/event shape, and ordering
-   unless the API is explicitly versioned.
-2. **Domain/application code stays transport-free.** No Express request,
-   response, Socket.IO socket, Prisma client, filesystem path, or browser API
-   may cross into domain models or application use cases.
-3. **All mutation paths converge.** UI, REST, Socket.IO, import jobs, CLI, and
-   agents invoke the same command/use case; an adapter never recreates a
-   mutation by issuing a privileged internal HTTP request.
-4. **Authorization is not a manifest field.** Every command enforces actor and
-   campaign scope through a policy/authorization boundary. Manifest-declared
-   permissions are the minimum requested capability only.
-5. **Agent operations are attributable.** The current bridge records
-   principal, campaign, extension/tool/command identifiers, outcome, reason,
-   timestamp, and input keys without storing input values or results. Before
-   general agent writes are enabled, this must become durable and additionally
-   record delegated human identity, an input digest, and the authorization
-   decision.
-6. **Failure is contained.** A failed plugin lifecycle action leaves the
-   registry unmodified; failed event publication must not silently create an
-   invisible split-brain state; a failed renderer layer must not prevent core
-   map layers from drawing.
-7. **Renderer state is scoped.** A renderer receives the documented frame
-   context and requests redraw through its host. It must not retain a canvas
-   or context after detach/unmount, mutate core map state during draw, or run
-   network requests in a frame callback.
-8. **Theme semantics stay separate from features.** Components consume
-   semantic theme tokens. Themes—including dark themes—are data/manifests, not
-   separate UI branches or hard-coded colour literals.
-9. **Untrusted code is never `import()`ed in the server process.** Until a
-   sandbox and resource limits exist, only reviewed first-party/trusted modules
-   may use the extension lifecycle interfaces.
+Trusted packages are imported in-process only after real-path/checksum checks,
+an exact id/version/checksum allowlist, and signature verification. The shipped
+review verifier is HMAC-based (`TRUSTED_EXTENSION_REVIEW_KEY`); deployments can
+provide a different verifier. Missing trust configuration is deny-all.
 
-## Migration phases
+Sandboxed packages are rechecked and invoked as short-lived Node children
+under bubblewrap. They use a versioned NDJSON request/response protocol with a
+read-only `/package`, temporary work directory, disabled network namespace,
+Node read permission restricted to the package, and time/memory/output and
+concurrency limits. Malformed output, timeout, or child failure ends that
+invocation without taking down the VTT server.
 
-### Phase 0 — foundation (complete first slices)
+At server startup, configured packages are rehydrated before the HTTP listener
+opens. A bad package is logged and leaves the base VTT available. Rehydration
+re-activates persisted active installations; it is lifecycle restoration, not
+a persistent worker supervisor or a user-facing restart facility.
 
-Define ports, domain models, command bus, migrated token-template REST and
-token-movement, chat, dice, scene-editing, and initiative Socket.IO write
-paths; manifest validation/lifecycle contracts; a guarded in-process agent
-bridge; BlobStorage; and a per-canvas renderer host. Keep all existing API
-behaviour and test the seams.
+### Renderer, themes, and runtime UI
 
-### Phase 1 — application spine (in progress)
+The map renderer is a per-`MapCanvas` host with stable terrain, token, and
+overlay layer contracts. Registration, replacement, detach, and invalidation
+are local to a canvas. It remains a controlled in-process React/Canvas seam;
+it does not download or execute renderer bundles from installed packages.
 
-Migrate every mutation, prioritised by shared use:
+`ThemeHost` validates versioned semantic palettes and contrast. After login,
+`ThemeSyncBridge` loads authenticated active theme contributions from
+`GET /api/extensions/contributions`, validates complete data-only token sets,
+and registers them with the current theme host. Extension lifecycle actions
+emit a browser refresh event so the contribution loader can refresh safely.
+Partial palettes and arbitrary CSS variables are rejected.
 
-1. complete remaining map/token mutations and migrate the read/query paths
-   needed by other transports while preserving scene request/reconnect
-   semantics;
-2. campaign session lifecycle, import/export, admin configuration, and the
-   remaining asset read/query paths that need to be shared by new transports;
-3. replace route-local command-bus composition with a host-owned command
-   registry so approved extension/agent bindings can reach the same production
-   command instances without importing a route module.
+The Admin Extensions screen lists the local package catalogue and persisted
+installations, performs trusted/sandboxed lifecycle actions, and lists,
+creates, and revokes grants with trust/risk copy. This is a control plane, not
+a marketplace. Active extension themes are loaded into the runtime host, but
+the existing picker still lists only built-in presets and custom colors;
+remote renderers are not supported.
 
-For each, add an application command, domain input/output types, repository or
-service ports, existing Prisma/filesystem/Socket.IO adapters, and contract
-tests against today's REST and websocket behaviour. Read-only queries may use
-a separate query port but must remain tenant/campaign-scoped.
+## Boundary rules
 
-### Phase 2 — durable events and policy
+1. **Use commands for mutations.** New externally reachable mutations should
+   enter an application command, not recreate business rules in a route or
+   call a privileged internal HTTP endpoint.
+2. **Keep queries explicitly scoped.** The production query host exposes a
+   finite read-only catalogue and each adapter enforces campaign/tenant
+   authorization. New reads must join that catalogue rather than being
+   presented as write-command capabilities.
+3. **Treat declared permissions as requests, not authority.** A manifest or
+   tool descriptor does not grant access; protected execution checks durable,
+   campaign-scoped grants.
+4. **Keep agent attribution value-free.** Store identity, delegation,
+   campaign, extension/command, digest, decision, and reason—not plaintext
+   credentials, raw command input, or result payloads.
+5. **Do not import untrusted packages into the server.** Only reviewed trusted
+   modules run in-process. Sandboxed packages remain process-isolated.
+6. **Keep UI semantics theme-driven.** UI components use semantic tokens;
+   extension themes are validated data rather than arbitrary style injection.
 
-Replace the no-op publisher with a transactionally safe outbox and event
-delivery adapters. Replace in-memory extension policy/audit adapters with
-durable actor grants and value-free audit persistence. Add delegated identity,
-input digests, idempotency keys, optimistic versioning where appropriate,
-rate/concurrency limits, and command input/output schemas shared by all
-adapters.
+## Remaining limits and non-goals
 
-### Phase 3 — controlled agent adapter (bridge complete; transport pending)
+* The core and installed-extension command runtimes are separate. A future
+  shared command/query host needs a deliberate binding and authorization model
+  rather than an implicit bridge between their buses.
+* The agent surface has an explicit read-only query catalogue, but there is no
+  MCP endpoint, plugin marketplace, remote package download/upload, dependency
+  solver, upgrade/rollback flow, or extension migration framework.
+* Host metadata schemas are catalog/documentation metadata for many core
+  commands; they are not yet one strict schema implementation reused by every
+  transport.
+* Durable middleware/outbox coverage is currently the protected host path,
+  not every legacy/direct core transport command.
+* The sandbox is Linux/bubblewrap/Node dependent. The supplied Node 24 Docker
+  images include bubblewrap and the Compose services have a verified
+  unprivileged execution path. They intentionally use `seccomp=unconfined`
+  because Docker's default profile blocks the user namespace bubblewrap needs,
+  while retaining `no-new-privileges`; operators must explicitly accept that
+  tradeoff or run the sandbox separately. There is still no cgroup CPU quota,
+  persistent worker process, per-extension storage/network grant, automatic
+  child restart loop, or rich operational telemetry.
+* There is no frontend code sandbox, remote renderer loading, or arbitrary CSS
+  contribution. Theme contributions are data-only and current picker exposure
+  remains limited.
 
-Expose a narrow MCP/HTTP/UI adapter over the existing filtered bridge. It must
-establish trusted principals and attributable confirmation receipts outside
-model-supplied input; use durable grants/audit from Phase 2; provide dry-run or
-preview where viable; enforce quotas and human-visible activity. Start with
-read tools and explicitly confirmed low-risk writes; never expose arbitrary
-database, HTTP, shell, or socket capabilities.
+## Evidence and verification
 
-### Phase 4 — trusted extension host
-
-Add package discovery, signature/allowlist policy, persistent install state,
-dependency resolution, migration hooks, frontend contribution manifests, and
-admin activation controls. Bind declared commands only to reviewed handlers,
-validate schemas at the boundary, and expose only permitted agent tools.
-
-### Phase 5 — sandboxed third-party extensions
-
-Run third-party code outside the main server process (WASM/process/container
-sandbox), with a versioned RPC protocol, timeout/memory/CPU limits, network
-egress policy, scoped storage, kill/restart controls, upgrade/rollback, and
-observability. Only after this phase should external marketplace-style plugins
-be considered.
-
-### Phase 6 — modular renderer and themes
-
-Move the renderer host ownership to the campaign workspace integration layer,
-give trusted extensions a controlled registration bridge, add per-layer error
-isolation/telemetry, and versioned context migration. Publish theme manifests
-on a semantic token contract; validate contrast and missing tokens before
-activation and support user/instance defaults plus optional system preference.
-
-## Test gates for every phase
-
-* backend TypeScript build and focused Jest suite;
-* frontend typecheck, build, and focused Vitest suite;
-* REST and Socket.IO compatibility tests for migrated actions;
-* authorization and cross-campaign isolation tests;
-* filesystem cleanup/rollback tests for byte-backed mutations, including
-  original-plus-thumbnail cleanup after metadata persistence failure;
-* lifecycle failure, duplicate, compatibility, and cleanup tests;
-* renderer order, swap, unmount, redraw, and throwing-layer containment tests;
-* an end-to-end campaign smoke test using exported/imported sample data.
-
-No phase is complete simply because the interfaces compile. A seam is accepted
-only when an existing production path traverses it and its failure/permission
-behaviour is covered by tests.
+The architecture is covered by focused tests including
+`ApplicationHost.transaction.test.ts`, `productionApplicationHost.test.ts`,
+durable-foundation persistence tests, outbox dispatcher/runtime tests,
+extension host/route/sandbox tests, agent route tests, renderer host tests,
+and ThemeHost/contribution tests. A change is not considered migrated merely
+because interfaces compile: it needs a production adapter path and behaviour,
+authorization, and failure coverage.

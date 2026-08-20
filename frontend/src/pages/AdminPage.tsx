@@ -46,6 +46,7 @@ import {
   Upload,
   RotateCcw,
   Palette,
+  Puzzle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -75,6 +76,7 @@ import ThemePicker from '@/components/appearance/ThemePicker';
 import TableSkeleton from '@/components/skeletons/TableSkeleton';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import Button from '@/components/ui/Button';
+import ExtensionManagement from '@/components/admin/ExtensionManagement';
 
 // ============================================
 // Helpers
@@ -146,7 +148,7 @@ const LOG_LEVEL_COLORS: Record<string, string> = {
   CRITICAL: 'bg-red-200 text-red-900 font-bold',
 };
 
-type Tab = 'dashboard' | 'users' | 'settings' | 'appearance' | 'activity' | 'backups' | 'assets';
+type Tab = 'dashboard' | 'users' | 'settings' | 'appearance' | 'activity' | 'backups' | 'assets' | 'extensions';
 
 // ============================================
 // AdminPage
@@ -775,6 +777,7 @@ export default function AdminPage() {
     { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'users',     label: 'Users',     icon: <Users className="w-4 h-4" /> },
     { id: 'assets',    label: 'Assets',    icon: <Layers className="w-4 h-4" /> },
+    { id: 'extensions', label: 'Extensions', icon: <Puzzle className="w-4 h-4" /> },
     { id: 'settings',  label: 'Settings',  icon: <Settings className="w-4 h-4" /> },
     { id: 'appearance', label: 'Appearance', icon: <Palette className="w-4 h-4" /> },
     { id: 'backups',   label: 'Backups',   icon: <HardDrive className="w-4 h-4" /> },
@@ -1701,6 +1704,8 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {activeTab === 'extensions' && <ExtensionManagement />}
 
         {/* ===== SETTINGS TAB ===== */}
         {activeTab === 'settings' && (

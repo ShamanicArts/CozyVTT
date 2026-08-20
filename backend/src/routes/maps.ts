@@ -1,56 +1,50 @@
-import { Router, Response } from 'express';
-import { randomUUID } from 'crypto';
-import fs from 'fs/promises';
-import path from 'path';
-import multer from 'multer';
-import { AuthenticatedRequest } from '../middleware/rbac';
-import { campaignMember, campaignDM } from '../middleware/compose';
-import { prisma } from '../config/database';
-import { filterMapData, getSpiritVisibility } from '../utils/spirit-layer';
-import { broadcastToCampaign } from '../websocket/utils';
-import { normalizeAssetUrl } from '../utils/asset-urls';
-import { WallSegmentSchema, WallSegmentsArraySchema, FogOperationSchema, LightSourceSchema, LightSourcesArraySchema, LightSourceUpdateSchema } from '../validators/walls';
-import type { WallSegment, FogState, LightSource } from '../types/walls';
-import { CommandBus } from '../application/commands/CommandBus';
+import { Router, Response } from "express";
+import { randomUUID } from "crypto";
+import fs from "fs/promises";
+import path from "path";
+import multer from "multer";
+import { AuthenticatedRequest } from "../middleware/rbac";
+import { campaignMember, campaignDM } from "../middleware/compose";
+import { prisma } from "../config/database";
+import { filterMapData, getSpiritVisibility } from "../utils/spirit-layer";
+import { broadcastToCampaign } from "../websocket/utils";
+import {
+  WallSegmentSchema,
+  WallSegmentsArraySchema,
+  FogOperationSchema,
+  LightSourceSchema,
+  LightSourcesArraySchema,
+  LightSourceUpdateSchema,
+} from "../validators/walls";
+import type { WallSegment, FogState, LightSource } from "../types/walls";
 import {
   ADD_LIGHT_SOURCE,
-  AddLightSource,
   AddLightSourceCommand,
   ADD_WALL_SEGMENT,
-  AddWallSegment,
   AddWallSegmentCommand,
   APPLY_FOG_OPERATION,
-  ApplyFogOperation,
   ApplyFogOperationCommand,
   REMOVE_LIGHT_SOURCE,
-  RemoveLightSource,
   RemoveLightSourceCommand,
   REMOVE_WALL_SEGMENT,
-  RemoveWallSegment,
   RemoveWallSegmentCommand,
   REPLACE_LIGHT_SOURCES,
-  ReplaceLightSources,
   ReplaceLightSourcesCommand,
   REPLACE_WALL_SEGMENTS,
-  ReplaceWallSegments,
   ReplaceWallSegmentsCommand,
   SET_SCENE_LIGHTING_ENABLED,
-  SetSceneLightingEnabled,
   SetSceneLightingEnabledCommand,
   UPDATE_LIGHT_SOURCE,
-  UpdateLightSource,
   UpdateLightSourceCommand,
   UPDATE_WALL_SEGMENT,
-  UpdateWallSegment,
   UpdateWallSegmentCommand,
-} from '../application/scene/SceneMutations';
-import { PrismaSceneMutationRepository } from '../adapters/persistence/PrismaSceneMutationRepository';
-import { loadFogState, SceneRole } from '../domain/scene/Scene';
-import { parseUVTT } from '../services/uvttParser';
-import { buildUVTT } from '../services/uvttExporter';
-import { getFilePath, ensureDirectory } from '../utils/fileUtils';
-import sharp from 'sharp';
-import logger from '../utils/logger';
+} from "../application/scene/SceneMutations";
+import { loadFogState, SceneRole } from "../domain/scene/Scene";
+import { parseUVTT } from "../services/uvttParser";
+import { buildUVTT } from "../services/uvttExporter";
+import { getFilePath, ensureDirectory } from "../utils/fileUtils";
+import sharp from "sharp";
+import logger from "../utils/logger";
 import {
   CREATE_MAP,
   DELETE_MAP,
@@ -58,31 +52,29 @@ import {
   UPDATE_MAP,
   CreateMap,
   CreateMapCommand,
-  DeleteMap,
   DeleteMapCommand,
   SetCurrentMap,
   SetCurrentMapCommand,
   UpdateMap,
   UpdateMapCommand,
-} from '../application/maps/MapLifecycleCommands';
-import { MapLifecycleError } from '../domain/maps/MapLifecycle';
-import { PrismaMapCoreRepository } from '../adapters/persistence/PrismaMapCoreRepository';
-import { AssetUrlMapNormalizer } from '../adapters/assets/AssetUrlMapNormalizer';
+} from "../application/maps/MapLifecycleCommands";
+import { MapLifecycleError } from "../domain/maps/MapLifecycle";
 import {
   CREATE_MAP_TOKEN,
-  CreateMapToken,
   CreateMapTokenCommand,
   DELETE_MAP_TOKEN,
-  DeleteMapToken,
   DeleteMapTokenCommand,
   MapTokenMutationResult,
   UPDATE_MAP_TOKEN,
-  UpdateMapToken,
   UpdateMapTokenCommand,
-} from '../application/mapTokens/MapTokenMutations';
-import { MapTokenError } from '../domain/mapTokens/MapToken';
-import { PrismaMapTokenRepository } from '../adapters/persistence/PrismaMapTokenRepository';
-import { LegacyMapTokenAssetUrlNormalizer } from '../adapters/assets/LegacyMapTokenAssetUrlNormalizer';
+} from "../application/mapTokens/MapTokenMutations";
+import { MapTokenError } from "../domain/mapTokens/MapToken";
+import { productionCommandBus } from "../composition/productionApplicationHost";
+import {
+  IMPORT_UVTT_MAP,
+  ImportUvttMap,
+  ImportUvttMapCommand,
+} from "../application/maps/UvttMapImportCommands";
 
 /** Multer configured for UVTT file uploads (memory storage — files are small JSON). */
 const uvttUpload = multer({
@@ -90,10 +82,13 @@ const uvttUpload = multer({
   limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB — UVTT files can be large (embedded image)
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (['.uvtt', '.dd2vtt', '.df2vtt'].includes(ext) || file.mimetype === 'application/json') {
+    if (
+      [".uvtt", ".dd2vtt", ".df2vtt"].includes(ext) ||
+      file.mimetype === "application/json"
+    ) {
       cb(null, true);
     } else {
-      cb(new Error('Only .uvtt, .dd2vtt, and .df2vtt files are supported'));
+      cb(new Error("Only .uvtt, .dd2vtt, and .df2vtt files are supported"));
     }
   },
 });
@@ -102,13 +97,8 @@ const router = Router({ mergeParams: true }); // Important: Merge params from pa
 
 // HTTP remains a transport adapter. Core map lifecycle behaviour is shared
 // with Socket.IO commands instead of coupling those surfaces to Prisma.
-const mapCoreCommands = new CommandBus();
-const mapCoreRepository = new PrismaMapCoreRepository(prisma);
-const mapAssetUrls = new AssetUrlMapNormalizer();
-mapCoreCommands.register(CREATE_MAP, new CreateMap(mapCoreRepository, mapAssetUrls));
-mapCoreCommands.register(UPDATE_MAP, new UpdateMap(mapCoreRepository, mapAssetUrls));
-mapCoreCommands.register(DELETE_MAP, new DeleteMap(mapCoreRepository));
-mapCoreCommands.register(SET_CURRENT_MAP, new SetCurrentMap(mapCoreRepository));
+const mapCoreCommands = productionCommandBus;
+const uvttImportCommands = productionCommandBus;
 
 function sendMapLifecycleError(res: Response, error: unknown): boolean {
   if (!(error instanceof MapLifecycleError)) return false;
@@ -119,29 +109,13 @@ function sendMapLifecycleError(res: Response, error: unknown): boolean {
 // REST is a transport adapter. These bindings share the same scene use cases
 // as the Socket.IO map-edit handlers while preserving this route's established
 // HTTP validation, status codes, payloads, and broadcasts.
-const sceneCommands = new CommandBus();
-const sceneRepository = new PrismaSceneMutationRepository(prisma);
-sceneCommands.register(ADD_WALL_SEGMENT, new AddWallSegment(sceneRepository));
-sceneCommands.register(REMOVE_WALL_SEGMENT, new RemoveWallSegment(sceneRepository));
-sceneCommands.register(UPDATE_WALL_SEGMENT, new UpdateWallSegment(sceneRepository));
-sceneCommands.register(REPLACE_WALL_SEGMENTS, new ReplaceWallSegments(sceneRepository));
-sceneCommands.register(APPLY_FOG_OPERATION, new ApplyFogOperation(sceneRepository));
-sceneCommands.register(ADD_LIGHT_SOURCE, new AddLightSource(sceneRepository));
-sceneCommands.register(REMOVE_LIGHT_SOURCE, new RemoveLightSource(sceneRepository));
-sceneCommands.register(UPDATE_LIGHT_SOURCE, new UpdateLightSource(sceneRepository));
-sceneCommands.register(REPLACE_LIGHT_SOURCES, new ReplaceLightSources(sceneRepository));
-sceneCommands.register(SET_SCENE_LIGHTING_ENABLED, new SetSceneLightingEnabled(sceneRepository));
+const sceneCommands = productionCommandBus;
 
 function sceneActor(campaignId: string) {
-  return { campaignId, role: 'DM' as SceneRole };
+  return { campaignId, role: "DM" as SceneRole };
 }
 
-const mapTokenCommands = new CommandBus();
-const mapTokenRepository = new PrismaMapTokenRepository(prisma);
-const mapTokenAssetUrls = new LegacyMapTokenAssetUrlNormalizer();
-mapTokenCommands.register(CREATE_MAP_TOKEN, new CreateMapToken(mapTokenRepository, mapTokenAssetUrls));
-mapTokenCommands.register(UPDATE_MAP_TOKEN, new UpdateMapToken(mapTokenRepository, mapTokenAssetUrls));
-mapTokenCommands.register(DELETE_MAP_TOKEN, new DeleteMapToken(mapTokenRepository));
+const mapTokenCommands = productionCommandBus;
 
 /**
  * Map CRUD Routes
@@ -155,61 +129,72 @@ mapTokenCommands.register(DELETE_MAP_TOKEN, new DeleteMapToken(mapTokenRepositor
  * Create a new map for the campaign
  * Requires: DM role
  */
-router.post('/', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId } = req.params;
-    const map = await mapCoreCommands.dispatch<CreateMapCommand, Awaited<ReturnType<CreateMap['execute']>>>({
-      type: CREATE_MAP,
-      campaignId,
-      input: req.body as Record<string, unknown>,
-    });
-    return res.status(201).json({ map });
-  } catch (error) {
-    if (sendMapLifecycleError(res, error)) return;
-    logger.error('Error creating map', { err: error });
-    return res.status(500).json({
-      error: 'Internal Server Error',
-      message: 'Failed to create map',
-    });
-  }
-});
+router.post(
+  "/",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId } = req.params;
+      const map = await mapCoreCommands.dispatch<
+        CreateMapCommand,
+        Awaited<ReturnType<CreateMap["execute"]>>
+      >({
+        type: CREATE_MAP,
+        campaignId,
+        input: req.body as Record<string, unknown>,
+      });
+      return res.status(201).json({ map });
+    } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
+      logger.error("Error creating map", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to create map",
+      });
+    }
+  },
+);
 
 /**
  * GET /api/campaigns/:campaignId/maps
  * List all maps for the campaign
  * Requires: Campaign membership
  */
-router.get('/', campaignMember, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId } = req.params;
+router.get(
+  "/",
+  campaignMember,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId } = req.params;
 
-    const maps = await prisma.map.findMany({
-      where: { campaignId },
-      select: {
-        id: true,
-        name: true,
-        imageUrl: true, // Thumbnail reference
-        width: true,
-        height: true,
-        gridSize: true,
-        feetPerSquare: true,
-        diagonalRule: true,
-        lightingEnabled: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+      const maps = await prisma.map.findMany({
+        where: { campaignId },
+        select: {
+          id: true,
+          name: true,
+          imageUrl: true, // Thumbnail reference
+          width: true,
+          height: true,
+          gridSize: true,
+          feetPerSquare: true,
+          diagonalRule: true,
+          lightingEnabled: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
 
-    return res.status(200).json({ maps });
-  } catch (error) {
-    logger.error('Error fetching maps', { err: error });
-    return res.status(500).json({
-      error: 'Internal Server Error',
-      message: 'Failed to fetch maps',
-    });
-  }
-});
+      return res.status(200).json({ maps });
+    } catch (error) {
+      logger.error("Error fetching maps", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to fetch maps",
+      });
+    }
+  },
+);
 
 /**
  * POST /api/campaigns/:campaignId/maps/import-uvtt
@@ -220,20 +205,28 @@ router.get('/', campaignMember, async (req: AuthenticatedRequest, res: Response)
  * Requires: DM role
  */
 router.post(
-  '/import-uvtt',
+  "/import-uvtt",
   campaignDM,
-  uvttUpload.single('file'),
+  uvttUpload.single("file"),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { campaignId } = req.params;
       const userId = req.session?.userId;
-      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
       if (!req.file?.buffer) {
-        return res.status(400).json({ error: 'Validation Error', message: 'No UVTT file uploaded' });
+        return res.status(400).json({
+          error: "Validation Error",
+          message: "No UVTT file uploaded",
+        });
       }
 
-      const mapName = (req.body.name as string)?.trim() || path.basename(req.file.originalname, path.extname(req.file.originalname));
+      const mapName =
+        (req.body.name as string)?.trim() ||
+        path.basename(
+          req.file.originalname,
+          path.extname(req.file.originalname),
+        );
       const gridSizePx = Number(req.body.gridSize) || 70;
 
       // ── Parse the UVTT file ──────────────────────────────────────────────
@@ -241,25 +234,34 @@ router.post(
       try {
         parsed = parseUVTT(req.file.buffer, gridSizePx);
       } catch (parseErr) {
-        const msg = parseErr instanceof Error ? parseErr.message : 'Failed to parse UVTT file';
-        return res.status(400).json({ error: 'Parse Error', message: msg });
+        const msg =
+          parseErr instanceof Error
+            ? parseErr.message
+            : "Failed to parse UVTT file";
+        return res.status(400).json({ error: "Parse Error", message: msg });
       }
 
       // ── Save the embedded image as an asset ──────────────────────────────
-      const ext = parsed.imageMimeType === 'image/webp' ? '.webp'
-                : parsed.imageMimeType === 'image/jpeg' ? '.jpg'
-                : '.png';
+      const ext =
+        parsed.imageMimeType === "image/webp"
+          ? ".webp"
+          : parsed.imageMimeType === "image/jpeg"
+            ? ".jpg"
+            : ".png";
       const filename = `${randomUUID()}${ext}`;
-      const uploadPath = getFilePath('MAP', 'CAMPAIGN', campaignId);
+      const uploadPath = getFilePath("MAP", "CAMPAIGN", campaignId);
       await ensureDirectory(uploadPath);
-      const filePath = path.join(uploadPath, filename).replace(/\\/g, '/');
+      const filePath = path.join(uploadPath, filename).replace(/\\/g, "/");
       await fs.writeFile(filePath, parsed.imageBuffer);
 
-      // Create asset record
-      const asset = await prisma.asset.create({
-        data: {
-          type: 'MAP',
-          scope: 'CAMPAIGN',
+      const map = await uvttImportCommands.dispatch<
+        ImportUvttMapCommand,
+        Awaited<ReturnType<ImportUvttMap["execute"]>>
+      >({
+        type: IMPORT_UVTT_MAP,
+        asset: {
+          type: "MAP",
+          scope: "CAMPAIGN",
           uploadedById: userId,
           campaignId,
           filename,
@@ -268,19 +270,11 @@ router.post(
           fileSize: parsed.imageBuffer.length,
           filePath,
           name: mapName,
-          tags: ['uvtt-import'],
+          tags: ["uvtt-import"],
         },
-      });
-
-      const imageUrl = normalizeAssetUrl(asset.id, 'maps');
-
-      // ── Create the map with walls and lights ─────────────────────────────
-      const map = await prisma.map.create({
-        data: {
+        map: {
           campaignId,
           name: mapName,
-          imageUrl: imageUrl!,
-          baseLayerUrl: imageUrl!,
           width: parsed.mapWidth,
           height: parsed.mapHeight,
           gridSize: gridSizePx,
@@ -294,7 +288,7 @@ router.post(
 
       logger.info(
         `[uvtt-import] Created map "${mapName}" (${parsed.mapWidth}×${parsed.mapHeight}) ` +
-        `with ${parsed.wallCount} walls + ${parsed.portalCount} doors + ${parsed.lightCount} lights`
+          `with ${parsed.wallCount} walls + ${parsed.portalCount} doors + ${parsed.lightCount} lights`,
       );
 
       return res.status(201).json({
@@ -305,10 +299,13 @@ router.post(
         totalSegments: parsed.wallSegments.length,
       });
     } catch (error) {
-      logger.error('Error importing UVTT file:', error);
-      return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to import UVTT file' });
+      logger.error("Error importing UVTT file:", error);
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to import UVTT file",
+      });
     }
-  }
+  },
 );
 
 /**
@@ -318,7 +315,7 @@ router.post(
  * Requires: DM role
  */
 router.get(
-  '/:id/export-uvtt',
+  "/:id/export-uvtt",
   campaignDM,
   async (req: AuthenticatedRequest, res: Response) => {
     try {
@@ -338,10 +335,14 @@ router.get(
         },
       });
       if (!map) {
-        return res.status(404).json({ error: 'Not Found', message: 'Map not found' });
+        return res
+          .status(404)
+          .json({ error: "Not Found", message: "Map not found" });
       }
       if (!map.imageUrl) {
-        return res.status(422).json({ error: 'Unprocessable Entity', message: 'Map has no image' });
+        return res
+          .status(422)
+          .json({ error: "Unprocessable Entity", message: "Map has no image" });
       }
 
       // Resolve asset file path
@@ -351,23 +352,33 @@ router.get(
         select: { filePath: true },
       });
       if (!asset) {
-        return res.status(422).json({ error: 'Unprocessable Entity', message: 'Map image asset not found' });
+        return res.status(422).json({
+          error: "Unprocessable Entity",
+          message: "Map image asset not found",
+        });
       }
 
-      const imagePath = path.resolve(asset.filePath.replace(/\\/g, '/'));
+      const imagePath = path.resolve(asset.filePath.replace(/\\/g, "/"));
       let imageBuffer: Buffer;
       try {
         imageBuffer = await fs.readFile(imagePath);
       } catch {
-        return res.status(422).json({ error: 'Unprocessable Entity', message: 'Map image file not found on disk' });
+        return res.status(422).json({
+          error: "Unprocessable Entity",
+          message: "Map image file not found on disk",
+        });
       }
 
       // Get image dimensions for pixels_per_grid calculation
       const meta = await sharp(imageBuffer).metadata();
       const imageWidthPx = meta.width;
 
-      const wallSegments = (Array.isArray(map.wallSegments) ? map.wallSegments : []) as unknown as WallSegment[];
-      const lights = (Array.isArray(map.lights) ? map.lights : []) as unknown as LightSource[];
+      const wallSegments = (Array.isArray(map.wallSegments)
+        ? map.wallSegments
+        : []) as unknown as WallSegment[];
+      const lights = (Array.isArray(map.lights)
+        ? map.lights
+        : []) as unknown as LightSource[];
 
       const uvttBuffer = buildUVTT({
         mapWidth: map.width,
@@ -380,16 +391,22 @@ router.get(
       });
 
       // Sanitize filename for Content-Disposition
-      const safeName = map.name.replace(/[^a-zA-Z0-9 _-]/g, '').trim() || 'map';
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Content-Disposition', `attachment; filename="${safeName}.uvtt"`);
-      res.setHeader('Content-Length', uvttBuffer.length);
+      const safeName = map.name.replace(/[^a-zA-Z0-9 _-]/g, "").trim() || "map";
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${safeName}.uvtt"`,
+      );
+      res.setHeader("Content-Length", uvttBuffer.length);
       return res.send(uvttBuffer);
     } catch (error) {
-      logger.error('Error exporting UVTT file:', error);
-      return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to export UVTT file' });
+      logger.error("Error exporting UVTT file:", error);
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to export UVTT file",
+      });
     }
-  }
+  },
 );
 
 /**
@@ -403,109 +420,125 @@ router.get(
  * - Hidden tokens (visible: false) only visible to DM
  * - Spirit layer URL hidden from non-privileged users
  */
-router.get('/:id', campaignMember, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id } = req.params;
-    const userId = req.session.userId!;
+router.get(
+  "/:id",
+  campaignMember,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id } = req.params;
+      const userId = req.session.userId!;
 
-    // Fetch the map
-    const map = await prisma.map.findUnique({
-      where: { id },
-    });
-
-    if (!map) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Map not found',
+      // Fetch the map
+      const map = await prisma.map.findUnique({
+        where: { id },
       });
-    }
 
-    // Verify map belongs to this campaign
-    if (map.campaignId !== campaignId) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Map not found in this campaign',
-      });
-    }
+      if (!map) {
+        return res.status(404).json({
+          error: "Not Found",
+          message: "Map not found",
+        });
+      }
 
-    // Check user's role in campaign
-    const membership = await prisma.campaignMembership.findUnique({
-      where: {
-        userId_campaignId: {
-          userId,
-          campaignId,
+      // Verify map belongs to this campaign
+      if (map.campaignId !== campaignId) {
+        return res.status(404).json({
+          error: "Not Found",
+          message: "Map not found in this campaign",
+        });
+      }
+
+      // Check user's role in campaign
+      const membership = await prisma.campaignMembership.findUnique({
+        where: {
+          userId_campaignId: {
+            userId,
+            campaignId,
+          },
         },
-      },
-      select: { role: true },
-    });
+        select: { role: true },
+      });
 
-    if (!membership) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'You are not a member of this campaign',
+      if (!membership) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "You are not a member of this campaign",
+        });
+      }
+
+      // Get spirit layer visibility for this user
+      const spiritVisible = await getSpiritVisibility(campaignId, userId);
+
+      // Filter map data based on role and spirit visibility
+      const responseMap = filterMapData(map, membership.role, spiritVisible);
+
+      return res.status(200).json({ map: responseMap, spiritVisible });
+    } catch (error) {
+      logger.error("Error fetching map", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to fetch map",
       });
     }
-
-    // Get spirit layer visibility for this user
-    const spiritVisible = await getSpiritVisibility(campaignId, userId);
-
-    // Filter map data based on role and spirit visibility
-    const responseMap = filterMapData(map, membership.role, spiritVisible);
-
-    return res.status(200).json({ map: responseMap, spiritVisible });
-  } catch (error) {
-    logger.error('Error fetching map', { err: error });
-    return res.status(500).json({
-      error: 'Internal Server Error',
-      message: 'Failed to fetch map',
-    });
-  }
-});
+  },
+);
 
 /**
  * PUT /api/campaigns/:campaignId/maps/:id
  * Update a map
  * Requires: DM role
  */
-router.put('/:id', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id } = req.params;
-    const updateResult = await mapCoreCommands.dispatch<UpdateMapCommand, Awaited<ReturnType<UpdateMap['execute']>>>({
-      type: UPDATE_MAP,
-      campaignId,
-      mapId: id,
-      input: req.body as Record<string, unknown>,
-    });
-    let updatedMap = updateResult.map;
-
-    // The generic map editor delegates this field to the same scene command
-    // used by the dedicated /lighting endpoint. Persist before broadcasting.
-    if (updateResult.lightingEnabled !== undefined) {
-      const lightingEnabled = await sceneCommands.dispatch<SetSceneLightingEnabledCommand, boolean>({
-        type: SET_SCENE_LIGHTING_ENABLED,
-        actor: sceneActor(campaignId),
+router.put(
+  "/:id",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id } = req.params;
+      const updateResult = await mapCoreCommands.dispatch<
+        UpdateMapCommand,
+        Awaited<ReturnType<UpdateMap["execute"]>>
+      >({
+        type: UPDATE_MAP,
+        campaignId,
         mapId: id,
-        enabled: updateResult.lightingEnabled,
+        input: req.body as Record<string, unknown>,
       });
-      updatedMap = { ...updatedMap, lightingEnabled };
-      try {
-        broadcastToCampaign(campaignId, 'map:lighting:updated', {
-          mapId: id,
-          lightingEnabled,
-        });
-      } catch { /* non-fatal */ }
-    }
+      let updatedMap = updateResult.map;
 
-    return res.status(200).json({ map: updatedMap });
-  } catch (error) {
-    if (sendMapLifecycleError(res, error)) return;
-    logger.error('Error updating map', { err: error });
-    return res.status(500).json({
-      error: 'Internal Server Error',
-      message: 'Failed to update map',
-    });
-  }
-});
+      // The generic map editor delegates this field to the same scene command
+      // used by the dedicated /lighting endpoint. Persist before broadcasting.
+      if (updateResult.lightingEnabled !== undefined) {
+        const lightingEnabled = await sceneCommands.dispatch<
+          SetSceneLightingEnabledCommand,
+          boolean
+        >({
+          type: SET_SCENE_LIGHTING_ENABLED,
+          actor: sceneActor(campaignId),
+          mapId: id,
+          enabled: updateResult.lightingEnabled,
+        });
+        updatedMap = { ...updatedMap, lightingEnabled };
+        try {
+          broadcastToCampaign(campaignId, "map:lighting:updated", {
+            mapId: id,
+            lightingEnabled,
+          });
+        } catch {
+          /* non-fatal */
+        }
+      }
+
+      return res.status(200).json({ map: updatedMap });
+    } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
+      logger.error("Error updating map", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to update map",
+      });
+    }
+  },
+);
 
 /**
  * DELETE /api/campaigns/:campaignId/maps/:id
@@ -513,53 +546,64 @@ router.put('/:id', campaignDM, async (req: AuthenticatedRequest, res: Response) 
  * Requires: DM role
  * Cannot delete if it's the current map
  */
-router.delete('/:id', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id } = req.params;
-    await mapCoreCommands.dispatch<DeleteMapCommand, void>({
-      type: DELETE_MAP,
-      campaignId,
-      mapId: id,
-    });
-    return res.status(200).json({
-      message: 'Map deleted successfully',
-    });
-  } catch (error) {
-    if (sendMapLifecycleError(res, error)) return;
-    logger.error('Error deleting map', { err: error });
-    return res.status(500).json({
-      error: 'Internal Server Error',
-      message: 'Failed to delete map',
-    });
-  }
-});
+router.delete(
+  "/:id",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id } = req.params;
+      await mapCoreCommands.dispatch<DeleteMapCommand, void>({
+        type: DELETE_MAP,
+        campaignId,
+        mapId: id,
+      });
+      return res.status(200).json({
+        message: "Map deleted successfully",
+      });
+    } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
+      logger.error("Error deleting map", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to delete map",
+      });
+    }
+  },
+);
 
 /**
  * PUT /api/campaigns/:campaignId/maps/:id/set-current
  * Set a map as the current map for the campaign
  * Requires: DM role
  */
-router.put('/:id/set-current', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id } = req.params;
-    const updatedCampaign = await mapCoreCommands.dispatch<SetCurrentMapCommand, Awaited<ReturnType<SetCurrentMap['execute']>>>({
-      type: SET_CURRENT_MAP,
-      campaignId,
-      mapId: id,
-    });
-    return res.status(200).json({
-      message: 'Current map updated successfully',
-      campaign: updatedCampaign,
-    });
-  } catch (error) {
-    if (sendMapLifecycleError(res, error)) return;
-    logger.error('Error setting current map', { err: error });
-    return res.status(500).json({
-      error: 'Internal Server Error',
-      message: 'Failed to set current map',
-    });
-  }
-});
+router.put(
+  "/:id/set-current",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id } = req.params;
+      const updatedCampaign = await mapCoreCommands.dispatch<
+        SetCurrentMapCommand,
+        Awaited<ReturnType<SetCurrentMap["execute"]>>
+      >({
+        type: SET_CURRENT_MAP,
+        campaignId,
+        mapId: id,
+      });
+      return res.status(200).json({
+        message: "Current map updated successfully",
+        campaign: updatedCampaign,
+      });
+    } catch (error) {
+      if (sendMapLifecycleError(res, error)) return;
+      logger.error("Error setting current map", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to set current map",
+      });
+    }
+  },
+);
 
 // ============================================
 // TOKEN MANIPULATION ENDPOINTS
@@ -586,33 +630,42 @@ router.put('/:id/set-current', campaignDM, async (req: AuthenticatedRequest, res
  *   metadata: object
  * }
  */
-router.post('/:id/tokens', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id: mapId } = req.params;
-    const tokenData = req.body;
+router.post(
+  "/:id/tokens",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id: mapId } = req.params;
+      const tokenData = req.body;
 
-    const result = await mapTokenCommands.dispatch<CreateMapTokenCommand, MapTokenMutationResult>({
-      type: CREATE_MAP_TOKEN,
-      campaignId,
-      mapId,
-      data: tokenData,
-    });
-    return res.status(201).json({
-      message: 'Token added successfully',
-      token: result.token,
-      map: result.map,
-    });
-  } catch (error) {
-    if (error instanceof MapTokenError) {
-      return res.status(error.status).json({ error: error.error, message: error.message });
+      const result = await mapTokenCommands.dispatch<
+        CreateMapTokenCommand,
+        MapTokenMutationResult
+      >({
+        type: CREATE_MAP_TOKEN,
+        campaignId,
+        mapId,
+        data: tokenData,
+      });
+      return res.status(201).json({
+        message: "Token added successfully",
+        token: result.token,
+        map: result.map,
+      });
+    } catch (error) {
+      if (error instanceof MapTokenError) {
+        return res
+          .status(error.status)
+          .json({ error: error.error, message: error.message });
+      }
+      logger.error("Error adding token", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to add token",
+      });
     }
-    logger.error('Error adding token', { err: error });
-    return res.status(500).json({
-      error: 'Internal Server Error',
-      message: 'Failed to add token',
-    });
-  }
-});
+  },
+);
 
 /**
  * PUT /api/campaigns/:campaignId/maps/:id/tokens/:tokenId
@@ -622,64 +675,79 @@ router.post('/:id/tokens', campaignDM, async (req: AuthenticatedRequest, res: Re
  * DM can update any token
  * Players can only update tokens where controlledBy matches their userId
  */
-router.put('/:id/tokens/:tokenId', campaignMember, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id: mapId, tokenId } = req.params;
-    const userId = req.session.userId!;
-    const updates = req.body;
+router.put(
+  "/:id/tokens/:tokenId",
+  campaignMember,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id: mapId, tokenId } = req.params;
+      const userId = req.session.userId!;
+      const updates = req.body;
 
-    const result = await mapTokenCommands.dispatch<UpdateMapTokenCommand, MapTokenMutationResult>({
-      type: UPDATE_MAP_TOKEN,
-      campaignId,
-      mapId,
-      tokenId,
-      userId,
-      updates,
-    });
-    return res.status(200).json({
-      message: 'Token updated successfully',
-      token: result.token,
-      map: result.map,
-    });
-  } catch (error) {
-    if (error instanceof MapTokenError) {
-      return res.status(error.status).json({ error: error.error, message: error.message });
+      const result = await mapTokenCommands.dispatch<
+        UpdateMapTokenCommand,
+        MapTokenMutationResult
+      >({
+        type: UPDATE_MAP_TOKEN,
+        campaignId,
+        mapId,
+        tokenId,
+        userId,
+        updates,
+      });
+      return res.status(200).json({
+        message: "Token updated successfully",
+        token: result.token,
+        map: result.map,
+      });
+    } catch (error) {
+      if (error instanceof MapTokenError) {
+        return res
+          .status(error.status)
+          .json({ error: error.error, message: error.message });
+      }
+      logger.error("Error updating token", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to update token",
+      });
     }
-    logger.error('Error updating token', { err: error });
-    return res.status(500).json({
-      error: 'Internal Server Error',
-      message: 'Failed to update token',
-    });
-  }
-});
+  },
+);
 
 /**
  * DELETE /api/campaigns/:campaignId/maps/:id/tokens/:tokenId
  * Remove a token from the map
  * Requires: DM role
  */
-router.delete('/:id/tokens/:tokenId', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id: mapId, tokenId } = req.params;
+router.delete(
+  "/:id/tokens/:tokenId",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id: mapId, tokenId } = req.params;
 
-    await mapTokenCommands.dispatch<DeleteMapTokenCommand, void>({
-      type: DELETE_MAP_TOKEN,
-      campaignId,
-      mapId,
-      tokenId,
-    });
-    return res.status(200).json({ message: 'Token removed successfully' });
-  } catch (error) {
-    if (error instanceof MapTokenError) {
-      return res.status(error.status).json({ error: error.error, message: error.message });
+      await mapTokenCommands.dispatch<DeleteMapTokenCommand, void>({
+        type: DELETE_MAP_TOKEN,
+        campaignId,
+        mapId,
+        tokenId,
+      });
+      return res.status(200).json({ message: "Token removed successfully" });
+    } catch (error) {
+      if (error instanceof MapTokenError) {
+        return res
+          .status(error.status)
+          .json({ error: error.error, message: error.message });
+      }
+      logger.error("Error removing token", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to remove token",
+      });
     }
-    logger.error('Error removing token', { err: error });
-    return res.status(500).json({
-      error: 'Internal Server Error',
-      message: 'Failed to remove token',
-    });
-  }
-});
+  },
+);
 
 // ============================================================
 // WALL SEGMENT ENDPOINTS// All write endpoints require DM role.
@@ -692,15 +760,17 @@ router.delete('/:id/tokens/:tokenId', campaignDM, async (req: AuthenticatedReque
 async function findMapInCampaign(
   campaignId: string,
   mapId: string,
-  res: Response
+  res: Response,
 ) {
   const map = await prisma.map.findUnique({ where: { id: mapId } });
   if (!map) {
-    res.status(404).json({ error: 'Not Found', message: 'Map not found' });
+    res.status(404).json({ error: "Not Found", message: "Map not found" });
     return null;
   }
   if (map.campaignId !== campaignId) {
-    res.status(404).json({ error: 'Not Found', message: 'Map not found in this campaign' });
+    res
+      .status(404)
+      .json({ error: "Not Found", message: "Map not found in this campaign" });
     return null;
   }
   return map;
@@ -710,152 +780,222 @@ async function findMapInCampaign(
  * GET /api/campaigns/:campaignId/maps/:id/walls
  * Return the map's wall segments array (all roles).
  */
-router.get('/:id/walls', campaignMember, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id } = req.params;
-    const map = await findMapInCampaign(campaignId, id, res);
-    if (!map) return;
-    const segments = (Array.isArray(map.wallSegments) ? map.wallSegments : []) as unknown as WallSegment[];
-    return res.status(200).json({ segments });
-  } catch (error) {
-    logger.error('Error fetching wall segments', { err: error });
-    return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to fetch wall segments' });
-  }
-});
+router.get(
+  "/:id/walls",
+  campaignMember,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id } = req.params;
+      const map = await findMapInCampaign(campaignId, id, res);
+      if (!map) return;
+      const segments = (Array.isArray(map.wallSegments)
+        ? map.wallSegments
+        : []) as unknown as WallSegment[];
+      return res.status(200).json({ segments });
+    } catch (error) {
+      logger.error("Error fetching wall segments", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to fetch wall segments",
+      });
+    }
+  },
+);
 
 /**
  * PUT /api/campaigns/:campaignId/maps/:id/walls
  * Replace the entire wall segments array (DM only).
  * Body: { segments: WallSegment[] }
  */
-router.put('/:id/walls', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id } = req.params;
-    const map = await findMapInCampaign(campaignId, id, res);
-    if (!map) return;
+router.put(
+  "/:id/walls",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id } = req.params;
+      const map = await findMapInCampaign(campaignId, id, res);
+      if (!map) return;
 
-    const parsed = WallSegmentsArraySchema.safeParse(req.body.segments);
-    if (!parsed.success) {
-      return res.status(400).json({ error: 'Validation Error', message: parsed.error.issues[0]?.message ?? 'Invalid segments' });
+      const parsed = WallSegmentsArraySchema.safeParse(req.body.segments);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Validation Error",
+          message: parsed.error.issues[0]?.message ?? "Invalid segments",
+        });
+      }
+
+      const segments = await sceneCommands.dispatch<
+        ReplaceWallSegmentsCommand,
+        WallSegment[]
+      >({
+        type: REPLACE_WALL_SEGMENTS,
+        actor: sceneActor(campaignId),
+        mapId: id,
+        segments: parsed.data,
+      });
+
+      return res.status(200).json({ segments });
+    } catch (error) {
+      logger.error("Error replacing wall segments", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to update wall segments",
+      });
     }
-
-    const segments = await sceneCommands.dispatch<ReplaceWallSegmentsCommand, WallSegment[]>({
-      type: REPLACE_WALL_SEGMENTS,
-      actor: sceneActor(campaignId),
-      mapId: id,
-      segments: parsed.data,
-    });
-
-    return res.status(200).json({ segments });
-  } catch (error) {
-    logger.error('Error replacing wall segments', { err: error });
-    return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to update wall segments' });
-  }
-});
+  },
+);
 
 /**
  * POST /api/campaigns/:campaignId/maps/:id/walls
  * Add a single wall segment (DM only).
  * Body: WallSegment (id generated server-side if missing)
  */
-router.post('/:id/walls', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id } = req.params;
-    const map = await findMapInCampaign(campaignId, id, res);
-    if (!map) return;
+router.post(
+  "/:id/walls",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id } = req.params;
+      const map = await findMapInCampaign(campaignId, id, res);
+      if (!map) return;
 
-    const segmentData = { ...req.body, id: req.body.id || randomUUID() };
-    const parsed = WallSegmentSchema.safeParse(segmentData);
-    if (!parsed.success) {
-      return res.status(400).json({ error: 'Validation Error', message: parsed.error.issues[0]?.message ?? 'Invalid segment' });
+      const segmentData = { ...req.body, id: req.body.id || randomUUID() };
+      const parsed = WallSegmentSchema.safeParse(segmentData);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Validation Error",
+          message: parsed.error.issues[0]?.message ?? "Invalid segment",
+        });
+      }
+
+      const existing = (Array.isArray(map.wallSegments)
+        ? map.wallSegments
+        : []) as unknown as WallSegment[];
+      if (existing.length >= 5000) {
+        return res.status(400).json({
+          error: "Limit Exceeded",
+          message: "Maximum 5000 wall segments per map",
+        });
+      }
+
+      const segments = await sceneCommands.dispatch<
+        AddWallSegmentCommand,
+        WallSegment[]
+      >({
+        type: ADD_WALL_SEGMENT,
+        actor: sceneActor(campaignId),
+        mapId: id,
+        segment: parsed.data,
+      });
+
+      return res
+        .status(201)
+        .json({ segment: parsed.data, total: segments.length });
+    } catch (error) {
+      logger.error("Error adding wall segment", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to add wall segment",
+      });
     }
-
-    const existing = (Array.isArray(map.wallSegments) ? map.wallSegments : []) as unknown as WallSegment[];
-    if (existing.length >= 5000) {
-      return res.status(400).json({ error: 'Limit Exceeded', message: 'Maximum 5000 wall segments per map' });
-    }
-
-    const segments = await sceneCommands.dispatch<AddWallSegmentCommand, WallSegment[]>({
-      type: ADD_WALL_SEGMENT,
-      actor: sceneActor(campaignId),
-      mapId: id,
-      segment: parsed.data,
-    });
-
-    return res.status(201).json({ segment: parsed.data, total: segments.length });
-  } catch (error) {
-    logger.error('Error adding wall segment', { err: error });
-    return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to add wall segment' });
-  }
-});
+  },
+);
 
 /**
  * DELETE /api/campaigns/:campaignId/maps/:id/walls/:sid
  * Remove a wall segment by id (DM only).
  */
-router.delete('/:id/walls/:sid', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id, sid } = req.params;
-    const map = await findMapInCampaign(campaignId, id, res);
-    if (!map) return;
+router.delete(
+  "/:id/walls/:sid",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id, sid } = req.params;
+      const map = await findMapInCampaign(campaignId, id, res);
+      if (!map) return;
 
-    const existing = (Array.isArray(map.wallSegments) ? map.wallSegments : []) as unknown as WallSegment[];
-    const filtered = existing.filter((s) => s.id !== sid);
+      const existing = (Array.isArray(map.wallSegments)
+        ? map.wallSegments
+        : []) as unknown as WallSegment[];
+      const filtered = existing.filter((s) => s.id !== sid);
 
-    if (filtered.length === existing.length) {
-      return res.status(404).json({ error: 'Not Found', message: 'Wall segment not found' });
+      if (filtered.length === existing.length) {
+        return res
+          .status(404)
+          .json({ error: "Not Found", message: "Wall segment not found" });
+      }
+
+      await sceneCommands.dispatch<RemoveWallSegmentCommand, WallSegment[]>({
+        type: REMOVE_WALL_SEGMENT,
+        actor: sceneActor(campaignId),
+        mapId: id,
+        segmentId: sid,
+      });
+      return res.status(200).json({ message: "Wall segment deleted" });
+    } catch (error) {
+      logger.error("Error deleting wall segment", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to delete wall segment",
+      });
     }
-
-    await sceneCommands.dispatch<RemoveWallSegmentCommand, WallSegment[]>({
-      type: REMOVE_WALL_SEGMENT,
-      actor: sceneActor(campaignId),
-      mapId: id,
-      segmentId: sid,
-    });
-    return res.status(200).json({ message: 'Wall segment deleted' });
-  } catch (error) {
-    logger.error('Error deleting wall segment', { err: error });
-    return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to delete wall segment' });
-  }
-});
+  },
+);
 
 /**
  * PATCH /api/campaigns/:campaignId/maps/:id/walls/:sid
  * Update a single wall segment's type (DM only) — e.g., toggle door open/closed.
  * Body: { type: WallType }
  */
-router.patch('/:id/walls/:sid', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id, sid } = req.params;
-    const map = await findMapInCampaign(campaignId, id, res);
-    if (!map) return;
+router.patch(
+  "/:id/walls/:sid",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id, sid } = req.params;
+      const map = await findMapInCampaign(campaignId, id, res);
+      if (!map) return;
 
-    const validTypes = ['wall', 'door-closed', 'door-open', 'window'];
-    if (!req.body.type || !validTypes.includes(req.body.type)) {
-      return res.status(400).json({ error: 'Validation Error', message: `type must be one of: ${validTypes.join(', ')}` });
+      const validTypes = ["wall", "door-closed", "door-open", "window"];
+      if (!req.body.type || !validTypes.includes(req.body.type)) {
+        return res.status(400).json({
+          error: "Validation Error",
+          message: `type must be one of: ${validTypes.join(", ")}`,
+        });
+      }
+
+      const existing = (Array.isArray(map.wallSegments)
+        ? map.wallSegments
+        : []) as unknown as WallSegment[];
+      const segIndex = existing.findIndex((s) => s.id === sid);
+
+      if (segIndex === -1) {
+        return res
+          .status(404)
+          .json({ error: "Not Found", message: "Wall segment not found" });
+      }
+
+      const segment = {
+        ...existing[segIndex],
+        type: req.body.type,
+      } as WallSegment;
+      await sceneCommands.dispatch<UpdateWallSegmentCommand, WallSegment[]>({
+        type: UPDATE_WALL_SEGMENT,
+        actor: sceneActor(campaignId),
+        mapId: id,
+        segment,
+      });
+
+      return res.status(200).json({ segment });
+    } catch (error) {
+      logger.error("Error updating wall segment", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to update wall segment",
+      });
     }
-
-    const existing = (Array.isArray(map.wallSegments) ? map.wallSegments : []) as unknown as WallSegment[];
-    const segIndex = existing.findIndex((s) => s.id === sid);
-
-    if (segIndex === -1) {
-      return res.status(404).json({ error: 'Not Found', message: 'Wall segment not found' });
-    }
-
-    const segment = { ...existing[segIndex], type: req.body.type } as WallSegment;
-    await sceneCommands.dispatch<UpdateWallSegmentCommand, WallSegment[]>({
-      type: UPDATE_WALL_SEGMENT,
-      actor: sceneActor(campaignId),
-      mapId: id,
-      segment,
-    });
-
-    return res.status(200).json({ segment });
-  } catch (error) {
-    logger.error('Error updating wall segment', { err: error });
-    return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to update wall segment' });
-  }
-});
+  },
+);
 
 // ============================================================
 // LIGHT SOURCE ENDPOINTS
@@ -865,156 +1005,224 @@ router.patch('/:id/walls/:sid', campaignDM, async (req: AuthenticatedRequest, re
  * GET /api/campaigns/:campaignId/maps/:id/lights
  * Return the map's light sources array (all campaign members).
  */
-router.get('/:id/lights', campaignMember, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id } = req.params;
-    const map = await findMapInCampaign(campaignId, id, res);
-    if (!map) return;
-    const lights = (Array.isArray(map.lights) ? map.lights : []) as unknown as LightSource[];
-    return res.status(200).json({ lights });
-  } catch (error) {
-    logger.error('Error fetching light sources:', error);
-    return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to fetch light sources' });
-  }
-});
+router.get(
+  "/:id/lights",
+  campaignMember,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id } = req.params;
+      const map = await findMapInCampaign(campaignId, id, res);
+      if (!map) return;
+      const lights = (Array.isArray(map.lights)
+        ? map.lights
+        : []) as unknown as LightSource[];
+      return res.status(200).json({ lights });
+    } catch (error) {
+      logger.error("Error fetching light sources:", error);
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to fetch light sources",
+      });
+    }
+  },
+);
 
 /**
  * PUT /api/campaigns/:campaignId/maps/:id/lights
  * Replace the entire light sources array (DM only).
  * Body: { lights: LightSource[] }
  */
-router.put('/:id/lights', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id } = req.params;
-    const map = await findMapInCampaign(campaignId, id, res);
-    if (!map) return;
+router.put(
+  "/:id/lights",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id } = req.params;
+      const map = await findMapInCampaign(campaignId, id, res);
+      if (!map) return;
 
-    const parsed = LightSourcesArraySchema.safeParse(req.body.lights);
-    if (!parsed.success) {
-      return res.status(400).json({ error: 'Validation Error', message: parsed.error.issues[0]?.message ?? 'Invalid lights array' });
+      const parsed = LightSourcesArraySchema.safeParse(req.body.lights);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Validation Error",
+          message: parsed.error.issues[0]?.message ?? "Invalid lights array",
+        });
+      }
+
+      const lights = await sceneCommands.dispatch<
+        ReplaceLightSourcesCommand,
+        LightSource[]
+      >({
+        type: REPLACE_LIGHT_SOURCES,
+        actor: sceneActor(campaignId),
+        mapId: id,
+        lights: parsed.data,
+      });
+
+      broadcastToCampaign(campaignId, "lights:replaced", { mapId: id, lights });
+      return res.status(200).json({ lights });
+    } catch (error) {
+      logger.error("Error replacing light sources:", error);
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to update light sources",
+      });
     }
-
-    const lights = await sceneCommands.dispatch<ReplaceLightSourcesCommand, LightSource[]>({
-      type: REPLACE_LIGHT_SOURCES,
-      actor: sceneActor(campaignId),
-      mapId: id,
-      lights: parsed.data,
-    });
-
-    broadcastToCampaign(campaignId, 'lights:replaced', { mapId: id, lights });
-    return res.status(200).json({ lights });
-  } catch (error) {
-    logger.error('Error replacing light sources:', error);
-    return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to update light sources' });
-  }
-});
+  },
+);
 
 /**
  * POST /api/campaigns/:campaignId/maps/:id/lights
  * Add a single light source (DM only).
  * Body: LightSource (id generated server-side if missing)
  */
-router.post('/:id/lights', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id } = req.params;
-    const map = await findMapInCampaign(campaignId, id, res);
-    if (!map) return;
+router.post(
+  "/:id/lights",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id } = req.params;
+      const map = await findMapInCampaign(campaignId, id, res);
+      if (!map) return;
 
-    const lightData = { ...req.body, id: req.body.id || randomUUID() };
-    const parsed = LightSourceSchema.safeParse(lightData);
-    if (!parsed.success) {
-      return res.status(400).json({ error: 'Validation Error', message: parsed.error.issues[0]?.message ?? 'Invalid light source' });
+      const lightData = { ...req.body, id: req.body.id || randomUUID() };
+      const parsed = LightSourceSchema.safeParse(lightData);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Validation Error",
+          message: parsed.error.issues[0]?.message ?? "Invalid light source",
+        });
+      }
+
+      const existing = (Array.isArray(map.lights)
+        ? map.lights
+        : []) as unknown as LightSource[];
+      if (existing.length >= 200) {
+        return res.status(400).json({
+          error: "Limit Exceeded",
+          message: "Maximum 200 light sources per map",
+        });
+      }
+
+      const lights = await sceneCommands.dispatch<
+        AddLightSourceCommand,
+        LightSource[]
+      >({
+        type: ADD_LIGHT_SOURCE,
+        actor: sceneActor(campaignId),
+        mapId: id,
+        light: parsed.data,
+      });
+
+      broadcastToCampaign(campaignId, "light:added", {
+        mapId: id,
+        light: parsed.data,
+      });
+      return res.status(201).json({ light: parsed.data, total: lights.length });
+    } catch (error) {
+      logger.error("Error adding light source:", error);
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to add light source",
+      });
     }
-
-    const existing = (Array.isArray(map.lights) ? map.lights : []) as unknown as LightSource[];
-    if (existing.length >= 200) {
-      return res.status(400).json({ error: 'Limit Exceeded', message: 'Maximum 200 light sources per map' });
-    }
-
-    const lights = await sceneCommands.dispatch<AddLightSourceCommand, LightSource[]>({
-      type: ADD_LIGHT_SOURCE,
-      actor: sceneActor(campaignId),
-      mapId: id,
-      light: parsed.data,
-    });
-
-    broadcastToCampaign(campaignId, 'light:added', { mapId: id, light: parsed.data });
-    return res.status(201).json({ light: parsed.data, total: lights.length });
-  } catch (error) {
-    logger.error('Error adding light source:', error);
-    return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to add light source' });
-  }
-});
+  },
+);
 
 /**
  * PATCH /api/campaigns/:campaignId/maps/:id/lights/:lightId
  * Update a single light source (DM only).
  * Body: Partial<LightSource> (at least one field required)
  */
-router.patch('/:id/lights/:lightId', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id, lightId } = req.params;
-    const map = await findMapInCampaign(campaignId, id, res);
-    if (!map) return;
+router.patch(
+  "/:id/lights/:lightId",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id, lightId } = req.params;
+      const map = await findMapInCampaign(campaignId, id, res);
+      if (!map) return;
 
-    const parsed = LightSourceUpdateSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: 'Validation Error', message: parsed.error.issues[0]?.message ?? 'Invalid update data' });
+      const parsed = LightSourceUpdateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Validation Error",
+          message: parsed.error.issues[0]?.message ?? "Invalid update data",
+        });
+      }
+
+      const existing = (Array.isArray(map.lights)
+        ? map.lights
+        : []) as unknown as LightSource[];
+      const idx = existing.findIndex((l) => l.id === lightId);
+      if (idx === -1) {
+        return res
+          .status(404)
+          .json({ error: "Not Found", message: "Light source not found" });
+      }
+
+      const light = { ...existing[idx], ...parsed.data } as LightSource;
+      await sceneCommands.dispatch<UpdateLightSourceCommand, LightSource[]>({
+        type: UPDATE_LIGHT_SOURCE,
+        actor: sceneActor(campaignId),
+        mapId: id,
+        light,
+      });
+
+      broadcastToCampaign(campaignId, "light:updated", { mapId: id, light });
+      return res.status(200).json({ light });
+    } catch (error) {
+      logger.error("Error updating light source:", error);
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to update light source",
+      });
     }
-
-    const existing = (Array.isArray(map.lights) ? map.lights : []) as unknown as LightSource[];
-    const idx = existing.findIndex((l) => l.id === lightId);
-    if (idx === -1) {
-      return res.status(404).json({ error: 'Not Found', message: 'Light source not found' });
-    }
-
-    const light = { ...existing[idx], ...parsed.data } as LightSource;
-    await sceneCommands.dispatch<UpdateLightSourceCommand, LightSource[]>({
-      type: UPDATE_LIGHT_SOURCE,
-      actor: sceneActor(campaignId),
-      mapId: id,
-      light,
-    });
-
-    broadcastToCampaign(campaignId, 'light:updated', { mapId: id, light });
-    return res.status(200).json({ light });
-  } catch (error) {
-    logger.error('Error updating light source:', error);
-    return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to update light source' });
-  }
-});
+  },
+);
 
 /**
  * DELETE /api/campaigns/:campaignId/maps/:id/lights/:lightId
  * Remove a light source by id (DM only).
  */
-router.delete('/:id/lights/:lightId', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id, lightId } = req.params;
-    const map = await findMapInCampaign(campaignId, id, res);
-    if (!map) return;
+router.delete(
+  "/:id/lights/:lightId",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id, lightId } = req.params;
+      const map = await findMapInCampaign(campaignId, id, res);
+      if (!map) return;
 
-    const existing = (Array.isArray(map.lights) ? map.lights : []) as unknown as LightSource[];
-    const filtered = existing.filter((l) => l.id !== lightId);
+      const existing = (Array.isArray(map.lights)
+        ? map.lights
+        : []) as unknown as LightSource[];
+      const filtered = existing.filter((l) => l.id !== lightId);
 
-    if (filtered.length === existing.length) {
-      return res.status(404).json({ error: 'Not Found', message: 'Light source not found' });
+      if (filtered.length === existing.length) {
+        return res
+          .status(404)
+          .json({ error: "Not Found", message: "Light source not found" });
+      }
+
+      await sceneCommands.dispatch<RemoveLightSourceCommand, LightSource[]>({
+        type: REMOVE_LIGHT_SOURCE,
+        actor: sceneActor(campaignId),
+        mapId: id,
+        lightId,
+      });
+
+      broadcastToCampaign(campaignId, "light:removed", { mapId: id, lightId });
+      return res.status(200).json({ message: "Light source deleted" });
+    } catch (error) {
+      logger.error("Error deleting light source:", error);
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to delete light source",
+      });
     }
-
-    await sceneCommands.dispatch<RemoveLightSourceCommand, LightSource[]>({
-      type: REMOVE_LIGHT_SOURCE,
-      actor: sceneActor(campaignId),
-      mapId: id,
-      lightId,
-    });
-
-    broadcastToCampaign(campaignId, 'light:removed', { mapId: id, lightId });
-    return res.status(200).json({ message: 'Light source deleted' });
-  } catch (error) {
-    logger.error('Error deleting light source:', error);
-    return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to delete light source' });
-  }
-});
+  },
+);
 
 // ============================================================
 // FOG OF WAR ENDPOINTS// ============================================================
@@ -1023,19 +1231,26 @@ router.delete('/:id/lights/:lightId', campaignDM, async (req: AuthenticatedReque
  * GET /api/campaigns/:campaignId/maps/:id/fog
  * Return full FogState for this map (DM only).
  */
-router.get('/:id/fog', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id } = req.params;
-    const map = await findMapInCampaign(campaignId, id, res);
-    if (!map) return;
+router.get(
+  "/:id/fog",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id } = req.params;
+      const map = await findMapInCampaign(campaignId, id, res);
+      if (!map) return;
 
-    const fog = loadFogState(map, map.fogData as FogState | null);
-    return res.status(200).json({ fogState: fog });
-  } catch (error) {
-    logger.error('Error fetching fog state', { err: error });
-    return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to fetch fog state' });
-  }
-});
+      const fog = loadFogState(map, map.fogData as FogState | null);
+      return res.status(200).json({ fogState: fog });
+    } catch (error) {
+      logger.error("Error fetching fog state", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to fetch fog state",
+      });
+    }
+  },
+);
 
 /**
  * POST /api/campaigns/:campaignId/maps/:id/fog/operation
@@ -1043,68 +1258,94 @@ router.get('/:id/fog', campaignDM, async (req: AuthenticatedRequest, res: Respon
  * Body: FogOperation
  * Returns the updated FogState.
  */
-router.post('/:id/fog/operation', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id } = req.params;
-    const map = await findMapInCampaign(campaignId, id, res);
-    if (!map) return;
+router.post(
+  "/:id/fog/operation",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { campaignId, id } = req.params;
+      const map = await findMapInCampaign(campaignId, id, res);
+      if (!map) return;
 
-    const parsed = FogOperationSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: 'Validation Error', message: parsed.error.issues[0]?.message ?? 'Invalid fog operation' });
+      const parsed = FogOperationSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Validation Error",
+          message: parsed.error.issues[0]?.message ?? "Invalid fog operation",
+        });
+      }
+
+      const fog = await sceneCommands.dispatch<
+        ApplyFogOperationCommand,
+        FogState
+      >({
+        type: APPLY_FOG_OPERATION,
+        actor: sceneActor(campaignId),
+        mapId: id,
+        operation: parsed.data,
+      });
+
+      return res.status(200).json({ fogState: fog });
+    } catch (error) {
+      logger.error("Error applying fog operation", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to apply fog operation",
+      });
     }
-
-    const fog = await sceneCommands.dispatch<ApplyFogOperationCommand, FogState>({
-      type: APPLY_FOG_OPERATION,
-      actor: sceneActor(campaignId),
-      mapId: id,
-      operation: parsed.data,
-    });
-
-    return res.status(200).json({ fogState: fog });
-  } catch (error) {
-    logger.error('Error applying fog operation', { err: error });
-    return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to apply fog operation' });
-  }
-});
+  },
+);
 
 /**
  * PUT /api/campaigns/:campaignId/maps/:id/lighting
  * Toggle dynamic lighting enabled/disabled (DM only).
  * Body: { enabled: boolean }
  */
-router.put('/:id/lighting', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { campaignId, id } = req.params;
-    const map = await findMapInCampaign(campaignId, id, res);
-    if (!map) return;
-
-    if (typeof req.body.enabled !== 'boolean') {
-      return res.status(400).json({ error: 'Validation Error', message: 'enabled must be a boolean' });
-    }
-
-    const lightingEnabled = await sceneCommands.dispatch<SetSceneLightingEnabledCommand, boolean>({
-      type: SET_SCENE_LIGHTING_ENABLED,
-      actor: sceneActor(campaignId),
-      mapId: id,
-      enabled: req.body.enabled,
-    });
-
-    // Broadcast to all clients in this campaign so they don't need to reload
+router.put(
+  "/:id/lighting",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
-      broadcastToCampaign(campaignId, 'map:lighting:updated', {
-        mapId: id,
-        lightingEnabled,
-      });
-    } catch {
-      // Socket may not be initialized in tests — log and continue
-    }
+      const { campaignId, id } = req.params;
+      const map = await findMapInCampaign(campaignId, id, res);
+      if (!map) return;
 
-    return res.status(200).json({ lightingEnabled });
-  } catch (error) {
-    logger.error('Error updating lighting setting', { err: error });
-    return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to update lighting setting' });
-  }
-});
+      if (typeof req.body.enabled !== "boolean") {
+        return res.status(400).json({
+          error: "Validation Error",
+          message: "enabled must be a boolean",
+        });
+      }
+
+      const lightingEnabled = await sceneCommands.dispatch<
+        SetSceneLightingEnabledCommand,
+        boolean
+      >({
+        type: SET_SCENE_LIGHTING_ENABLED,
+        actor: sceneActor(campaignId),
+        mapId: id,
+        enabled: req.body.enabled,
+      });
+
+      // Broadcast to all clients in this campaign so they don't need to reload
+      try {
+        broadcastToCampaign(campaignId, "map:lighting:updated", {
+          mapId: id,
+          lightingEnabled,
+        });
+      } catch {
+        // Socket may not be initialized in tests — log and continue
+      }
+
+      return res.status(200).json({ lightingEnabled });
+    } catch (error) {
+      logger.error("Error updating lighting setting", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to update lighting setting",
+      });
+    }
+  },
+);
 
 export default router;

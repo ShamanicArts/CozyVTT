@@ -15,25 +15,41 @@ export interface CommandHandler<TCommand extends Command<TResult>, TResult> {
 export class UnknownCommandError extends Error {
   constructor(type: string) {
     super(`No command handler registered for "${type}"`);
-    this.name = 'UnknownCommandError';
+    this.name = "UnknownCommandError";
   }
 }
 
 export class CommandBus {
-  private readonly handlers = new Map<string, CommandHandler<Command, unknown>>();
+  private readonly handlers = new Map<
+    string,
+    CommandHandler<Command, unknown>
+  >();
 
   register<TCommand extends Command<TResult>, TResult>(
-    type: TCommand['type'],
-    handler: CommandHandler<TCommand, TResult>
-  ): void {
+    type: TCommand["type"],
+    handler: CommandHandler<TCommand, TResult>,
+  ): () => void {
     if (this.handlers.has(type)) {
       throw new Error(`A command handler is already registered for "${type}"`);
     }
 
     this.handlers.set(type, handler as CommandHandler<Command, unknown>);
+    return () => {
+      if (this.handlers.get(type) === handler) this.handlers.delete(type);
+    };
   }
 
-  async dispatch<TCommand extends Command<TResult>, TResult>(command: TCommand): Promise<TResult> {
+  has(type: string): boolean {
+    return this.handlers.has(type);
+  }
+
+  registeredTypes(): string[] {
+    return [...this.handlers.keys()];
+  }
+
+  async dispatch<TCommand extends Command<TResult>, TResult>(
+    command: TCommand,
+  ): Promise<TResult> {
     const handler = this.handlers.get(command.type);
     if (!handler) {
       throw new UnknownCommandError(command.type);

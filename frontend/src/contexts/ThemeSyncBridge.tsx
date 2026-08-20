@@ -15,24 +15,51 @@
  * because the auth check fires after theme is mounted.
  */
 
-import { useEffect } from 'react';
-import { useAuth } from './AuthContext';
-import { useTheme } from './ThemeContext';
+import { useEffect, useMemo } from "react";
+import { useAuth } from "./AuthContext";
+import { useTheme } from "./ThemeContext";
+import { api } from "@/services/api";
+import { extensionThemesToManifests } from "@/theming";
 
 export function ThemeSyncBridge() {
   const { user, authenticated } = useAuth();
-  const { applyUserPreferences } = useTheme();
+  const {
+    applyUserPreferences,
+    setContributionLoader,
+    refreshThemeContributions,
+  } = useTheme();
+  const contributionLoader = useMemo(
+    () => ({
+      loadActiveThemeManifests: async () =>
+        extensionThemesToManifests(await api.listActiveThemeContributions()),
+    }),
+    [],
+  );
 
   useEffect(() => {
     if (authenticated && user) {
       applyUserPreferences(user.preferences ?? null);
+      setContributionLoader(contributionLoader);
     } else {
       applyUserPreferences(null);
+      setContributionLoader(null);
     }
     // We intentionally key on the serialized preferences identity so that
     // partial updates (savePref) re-trigger the effect.
-     
-  }, [authenticated, user?.id, JSON.stringify(user?.preferences ?? null)]);
+  }, [
+    authenticated,
+    user?.id,
+    JSON.stringify(user?.preferences ?? null),
+    contributionLoader,
+    setContributionLoader,
+  ]);
+
+  useEffect(() => {
+    const refresh = () => refreshThemeContributions();
+    window.addEventListener("cozyvtt:extensions-changed", refresh);
+    return () =>
+      window.removeEventListener("cozyvtt:extensions-changed", refresh);
+  }, [refreshThemeContributions]);
 
   return null;
 }

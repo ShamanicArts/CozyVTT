@@ -1,6 +1,13 @@
-import { Server } from 'socket.io';
-import { prisma } from '../config/database';
-import logger from '../utils/logger';
+import { Server } from "socket.io";
+import logger from "../utils/logger";
+import { productionCommandBus } from "../composition/productionApplicationHost";
+import {
+  CREATE_SYSTEM_MESSAGE,
+  CreateSystemMessage,
+  CreateSystemMessageCommand,
+} from "../application/chat/SystemMessageCommands";
+
+const systemMessageCommands = productionCommandBus;
 
 /**
  * WebSocket Utility Functions
@@ -21,7 +28,7 @@ export function setSocketInstance(io: Server): void {
  */
 export function getSocketInstance(): Server {
   if (!ioInstance) {
-    throw new Error('Socket.io instance not initialized');
+    throw new Error("Socket.io instance not initialized");
   }
   return ioInstance;
 }
@@ -32,7 +39,11 @@ export function getSocketInstance(): Server {
  * @param event - Event name
  * @param data - Event data
  */
-export function broadcastToCampaign(campaignId: string, event: string, data: any): void {
+export function broadcastToCampaign(
+  campaignId: string,
+  event: string,
+  data: any,
+): void {
   const io = getSocketInstance();
   io.to(campaignId).emit(event, data);
 }
@@ -43,7 +54,11 @@ export function broadcastToCampaign(campaignId: string, event: string, data: any
  * @param event - Event name
  * @param data - Event data
  */
-export function broadcastToUser(userId: string, event: string, data: any): void {
+export function broadcastToUser(
+  userId: string,
+  event: string,
+  data: any,
+): void {
   const io = getSocketInstance();
   io.to(userId).emit(event, data);
 }
@@ -53,7 +68,9 @@ export function broadcastToUser(userId: string, event: string, data: any): void 
  * @param campaignId - Campaign ID
  * @returns Array of socket IDs
  */
-export async function getSocketsInCampaign(campaignId: string): Promise<string[]> {
+export async function getSocketsInCampaign(
+  campaignId: string,
+): Promise<string[]> {
   const io = getSocketInstance();
   const sockets = await io.in(campaignId).fetchSockets();
   return sockets.map((socket) => socket.id);
@@ -64,7 +81,9 @@ export async function getSocketsInCampaign(campaignId: string): Promise<string[]
  * @param campaignId - Campaign ID
  * @returns Number of connected users
  */
-export async function getCampaignMemberCount(campaignId: string): Promise<number> {
+export async function getCampaignMemberCount(
+  campaignId: string,
+): Promise<number> {
   const io = getSocketInstance();
   const sockets = await io.in(campaignId).fetchSockets();
   return sockets.length;
@@ -75,12 +94,15 @@ export async function getCampaignMemberCount(campaignId: string): Promise<number
  * @param userId - User ID
  * @param reason - Reason for disconnection
  */
-export async function disconnectUser(userId: string, reason: string): Promise<void> {
+export async function disconnectUser(
+  userId: string,
+  reason: string,
+): Promise<void> {
   const io = getSocketInstance();
   const sockets = await io.in(userId).fetchSockets();
 
   sockets.forEach((socket) => {
-    socket.emit('error', { message: reason });
+    socket.emit("error", { message: reason });
     socket.disconnect(true);
   });
 
@@ -99,23 +121,18 @@ export async function disconnectUser(userId: string, reason: string): Promise<vo
 export async function sendSystemMessage(
   campaignId: string,
   content: string,
-  metadata?: Record<string, any>
+  metadata?: Record<string, any>,
 ): Promise<void> {
   try {
     // Save to database
-    const message = await prisma.message.create({
-      data: {
-        campaignId,
-        userId: null, // System messages have no user
-        type: 'SYSTEM',
-        content,
-        metadata: metadata ? (metadata as any) : null,
-      },
-    });
+    const message = await systemMessageCommands.dispatch<
+      CreateSystemMessageCommand,
+      Awaited<ReturnType<CreateSystemMessage["execute"]>>
+    >({ type: CREATE_SYSTEM_MESSAGE, campaignId, content, metadata });
 
     // Broadcast to campaign
     const io = getSocketInstance();
-    io.to(campaignId).emit('chat.system', {
+    io.to(campaignId).emit("chat.system", {
       id: message.id,
       content,
       metadata: metadata || null,
@@ -126,6 +143,6 @@ export async function sendSystemMessage(
   } catch (error) {
     // Log but never re-throw — a failed system message must not crash the server
     // (e.g. when the campaign was deleted just before the disconnect fires).
-    logger.error('❌ Error sending system message', { err: error });
+    logger.error("❌ Error sending system message", { err: error });
   }
 }

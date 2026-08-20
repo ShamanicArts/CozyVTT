@@ -1,13 +1,16 @@
 # Development Dockerfile
 # For production, use Dockerfile.prod (multi-stage, non-root, compiled output)
-FROM node:20-alpine
+FROM node:24-bookworm-slim
 
-# bash: required by start.sh (#!/bin/bash shebang); not included in alpine by default
-# postgresql-client: required for pg_dump (backup) and psql (restore)
-RUN apk add --no-cache bash postgresql-client openssl
+# Node 24 LTS provides the permission model used by the sandbox runner.
+# bubblewrap is the OS boundary for sandboxed extension packages.
+# bash is required by start.sh; postgresql-client provides pg_dump and psql.
+RUN apt-get update \
+  && apt-get install --no-install-recommends -y bash bubblewrap openssl postgresql-client \
+  && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN groupadd --system appgroup && useradd --system --gid appgroup appuser
 
 WORKDIR /app
 

@@ -5,13 +5,13 @@
 set -e
 
 # If running as root (production Docker with bind mounts), fix ownership of
-# mounted directories then drop to the unprivileged appuser via su-exec.
+# mounted directories then drop to the unprivileged appuser via gosu.
 # This is needed because Docker bind mounts are owned by the host (usually root),
 # which overrides the chown done in the Dockerfile image layer.
 if [ "$(id -u)" = "0" ]; then
   mkdir -p /app/uploads/backups /app/logs
   chown -R appuser:appgroup /app/uploads /app/logs
-  exec su-exec appuser "$0" "$@"
+  exec gosu appuser "$0" "$@"
 fi
 
 echo "================================================"
