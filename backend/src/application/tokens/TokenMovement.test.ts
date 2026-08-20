@@ -25,6 +25,7 @@ const token: MapToken = {
 function mapWith(tokens: MapToken[] = [token]): TokenMovementMap {
   return {
     id: 'map-1',
+    revision: 3,
     campaignId: 'campaign-1',
     width: 30,
     height: 20,
@@ -39,7 +40,7 @@ function mapWith(tokens: MapToken[] = [token]): TokenMovementMap {
 function makeRepository(map: TokenMovementMap | null = mapWith()): TokenMovementRepository {
   return {
     findMap: jest.fn(async () => map),
-    updateTokens: jest.fn(async () => undefined),
+    updateTokens: jest.fn(async () => 4),
   };
 }
 
@@ -63,7 +64,7 @@ describe('token movement application commands', () => {
 
     expect(result.token.position).toEqual({ x: 8, y: 9 });
     expect(result.tokens[0].position).toEqual({ x: 8, y: 9 });
-    expect(repository.updateTokens).toHaveBeenCalledWith('map-1', result.tokens);
+    expect(repository.updateTokens).toHaveBeenCalledWith('map-1', 3, result.tokens);
   });
 
   it('preserves the movement permission failure before it writes', async () => {

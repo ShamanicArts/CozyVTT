@@ -26,6 +26,7 @@ import {
 } from "../../application/scene/SceneMutations";
 import { productionCommandBus } from "../../composition/productionApplicationHost";
 import { SceneMutationError, SceneRole } from "../../domain/scene/Scene";
+import { MapRevisionConflictError } from "../../domain/maps/MapRevision";
 
 const wallCommands = productionCommandBus;
 
@@ -39,8 +40,16 @@ function sendMutationError(
   operation: string,
   fallback: string,
 ): void {
-  if (error instanceof SceneMutationError) {
-    socket.emit("error", { message: error.message });
+  if (
+    error instanceof SceneMutationError ||
+    error instanceof MapRevisionConflictError
+  ) {
+    socket.emit("error", {
+      message:
+        error instanceof MapRevisionConflictError
+          ? "Map state changed; refresh the map and retry"
+          : error.message,
+    });
     return;
   }
   logger.error(`${operation} failed`, { err: error });

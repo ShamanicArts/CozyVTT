@@ -3,9 +3,10 @@
 ## Status and scope
 
 CozyVTT ships a controlled local-extension runtime, durable grant/audit
-foundations, a bearer-agent HTTP surface, and renderer/theme integration seams.
-It is not yet a general plugin marketplace, an MCP server, or an arbitrary
-third-party frontend-code platform.
+foundations, bearer-agent HTTP and MCP transports, and runtime renderer/theme
+contributions. Its purpose is to make one self-hosted VTT easy to adapt for its
+operators. A public package marketplace, remote store, publishing platform,
+and unreviewed package acquisition are non-goals by design.
 
 The canonical contracts live under `backend/src/extensions/`. Keep transport
 details (Express paths, Socket.IO events, Prisma models, SQL, DOM, and React
@@ -27,18 +28,21 @@ flowchart LR
   Bridge --> EBus[Extension runtime CommandBus]
 
   User[Delegated campaign user] --> AgentApi[/api/agent]
+  Agent[MCP client] --> McpApi[/api/mcp/campaigns/:campaignId]
   AgentApi --> Core[Production ApplicationHost]
+  McpApi --> Core
   Core --> CoreBus[Shared core CommandBus]
   AgentApi --> Bridge
+  McpApi --> Bridge
   Core --> Durable[(grant / audit / idempotency / outbox)]
   Bridge --> Durable
 ```
 
 There are two execution surfaces:
 
-* The built-in core agent catalog calls `productionApplicationHost`, which
+- The built-in core agent catalog calls `productionApplicationHost`, which
   delegates to the shared core command registry and enforces durable middleware.
-* Installed extension tools call `ExtensionCommandBridge` and the extension
+- Installed extension tools call `ExtensionCommandBridge` and the extension
   runtime's own registry/command bus. That runtime has durable grant and audit
   adapters, but is not yet unified with the core host/outbox transaction path.
 
@@ -115,35 +119,46 @@ five-minute, one-time receipt bound to credential, human, campaign, extension,
 command, and canonical input digest. The browser UI intentionally avoids
 rendering raw command input and stored hashes.
 
-`/api/agent` is HTTP only. There is no MCP adapter, arbitrary HTTP proxy,
-database access, shell tool, or raw Socket.IO capability.
+The JSON agent API and the Streamable HTTP MCP adapter are sibling transports
+over the same credential, grant, command/query, confirmation, idempotency, and
+audit boundaries. MCP is mounted at
+`/api/mcp/campaigns/:campaignId`; discovery is grant-filtered and write tools
+retain the separate-human, one-time confirmation flow. Neither transport is an
+arbitrary HTTP proxy, database accessor, shell tool, or raw Socket.IO capability.
 
 ## Frontend contributions
 
 The renderer host is per map canvas and supports controlled terrain, token,
-and overlay registrations. It does not load remote extension renderer code.
+and overlay registrations. Active **trusted local** packages may declare a
+self-contained browser module. The backend rechecks the installed checksum and
+serves only the declared module; `MapRendererProvider` imports it, exposes a
+versioned, ownership-scoped layer API, and disposes its layers on refresh or
+unmount. Sandboxed packages can never contribute executable browser code.
 
 After authentication, `ThemeSyncBridge` fetches active contributions from
 `GET /api/extensions/contributions`. Only complete data-only semantic palettes
 are converted to a validated `ThemeHost` manifest; partial palettes and
 arbitrary document-variable injection fail closed. Admin lifecycle actions
-notify the browser to refresh that feed. Current theme picker exposure does
-not yet make every registered extension theme a user-selectable product option.
+notify the browser to refresh that feed. Every validated active contribution is
+listed in the ordinary user/admin theme picker and follows the same preference
+storage and live-preview path as a built-in theme.
 
 The admin extensions panel manages discovery, trusted/sandboxed installation,
 lifecycle, and grants. It deliberately presents trust/risk information and is
 not a package registry or publishing workflow.
 
-## Non-goals before the next architecture step
+## Remaining boundaries
 
-* A single command/query host shared by core, installed extensions, REST,
+- A single command/query host shared by core, installed extensions, REST,
   Socket.IO, jobs, and agents.
-* General external package acquisition, dependency resolution, migrations,
-  upgrades, rollback, or a marketplace.
-* Browser-plugin execution, remote renderer replacement, arbitrary CSS, or
-  third-party iframe/plugin isolation.
-* MCP, persistent sandbox workers, sandbox network/storage grants, and richer
-  resource/observability controls.
+- Packages remain operator-controlled files below `EXTENSION_PACKAGE_ROOT`.
+  There is intentionally no remote store, publishing workflow, or marketplace.
+  Upgrade/rollback and extension-owned data migrations are still absent.
+- Trusted renderer modules can extend or replace named map layers, but there is
+  no general React component/route injection, arbitrary CSS, or iframe plugin UI.
+- MCP exposes the finite application query/command catalogues; it is not a
+  generic resource mirror. Persistent sandbox workers, sandbox network/storage
+  grants, and richer resource/observability controls remain absent.
 
 New work should extend explicit ports and versioned contracts, preserve the
 separate core/extension boundary until it is intentionally unified, and add

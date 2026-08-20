@@ -36,6 +36,7 @@ export interface MapToken {
 /** The persisted map fields required by token movement and its fan-out. */
 export interface TokenMovementMap {
   id: string;
+  revision: number;
   campaignId: string;
   width: number;
   height: number;

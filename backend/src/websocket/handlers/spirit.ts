@@ -23,6 +23,7 @@ import {
   SetSpiritTokenVisible,
   SetSpiritTokenVisibleCommand,
 } from "../../application/scene/RealtimeSpiritCommands";
+import { MapRevisionConflictError } from "../../domain/maps/MapRevision";
 
 const commands = productionCommandBus;
 const repository = new PrismaRealtimeSpiritRepository(prisma);
@@ -120,8 +121,16 @@ export function registerSpiritHandlers(
         campaignId: socket.campaignId,
       });
     } catch (error) {
-      if (error instanceof RealtimeSpiritError) {
-        socket.emit("error", { message: error.message });
+      if (
+        error instanceof RealtimeSpiritError ||
+        error instanceof MapRevisionConflictError
+      ) {
+        socket.emit("error", {
+          message:
+            error instanceof MapRevisionConflictError
+              ? "Map state changed; refresh the map and retry"
+              : error.message,
+        });
         return;
       }
       logger.error("spirit_layer.toggle failed", { err: error });
@@ -248,8 +257,16 @@ export function registerSpiritHandlers(
           mapId,
         });
       } catch (error) {
-        if (error instanceof RealtimeSpiritError) {
-          socket.emit("error", { message: error.message });
+        if (
+          error instanceof RealtimeSpiritError ||
+          error instanceof MapRevisionConflictError
+        ) {
+          socket.emit("error", {
+            message:
+              error instanceof MapRevisionConflictError
+                ? "Map state changed; refresh the map and retry"
+                : error.message,
+          });
           return;
         }
         logger.error("spirit_layer.token.toggle failed", { err: error });

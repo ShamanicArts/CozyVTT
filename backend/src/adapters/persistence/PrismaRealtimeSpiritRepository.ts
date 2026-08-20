@@ -3,6 +3,7 @@ import {
   RealtimeSpiritMap,
   RealtimeSpiritRepository,
 } from "../../ports/RealtimeSpiritRepository";
+import { updateMapAtRevision } from "./PrismaMapRevision";
 export class PrismaRealtimeSpiritRepository implements RealtimeSpiritRepository {
   constructor(private readonly client: PrismaClient) {}
   async setSpiritLayerEnabled(
@@ -26,10 +27,10 @@ export class PrismaRealtimeSpiritRepository implements RealtimeSpiritRepository 
       where: { id: mapId },
     }) as unknown as RealtimeSpiritMap | null;
   }
-  async updateMapTokens(mapId: string, tokens: unknown): Promise<void> {
-    await this.client.map.update({
-      where: { id: mapId },
-      data: { tokens: tokens as Prisma.InputJsonValue },
+  async updateMapTokens(mapId: string, expectedRevision: number, tokens: unknown): Promise<number> {
+    const map = await updateMapAtRevision(this.client, mapId, expectedRevision, {
+      tokens: tokens as Prisma.InputJsonValue,
     });
+    return map.revision;
   }
 }

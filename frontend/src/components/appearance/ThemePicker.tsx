@@ -8,7 +8,7 @@
  * User.preferences).
  */
 
-import { Palette, Settings } from 'lucide-react';
+import { Palette, Settings } from "lucide-react";
 import {
   PRESET_THEMES,
   FONT_OPTIONS,
@@ -17,7 +17,8 @@ import {
   buildCustomThemeColors,
   hexToRgbChannels,
   type FontOption,
-} from '../../themes';
+} from "../../themes";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export interface ThemePickerColors {
   primary: string;
@@ -42,10 +43,10 @@ interface ThemePickerProps {
 }
 
 export const DEFAULT_CUSTOM_COLORS: ThemePickerColors = {
-  primary: '#7C9A6E',
-  accent: '#D4A55A',
-  background: '#FAF6EC',
-  text: '#3A2E26',
+  primary: "#7C9A6E",
+  accent: "#D4A55A",
+  background: "#FAF6EC",
+  text: "#3A2E26",
 };
 
 export default function ThemePicker({
@@ -55,6 +56,9 @@ export default function ThemePicker({
   onChange,
   livePreview = true,
 }: ThemePickerProps) {
+  const { availableThemes } = useTheme();
+  const selectableThemes =
+    availableThemes.length > 0 ? availableThemes : PRESET_THEMES;
   const previewCustom = (next: ThemePickerColors) => {
     if (!livePreview) return;
     applyThemeColors(
@@ -63,25 +67,25 @@ export default function ThemePicker({
         accent: hexToRgbChannels(next.accent),
         background: hexToRgbChannels(next.background),
         text: hexToRgbChannels(next.text),
-      })
+      }),
     );
   };
 
   const handlePreset = (id: string) => {
-    const theme = PRESET_THEMES.find(t => t.id === id);
+    const theme = selectableThemes.find((t) => t.id === id);
     if (theme && livePreview) applyThemeColors(theme.colors);
     onChange({ themeId: id, fontId, customColors });
   };
 
   const handleCustom = () => {
     previewCustom(customColors);
-    onChange({ themeId: 'custom', fontId, customColors });
+    onChange({ themeId: "custom", fontId, customColors });
   };
 
   const handleCustomColor = (key: keyof ThemePickerColors, value: string) => {
     const updated = { ...customColors, [key]: value };
     previewCustom(updated);
-    onChange({ themeId: 'custom', fontId, customColors: updated });
+    onChange({ themeId: "custom", fontId, customColors: updated });
   };
 
   const handleFont = (font: FontOption) => {
@@ -99,12 +103,12 @@ export default function ThemePicker({
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {PRESET_THEMES.map(theme => {
+          {selectableThemes.map((theme) => {
             const isSelected = themeId === theme.id;
-            const [brandR, brandG, brandB] = theme.colors.brand.split(' ');
-            const [accentR, accentG, accentB] = theme.colors.accent.split(' ');
-            const [bgR, bgG, bgB] = theme.colors.bgBase.split(' ');
-            const [inkR, inkG, inkB] = theme.colors.ink.split(' ');
+            const [brandR, brandG, brandB] = theme.colors.brand.split(" ");
+            const [accentR, accentG, accentB] = theme.colors.accent.split(" ");
+            const [bgR, bgG, bgB] = theme.colors.bgBase.split(" ");
+            const [inkR, inkG, inkB] = theme.colors.ink.split(" ");
             return (
               <button
                 key={theme.id}
@@ -112,8 +116,8 @@ export default function ThemePicker({
                 onClick={() => handlePreset(theme.id)}
                 className={`relative p-3 rounded-cozy border-2 text-left transition-all ${
                   isSelected
-                    ? 'border-moss-green shadow-md ring-2 ring-moss-green/30'
-                    : 'border-warm-gray/20 hover:border-warm-gray/40'
+                    ? "border-moss-green shadow-md ring-2 ring-moss-green/30"
+                    : "border-warm-gray/20 hover:border-warm-gray/40"
                 }`}
                 style={{ backgroundColor: `rgb(${bgR},${bgG},${bgB})` }}
                 aria-pressed={isSelected}
@@ -121,11 +125,15 @@ export default function ThemePicker({
                 <div className="flex gap-1.5 mb-2">
                   <span
                     className="w-5 h-5 rounded-full border border-black/10"
-                    style={{ backgroundColor: `rgb(${brandR},${brandG},${brandB})` }}
+                    style={{
+                      backgroundColor: `rgb(${brandR},${brandG},${brandB})`,
+                    }}
                   />
                   <span
                     className="w-5 h-5 rounded-full border border-black/10"
-                    style={{ backgroundColor: `rgb(${accentR},${accentG},${accentB})` }}
+                    style={{
+                      backgroundColor: `rgb(${accentR},${accentG},${accentB})`,
+                    }}
                   />
                   <span
                     className="w-5 h-5 rounded-full border border-black/10"
@@ -158,11 +166,11 @@ export default function ThemePicker({
             type="button"
             onClick={handleCustom}
             className={`relative p-3 rounded-cozy border-2 border-dashed text-left transition-all ${
-              themeId === 'custom'
-                ? 'border-moss-green shadow-md ring-2 ring-moss-green/30'
-                : 'border-warm-gray/30 hover:border-warm-gray/50'
+              themeId === "custom"
+                ? "border-moss-green shadow-md ring-2 ring-moss-green/30"
+                : "border-warm-gray/30 hover:border-warm-gray/50"
             }`}
-            aria-pressed={themeId === 'custom'}
+            aria-pressed={themeId === "custom"}
           >
             <div className="flex gap-1.5 mb-2">
               <span
@@ -182,7 +190,7 @@ export default function ThemePicker({
             <p className="text-[10px] mt-0.5 text-warm-gray leading-tight">
               Pick your own colors
             </p>
-            {themeId === 'custom' && (
+            {themeId === "custom" && (
               <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-moss-green text-white flex items-center justify-center text-[10px]">
                 ✓
               </span>
@@ -191,21 +199,25 @@ export default function ThemePicker({
         </div>
 
         {/* Custom color pickers */}
-        {themeId === 'custom' && (
+        {themeId === "custom" && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-3 border-t border-warm-gray/20">
-            {([
-              ['primary', 'Primary'],
-              ['accent', 'Accent'],
-              ['background', 'Background'],
-              ['text', 'Text'],
-            ] as const).map(([key, label]) => (
+            {(
+              [
+                ["primary", "Primary"],
+                ["accent", "Accent"],
+                ["background", "Background"],
+                ["text", "Text"],
+              ] as const
+            ).map(([key, label]) => (
               <div key={key}>
-                <label className="block text-xs text-warm-gray mb-1">{label}</label>
+                <label className="block text-xs text-warm-gray mb-1">
+                  {label}
+                </label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
                     value={customColors[key]}
-                    onChange={e => handleCustomColor(key, e.target.value)}
+                    onChange={(e) => handleCustomColor(key, e.target.value)}
                     className="w-8 h-8 rounded cursor-pointer border border-warm-gray/30"
                     aria-label={`${label} color`}
                   />
@@ -227,7 +239,7 @@ export default function ThemePicker({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {FONT_OPTIONS.map(font => {
+          {FONT_OPTIONS.map((font) => {
             const isSelected = fontId === font.id;
             return (
               <button
@@ -236,8 +248,8 @@ export default function ThemePicker({
                 onClick={() => handleFont(font)}
                 className={`p-3 rounded-cozy border-2 text-left transition-all ${
                   isSelected
-                    ? 'border-moss-green shadow-md ring-2 ring-moss-green/30'
-                    : 'border-warm-gray/20 hover:border-warm-gray/40'
+                    ? "border-moss-green shadow-md ring-2 ring-moss-green/30"
+                    : "border-warm-gray/20 hover:border-warm-gray/40"
                 }`}
                 aria-pressed={isSelected}
               >

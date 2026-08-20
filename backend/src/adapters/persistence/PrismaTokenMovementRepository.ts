@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { MapToken, TokenMovementMap } from '../../domain/tokens/TokenMovement';
 import { TokenMovementRepository } from '../../ports/TokenMovementRepository';
+import { updateMapAtRevision } from './PrismaMapRevision';
 
 /** Prisma adapter for the JSON token array stored on a map. */
 export class PrismaTokenMovementRepository implements TokenMovementRepository {
@@ -11,6 +12,7 @@ export class PrismaTokenMovementRepository implements TokenMovementRepository {
       where: { id: mapId },
       select: {
         id: true,
+        revision: true,
         campaignId: true,
         width: true,
         height: true,
@@ -30,10 +32,10 @@ export class PrismaTokenMovementRepository implements TokenMovementRepository {
     };
   }
 
-  async updateTokens(mapId: string, tokens: MapToken[]): Promise<void> {
-    await this.client.map.update({
-      where: { id: mapId },
-      data: { tokens: tokens as unknown as Prisma.InputJsonValue },
+  async updateTokens(mapId: string, expectedRevision: number, tokens: MapToken[]): Promise<number> {
+    const map = await updateMapAtRevision(this.client, mapId, expectedRevision, {
+      tokens: tokens as unknown as Prisma.InputJsonValue,
     });
+    return map.revision;
   }
 }

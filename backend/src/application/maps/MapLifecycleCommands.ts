@@ -110,7 +110,7 @@ export class UpdateMap extends MapCommandBase implements CommandHandler<UpdateMa
     // sole persistence write. An empty PUT keeps the legacy no-op map update.
     const map = Object.keys(data).length === 0 && lightingEnabled !== undefined
       ? existingMap
-      : await this.repository.updateMap(command.mapId, data);
+      : await this.repository.updateMap(command.mapId, existingMap.revision, data);
     return lightingEnabled === undefined ? { map } : { map, lightingEnabled };
   }
 }

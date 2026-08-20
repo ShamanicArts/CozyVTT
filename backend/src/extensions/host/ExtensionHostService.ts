@@ -83,6 +83,63 @@ export class ExtensionHostService {
     );
   }
 
+  public async listActiveRendererContributions(): Promise<
+    Array<{
+      extensionId: string;
+      renderer: import("./contracts").RendererContribution;
+    }>
+  > {
+    const installations = await this.installations.list();
+    return installations.flatMap((installation) =>
+      installation.state === "active" && installation.installMode === "trusted"
+        ? (installation.packageManifest.contributions.renderers ?? []).map(
+            (renderer) => ({ extensionId: installation.extensionId, renderer }),
+          )
+        : [],
+    );
+  }
+
+  public async readActiveRendererModule(
+    extensionId: string,
+    rendererId: string,
+  ): Promise<import("./contracts").ExtensionBrowserModule> {
+    const installation = await this.requireInstallation(extensionId);
+    if (
+      installation.state !== "active" ||
+      installation.installMode !== "trusted"
+    ) {
+      throw new ExtensionHostError(
+        "Renderer modules require an active trusted installation",
+        "UNKNOWN_INSTALLATION",
+      );
+    }
+    const renderer = installation.packageManifest.contributions.renderers.find(
+      (candidate) => candidate.id === rendererId,
+    );
+    if (!renderer) {
+      throw new ExtensionHostError(
+        "Renderer contribution is not installed",
+        "UNKNOWN_INSTALLATION",
+      );
+    }
+    const discovered = await this.packages.discoverInstalled(
+      installation.packagePath,
+    );
+    if (discovered.computedChecksum !== installation.packageChecksum) {
+      throw new ExtensionHostError(
+        "Extension package changed after installation",
+        "CHECKSUM_MISMATCH",
+      );
+    }
+    return {
+      contents: await this.packages.readBrowserModule(
+        discovered,
+        renderer.browserEntrypoint,
+      ),
+      checksum: installation.packageChecksum,
+    };
+  }
+
   public async listAvailable(): Promise<
     Array<{
       id: string;

@@ -102,7 +102,7 @@ export class AddWallSegment extends SceneCommandBase implements CommandHandler<A
       throw new SceneMutationError('MAX_WALL_SEGMENTS', 'Maximum 5000 wall segments per map');
     }
     const segments = [...map.wallSegments, command.segment];
-    await this.repository.updateWallSegments(command.mapId, segments);
+    await this.repository.updateWallSegments(command.mapId, map.revision, segments);
     return segments;
   }
 }
@@ -112,7 +112,7 @@ export class RemoveWallSegment extends SceneCommandBase implements CommandHandle
     this.requireDm(command.actor, 'Only DMs can remove wall segments');
     const map = await this.loadMap(command.actor, command.mapId);
     const segments = map.wallSegments.filter((segment) => segment.id !== command.segmentId);
-    await this.repository.updateWallSegments(command.mapId, segments);
+    await this.repository.updateWallSegments(command.mapId, map.revision, segments);
     return segments;
   }
 }
@@ -140,7 +140,7 @@ export class UpdateWallSegment extends SceneCommandBase implements CommandHandle
 
     const segments = [...map.wallSegments];
     segments[index] = command.segment;
-    await this.repository.updateWallSegments(command.mapId, segments);
+    await this.repository.updateWallSegments(command.mapId, map.revision, segments);
     return segments;
   }
 }
@@ -148,8 +148,8 @@ export class UpdateWallSegment extends SceneCommandBase implements CommandHandle
 export class ReplaceWallSegments extends SceneCommandBase implements CommandHandler<ReplaceWallSegmentsCommand, WallSegment[]> {
   async execute(command: ReplaceWallSegmentsCommand): Promise<WallSegment[]> {
     this.requireDm(command.actor, 'Only DMs can replace wall segments');
-    await this.loadMap(command.actor, command.mapId);
-    await this.repository.updateWallSegments(command.mapId, command.segments);
+    const map = await this.loadMap(command.actor, command.mapId);
+    await this.repository.updateWallSegments(command.mapId, map.revision, command.segments);
     return command.segments;
   }
 }
@@ -160,7 +160,7 @@ export class ApplyFogOperation extends SceneCommandBase implements CommandHandle
     const map = await this.loadMap(command.actor, command.mapId);
     const fog = loadFogState(map, map.fogData);
     applyFogOperation(fog, command.operation);
-    await this.repository.updateFog(command.mapId, fog);
+    await this.repository.updateFog(command.mapId, map.revision, fog);
     return fog;
   }
 }
@@ -173,7 +173,7 @@ export class AddLightSource extends SceneCommandBase implements CommandHandler<A
       throw new SceneMutationError('MAX_LIGHT_SOURCES', 'Maximum 200 light sources per map');
     }
     const lights = [...map.lights, command.light];
-    await this.repository.updateLights(command.mapId, lights);
+    await this.repository.updateLights(command.mapId, map.revision, lights);
     return lights;
   }
 }
@@ -183,7 +183,7 @@ export class RemoveLightSource extends SceneCommandBase implements CommandHandle
     this.requireDm(command.actor, 'Only DMs can remove light sources');
     const map = await this.loadMap(command.actor, command.mapId);
     const lights = map.lights.filter((light) => light.id !== command.lightId);
-    await this.repository.updateLights(command.mapId, lights);
+    await this.repository.updateLights(command.mapId, map.revision, lights);
     return lights;
   }
 }
@@ -196,7 +196,7 @@ export class UpdateLightSource extends SceneCommandBase implements CommandHandle
     if (index === -1) throw new SceneMutationError('LIGHT_NOT_FOUND', 'Light source not found');
     const lights = [...map.lights];
     lights[index] = command.light;
-    await this.repository.updateLights(command.mapId, lights);
+    await this.repository.updateLights(command.mapId, map.revision, lights);
     return lights;
   }
 }
@@ -204,8 +204,8 @@ export class UpdateLightSource extends SceneCommandBase implements CommandHandle
 export class ReplaceLightSources extends SceneCommandBase implements CommandHandler<ReplaceLightSourcesCommand, LightSource[]> {
   async execute(command: ReplaceLightSourcesCommand): Promise<LightSource[]> {
     this.requireDm(command.actor, 'Only DMs can replace light sources');
-    await this.loadMap(command.actor, command.mapId);
-    await this.repository.updateLights(command.mapId, command.lights);
+    const map = await this.loadMap(command.actor, command.mapId);
+    await this.repository.updateLights(command.mapId, map.revision, command.lights);
     return command.lights;
   }
 }
@@ -213,8 +213,8 @@ export class ReplaceLightSources extends SceneCommandBase implements CommandHand
 export class SetSceneLightingEnabled extends SceneCommandBase implements CommandHandler<SetSceneLightingEnabledCommand, boolean> {
   async execute(command: SetSceneLightingEnabledCommand): Promise<boolean> {
     this.requireDm(command.actor, 'Only DMs can change dynamic lighting');
-    await this.loadMap(command.actor, command.mapId);
-    await this.repository.updateLightingEnabled(command.mapId, command.enabled);
+    const map = await this.loadMap(command.actor, command.mapId);
+    await this.repository.updateLightingEnabled(command.mapId, map.revision, command.enabled);
     return command.enabled;
   }
 }

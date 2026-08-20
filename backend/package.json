@@ -29,6 +29,7 @@
   "author": "CozyVTT Development Team",
   "license": "MIT",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@prisma/client": "5.8",
     "@types/lodash": "^4.17.23",
     "@types/mathjs": "^9.4.1",

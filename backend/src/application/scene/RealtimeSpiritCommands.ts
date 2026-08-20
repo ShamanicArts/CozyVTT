@@ -63,7 +63,7 @@ export class SetSpiritTokenVisible implements CommandHandler<
     const token = { ...tokens[index], visible: c.visible };
     const updated = [...tokens];
     updated[index] = token;
-    await this.repository.updateMapTokens(c.mapId, updated);
+    await this.repository.updateMapTokens(c.mapId, map.revision, updated);
     return { token };
   }
 }

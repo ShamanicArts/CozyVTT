@@ -14,9 +14,18 @@
  * layer is active.
  */
 
-import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
-import { api } from '@/services/api';
-import type { AppearanceSettings, UserPreferences } from '@/types';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  ReactNode,
+} from "react";
+import { api } from "@/services/api";
+import type { AppearanceSettings, UserPreferences } from "@/types";
 import {
   getFontById,
   applyThemeColors,
@@ -24,23 +33,28 @@ import {
   buildCustomThemeColors,
   PRESET_THEMES,
   FONT_OPTIONS,
-} from '@/themes';
-import type { ThemeColors } from '@/themes';
+} from "@/themes";
+import type { ThemeColors } from "@/themes";
 import {
   registerActiveThemeContributions,
   THEME_CONTRACT_VERSION,
   ThemeHost,
   type ActiveThemeContributionLoader,
-} from '@/theming';
+} from "@/theming";
 
 // localStorage key for flash-prevention cache. Keep stable across releases —
 // changing it would force a one-time flash for every existing user on upgrade.
-const USER_THEME_CACHE_KEY = 'cozyvtt_user_theme';
+const USER_THEME_CACHE_KEY = "cozyvtt_user_theme";
 
 interface UserThemeCache {
   themeId?: string;
   fontId?: string;
-  customThemeColors?: { primary: string; accent: string; background: string; text: string } | null;
+  customThemeColors?: {
+    primary: string;
+    accent: string;
+    background: string;
+    text: string;
+  } | null;
 }
 
 interface ThemeContextValue {
@@ -65,6 +79,8 @@ interface ThemeContextValue {
   applyUserPreferences: (prefs: UserPreferences | null) => void;
   /** Scoped registry for trusted runtime semantic-theme contributions. */
   themeHost: ThemeHost;
+  /** Current validated built-in and extension themes exposed to product UI. */
+  availableThemes: ReturnType<ThemeHost["list"]>;
   /** Auth bridge configures the server contribution transport after login. */
   setContributionLoader: (loader: ActiveThemeContributionLoader | null) => void;
   /** Re-read active contributions after an extension lifecycle change. */
@@ -76,11 +92,12 @@ const fallbackThemeHost = new ThemeHost();
 const ThemeContext = createContext<ThemeContextValue>({
   appearance: null,
   refreshAppearance: async () => {},
-  mascotUrl: '/default-mascot.png',
-  logoUrl: '/default-logo.png',
-  faviconUrl: '/default-mascot.png',
+  mascotUrl: "/default-mascot.png",
+  logoUrl: "/default-logo.png",
+  faviconUrl: "/default-mascot.png",
   applyUserPreferences: () => {},
   themeHost: fallbackThemeHost,
+  availableThemes: [],
   setContributionLoader: () => {},
   refreshThemeContributions: () => {},
 });
@@ -92,19 +109,21 @@ export function useTheme() {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function readUserThemeCache(): UserThemeCache | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(USER_THEME_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? (parsed as UserThemeCache) : null;
+    return parsed && typeof parsed === "object"
+      ? (parsed as UserThemeCache)
+      : null;
   } catch {
     return null;
   }
 }
 
 function writeUserThemeCache(cache: UserThemeCache) {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   try {
     localStorage.setItem(USER_THEME_CACHE_KEY, JSON.stringify(cache));
   } catch {
@@ -113,7 +132,7 @@ function writeUserThemeCache(cache: UserThemeCache) {
 }
 
 function clearUserThemeCache() {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(USER_THEME_CACHE_KEY);
   } catch {
@@ -125,18 +144,26 @@ function clearUserThemeCache() {
 function resolveColors(
   themeHost: ThemeHost,
   themeId: string | undefined,
-  customColors: UserThemeCache['customThemeColors'] | Record<string, string> | null | undefined
+  customColors:
+    | UserThemeCache["customThemeColors"]
+    | Record<string, string>
+    | null
+    | undefined,
 ): ThemeColors {
-  if (themeId === 'custom' && customColors) {
-    return buildCustomThemeColors(customColors as Parameters<typeof buildCustomThemeColors>[0]);
+  if (themeId === "custom" && customColors) {
+    return buildCustomThemeColors(
+      customColors as Parameters<typeof buildCustomThemeColors>[0],
+    );
   }
-  const theme = themeHost.get(themeId || '') || PRESET_THEMES[0];
+  const theme = themeHost.get(themeId || "") || PRESET_THEMES[0];
   return theme.colors;
 }
 
 /** Apply a full system AppearanceSettings record (theme + font + favicon). */
 function applySystemAppearance(themeHost: ThemeHost, data: AppearanceSettings) {
-  applyThemeColors(resolveColors(themeHost, data.themeId, data.customThemeColors));
+  applyThemeColors(
+    resolveColors(themeHost, data.themeId, data.customThemeColors),
+  );
   applyFont(getFontById(data.fontId) || FONT_OPTIONS[0]);
 
   if (data.customFaviconUrl) {
@@ -148,7 +175,9 @@ function applySystemAppearance(themeHost: ThemeHost, data: AppearanceSettings) {
 /** Synchronously paint cached user theme on first render to avoid flash. */
 function applyCachedUserTheme(themeHost: ThemeHost, cache: UserThemeCache) {
   if (cache.themeId) {
-    applyThemeColors(resolveColors(themeHost, cache.themeId, cache.customThemeColors ?? null));
+    applyThemeColors(
+      resolveColors(themeHost, cache.themeId, cache.customThemeColors ?? null),
+    );
   }
   if (cache.fontId) {
     const font = getFontById(cache.fontId);
@@ -175,22 +204,31 @@ export function ThemeProvider({
     themeHostRef.current = host;
   }
   const themeHost = themeHostRef.current;
-  const [contributionLoader, setContributionLoader] = useState<ActiveThemeContributionLoader | null>(
-    injectedContributionLoader ?? null,
-  );
+  const [contributionLoader, setContributionLoader] =
+    useState<ActiveThemeContributionLoader | null>(
+      injectedContributionLoader ?? null,
+    );
   const [contributionRevision, setContributionRevision] = useState(0);
+  const [themeCatalogRevision, setThemeCatalogRevision] = useState(0);
   const refreshThemeContributions = useCallback(() => {
     setContributionRevision((revision) => revision + 1);
   }, []);
 
   useEffect(() => {
-    if (!contributionLoader) return;
+    if (!contributionLoader) {
+      setThemeCatalogRevision((revision) => revision + 1);
+      return;
+    }
     let active = true;
     let dispose = () => {};
     registerActiveThemeContributions(themeHost, contributionLoader)
       .then((cleanup) => {
-        if (active) dispose = cleanup;
-        else cleanup();
+        if (active) {
+          dispose = cleanup;
+          setThemeCatalogRevision((revision) => revision + 1);
+          const cached = readUserThemeCache();
+          if (cached?.themeId) applyCachedUserTheme(themeHost, cached);
+        } else cleanup();
       })
       .catch(() => {
         // Contributions are optional; validation failures must not block base UI.
@@ -200,6 +238,10 @@ export function ThemeProvider({
       dispose();
     };
   }, [contributionLoader, contributionRevision, themeHost]);
+  const availableThemes = useMemo(
+    () => themeHost.list(),
+    [themeHost, themeCatalogRevision],
+  );
   // Apply localStorage cache synchronously, before the first paint, so that
   // logged-in users don't see a flash of the admin's default theme on reload.
   // Runs at module-evaluation time of the component (still before child paint).
@@ -224,7 +266,8 @@ export function ThemeProvider({
 
       // Always update favicon (system-wide branding).
       if (data.customFaviconUrl) {
-        const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+        const link =
+          document.querySelector<HTMLLinkElement>('link[rel="icon"]');
         if (link) link.href = data.customFaviconUrl;
       }
 
@@ -244,7 +287,10 @@ export function ThemeProvider({
 
   const applyUserPreferences = useCallback(
     (prefs: UserPreferences | null) => {
-      if (!prefs || (prefs.themeId === undefined && prefs.fontId === undefined)) {
+      if (
+        !prefs ||
+        (prefs.themeId === undefined && prefs.fontId === undefined)
+      ) {
         // Clear overlay → revert to system defaults.
         userOverlayRef.current = null;
         clearUserThemeCache();
@@ -257,30 +303,31 @@ export function ThemeProvider({
       // Theme: prefer user choice, fall back to system default.
       const themeId = prefs.themeId ?? appearance?.themeId;
       const customColors =
-        prefs.themeId === 'custom'
-          ? prefs.customThemeColors ?? null
-          : appearance?.themeId === 'custom'
-          ? (appearance?.customThemeColors as any) ?? null
-          : null;
+        prefs.themeId === "custom"
+          ? (prefs.customThemeColors ?? null)
+          : appearance?.themeId === "custom"
+            ? ((appearance?.customThemeColors as any) ?? null)
+            : null;
       applyThemeColors(resolveColors(themeHost, themeId, customColors));
 
       // Font: prefer user choice, fall back to system default.
-      const fontId = prefs.fontId ?? appearance?.fontId ?? 'default';
+      const fontId = prefs.fontId ?? appearance?.fontId ?? "default";
       applyFont(getFontById(fontId) || FONT_OPTIONS[0]);
 
       // Cache for flash prevention on next reload.
       writeUserThemeCache({
         themeId: themeId,
         fontId: fontId,
-        customThemeColors: prefs.themeId === 'custom' ? prefs.customThemeColors ?? null : null,
+        customThemeColors:
+          prefs.themeId === "custom" ? (prefs.customThemeColors ?? null) : null,
       });
     },
-    [appearance, themeHost]
+    [appearance, themeHost],
   );
 
-  const mascotUrl = appearance?.customMascotUrl || '/default-mascot.png';
-  const logoUrl = appearance?.customLogoUrl || '/default-logo.png';
-  const faviconUrl = appearance?.customFaviconUrl || '/default-mascot.png';
+  const mascotUrl = appearance?.customMascotUrl || "/default-mascot.png";
+  const logoUrl = appearance?.customLogoUrl || "/default-logo.png";
+  const faviconUrl = appearance?.customFaviconUrl || "/default-mascot.png";
 
   return (
     <ThemeContext.Provider
@@ -292,6 +339,7 @@ export function ThemeProvider({
         faviconUrl,
         applyUserPreferences,
         themeHost,
+        availableThemes,
         setContributionLoader,
         refreshThemeContributions,
       }}

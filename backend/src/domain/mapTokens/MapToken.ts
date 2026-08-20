@@ -25,6 +25,7 @@ export interface MapToken {
 
 export interface MapTokenMap {
   id: string;
+  revision: number;
   campaignId: string;
   width: number;
   height: number;

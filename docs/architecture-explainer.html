@@ -1,23 +1,607 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CozyVTT — Runtime Architecture Explainer</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
-<style>
-:root{--fd:'Instrument Serif',Georgia,serif;--fm:'IBM Plex Mono',Consolas,monospace;--bg:#f4efe5;--s:#fffaf0;--s2:#ece4d5;--ink:#28251f;--dim:#70695e;--line:rgba(40,37,31,.13);--strong:rgba(40,37,31,.25);--terra:#b84d2b;--td:rgba(184,77,43,.1);--sage:#59714c;--sd:rgba(89,113,76,.11);--blue:#355f75;--bd:rgba(53,95,117,.11);--gold:#9a6b1e;--gd:rgba(154,107,30,.11);--red:#9c352e;--rd:rgba(156,53,46,.1)}
-@media(prefers-color-scheme:dark){:root{--bg:#191814;--s:#23211c;--s2:#2b2821;--ink:#eee7da;--dim:#aaa193;--line:rgba(238,231,218,.09);--strong:rgba(238,231,218,.19);--terra:#ed8a62;--td:rgba(237,138,98,.12);--sage:#a7c28d;--sd:rgba(167,194,141,.11);--blue:#8fb9cc;--bd:rgba(143,185,204,.11);--gold:#dfb660;--gd:rgba(223,182,96,.11);--red:#ef8f85;--rd:rgba(239,143,133,.1)}}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);font-family:var(--fm);overflow-wrap:break-word;background-color:var(--bg);background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:32px 32px}.wrap{max-width:1440px;margin:auto;display:grid;grid-template-columns:190px minmax(0,1fr);gap:0 42px;padding:36px}.main{min-width:0}.toc{position:sticky;top:24px;align-self:start;max-height:calc(100dvh - 48px);overflow:auto;padding:10px 0;grid-row:1/-1}.toc-title,.eyebrow,.label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1.7px;color:var(--dim)}.toc-title{padding:0 8px 10px;border-bottom:1px solid var(--line);margin-bottom:8px}.toc a{display:block;color:var(--dim);text-decoration:none;font-size:11px;line-height:1.5;padding:5px 8px;border-left:2px solid transparent}.toc a:hover,.toc a.active{color:var(--ink);background:var(--s2);border-left-color:var(--terra)}h1,h2,h3,p{margin-top:0}h1,h2,h3{font-family:var(--fd);font-weight:400}h1{font-size:clamp(48px,7vw,88px);line-height:.91;letter-spacing:-2px;max-width:940px;margin:14px 0 24px}h2{font-size:42px;line-height:1;margin:0 0 12px}h3{font-size:25px;margin-bottom:8px}.hero{background:var(--s);border:1px solid var(--strong);border-top:5px solid var(--terra);padding:clamp(28px,5vw,64px);box-shadow:10px 10px 0 var(--s2);margin-bottom:54px}.hero p{font-family:var(--fd);font-size:24px;line-height:1.35;max-width:980px;color:var(--dim)}.verdict{border-left:3px solid var(--sage);padding:12px 18px;background:var(--sd);font-size:13px;line-height:1.7;margin-top:28px}.verdict strong{color:var(--sage)}.metrics{display:grid;grid-template-columns:2fr repeat(3,1fr);gap:12px;margin-top:32px}.metric{min-width:0;border-top:1px solid var(--strong);padding-top:12px}.metric b{font-family:var(--fd);font-size:44px;font-weight:400;display:block;color:var(--terra)}.metric:first-child b{font-size:56px}.metric span{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}section{scroll-margin-top:30px;margin:0 0 64px}.head{display:grid;grid-template-columns:68px minmax(0,1fr);gap:18px;align-items:start;border-top:1px solid var(--strong);padding-top:18px;margin-bottom:22px}.num{font-family:var(--fd);font-size:34px;color:var(--terra)}.intro{font-family:var(--fd);font-size:20px;line-height:1.45;color:var(--dim);max-width:950px}
-.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}.ve-card{min-width:0;background:var(--s);border:1px solid var(--line);padding:18px;animation:rise .42s ease-out both;animation-delay:calc(var(--i,0)*.04s)}.hero-card{box-shadow:5px 5px 0 var(--s2);border-color:var(--strong)}.s4{grid-column:span 4}.s5{grid-column:span 5}.s6{grid-column:span 6}.s7{grid-column:span 7}.s12{grid-column:span 12}.ve-card p,.ve-card li{font-size:12px;line-height:1.65;color:var(--dim)}ul{margin:8px 0 0;padding:0;list-style:none}li{position:relative;padding-left:15px;margin:4px 0}li:before{content:'—';position:absolute;left:0;color:var(--terra)}code,.tag{font-family:var(--fm);font-size:.88em;background:var(--s2);padding:2px 5px;border-radius:2px;color:var(--blue)}.tag{display:inline-block;margin:2px 3px 2px 0;text-transform:uppercase;letter-spacing:.4px}.tag.green{color:var(--sage);background:var(--sd)}.tag.gold{color:var(--gold);background:var(--gd)}.tag.red{color:var(--red);background:var(--rd)}
-.mermaid-wrap{position:relative;min-height:370px;background:var(--s);border:1px solid var(--line);padding:42px 18px 24px;overflow:auto;display:flex;align-items:center;justify-content:center}.mermaid-wrap .mermaid{transition:transform .2s;transform-origin:center}.zoom{position:absolute;right:8px;top:8px;z-index:5;display:flex;border:1px solid var(--line);background:var(--s)}.zoom button{width:30px;height:28px;border:0;border-right:1px solid var(--line);background:transparent;color:var(--dim);font-family:var(--fm);cursor:pointer}.zoom button:last-child{border:0}.zoom button:hover{background:var(--s2);color:var(--ink)}.mermaid-wrap.is-zoomed{cursor:grab}.mermaid-wrap.is-panning{cursor:grabbing;user-select:none}.sequence{display:flex;align-items:stretch;overflow:auto;border:1px solid var(--line);background:var(--s)}.step{min-width:145px;flex:1;padding:16px;border-right:1px solid var(--line)}.step:last-child{border:0}.step b{display:block;color:var(--terra);font-size:10px;margin-bottom:8px}.step span{font-size:11px;line-height:1.55;color:var(--dim)}.table-wrap{overflow:auto;border:1px solid var(--line);background:var(--s)}table{width:100%;border-collapse:collapse;font-size:11px;line-height:1.5}th{position:sticky;top:0;background:var(--s2);text-align:left;text-transform:uppercase;letter-spacing:1px;color:var(--dim);padding:12px;border-bottom:2px solid var(--strong)}td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:nth-child(even){background:var(--td)}.status{display:inline-block;padding:3px 7px;border-radius:2px;font-size:9px;text-transform:uppercase;letter-spacing:.6px}.done{color:var(--sage);background:var(--sd)}.partial{color:var(--gold);background:var(--gd)}.open{color:var(--red);background:var(--rd)}details{border:1px solid var(--line);background:var(--s);margin-top:10px}summary{cursor:pointer;padding:14px 16px;font-size:11px;font-weight:600;color:var(--blue)}details>div{border-top:1px solid var(--line);padding:16px}.warning{border-left:4px solid var(--gold);background:var(--gd);padding:16px 18px;font-size:12px;line-height:1.65}.warning strong{color:var(--gold)}footer{border-top:1px solid var(--strong);padding:24px 0;color:var(--dim);font-size:10px}@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}@media(max-width:1000px){.wrap{grid-template-columns:1fr;padding:0 22px 30px}.toc{position:sticky;top:0;z-index:20;display:flex;gap:3px;max-height:none;overflow-x:auto;background:var(--bg);border-bottom:1px solid var(--line);margin:0 -22px;padding:9px 22px;grid-row:auto}.toc-title{display:none}.toc a{white-space:nowrap;border-left:0;border-bottom:2px solid transparent}.toc a.active{border-left:0;border-bottom-color:var(--terra)}.main{padding-top:22px}.metrics{grid-template-columns:repeat(2,1fr)}.s4,.s5,.s6,.s7{grid-column:span 12}.head{grid-template-columns:46px 1fr}.mermaid-wrap{min-height:310px}}
-</style></head><body><div class="wrap">
-<nav class="toc" id="toc"><div class="toc-title">Runtime map</div><a href="#outcome">01 Outcome</a><a href="#topology">02 Topology</a><a href="#commands">03 Command spine</a><a href="#agents">04 Agent control</a><a href="#extensions">05 Extensions</a><a href="#rendering">06 Rendering</a><a href="#coverage">07 Coverage</a><a href="#limits">08 Limits</a></nav>
-<main class="main"><header class="hero" id="outcome"><div class="eyebrow">CozyVTT architecture · executable state · 20 August 2026</div><h1>A tabletop application becoming a platform.</h1><p>The repository is now a hexagonal modular monolith with a microkernel extension boundary. Human HTTP calls, Socket.IO mutations, controlled agents, and reviewed extensions meet at explicit application commands rather than writing through transport code.</p><div class="verdict"><strong>The pattern is:</strong> ports-and-adapters for the application core, command/query separation for automation, a microkernel for extensions, and Strategy/Bridge registries for rendering and themes. It remains one deployable system; modularity is enforced inside it.</div><div class="metrics"><div class="metric"><b>99</b><span>shared production commands</span></div><div class="metric"><b>11</b><span>agent-safe read queries</span></div><div class="metric"><b>30/30</b><span>realtime DB tests</span></div><div class="metric"><b>2,567</b><span>MapCanvas lines · was 3,643</span></div></div></header>
-<section id="topology"><div class="head"><div class="num">01</div><div><h2>The runtime topology</h2><p class="intro">Transport adapters point inward. Persistence, realtime publication, local files, sandbox processes, and Canvas2D point outward through ports.</p></div></div><div class="mermaid-wrap"><div class="zoom"><button onclick="zoomDiagram(this,.82)">−</button><button onclick="resetZoom(this)">1:1</button><button onclick="zoomDiagram(this,1.22)">+</button></div><pre class="mermaid">
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>CozyVTT — Runtime Architecture Explainer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --fd: "Instrument Serif", Georgia, serif;
+        --fm: "IBM Plex Mono", Consolas, monospace;
+        --bg: #f4efe5;
+        --s: #fffaf0;
+        --s2: #ece4d5;
+        --ink: #28251f;
+        --dim: #70695e;
+        --line: rgba(40, 37, 31, 0.13);
+        --strong: rgba(40, 37, 31, 0.25);
+        --terra: #b84d2b;
+        --td: rgba(184, 77, 43, 0.1);
+        --sage: #59714c;
+        --sd: rgba(89, 113, 76, 0.11);
+        --blue: #355f75;
+        --bd: rgba(53, 95, 117, 0.11);
+        --gold: #9a6b1e;
+        --gd: rgba(154, 107, 30, 0.11);
+        --red: #9c352e;
+        --rd: rgba(156, 53, 46, 0.1);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #191814;
+          --s: #23211c;
+          --s2: #2b2821;
+          --ink: #eee7da;
+          --dim: #aaa193;
+          --line: rgba(238, 231, 218, 0.09);
+          --strong: rgba(238, 231, 218, 0.19);
+          --terra: #ed8a62;
+          --td: rgba(237, 138, 98, 0.12);
+          --sage: #a7c28d;
+          --sd: rgba(167, 194, 141, 0.11);
+          --blue: #8fb9cc;
+          --bd: rgba(143, 185, 204, 0.11);
+          --gold: #dfb660;
+          --gd: rgba(223, 182, 96, 0.11);
+          --red: #ef8f85;
+          --rd: rgba(239, 143, 133, 0.1);
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: var(--fm);
+        overflow-wrap: break-word;
+        background-color: var(--bg);
+        background-image:
+          linear-gradient(var(--line) 1px, transparent 1px),
+          linear-gradient(90deg, var(--line) 1px, transparent 1px);
+        background-size: 32px 32px;
+      }
+      .wrap {
+        max-width: 1440px;
+        margin: auto;
+        display: grid;
+        grid-template-columns: 190px minmax(0, 1fr);
+        gap: 0 42px;
+        padding: 36px;
+      }
+      .main {
+        min-width: 0;
+      }
+      .toc {
+        position: sticky;
+        top: 24px;
+        align-self: start;
+        max-height: calc(100dvh - 48px);
+        overflow: auto;
+        padding: 10px 0;
+        grid-row: 1/-1;
+      }
+      .toc-title,
+      .eyebrow,
+      .label {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1.7px;
+        color: var(--dim);
+      }
+      .toc-title {
+        padding: 0 8px 10px;
+        border-bottom: 1px solid var(--line);
+        margin-bottom: 8px;
+      }
+      .toc a {
+        display: block;
+        color: var(--dim);
+        text-decoration: none;
+        font-size: 11px;
+        line-height: 1.5;
+        padding: 5px 8px;
+        border-left: 2px solid transparent;
+      }
+      .toc a:hover,
+      .toc a.active {
+        color: var(--ink);
+        background: var(--s2);
+        border-left-color: var(--terra);
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: var(--fd);
+        font-weight: 400;
+      }
+      h1 {
+        font-size: clamp(48px, 7vw, 88px);
+        line-height: 0.91;
+        letter-spacing: -2px;
+        max-width: 940px;
+        margin: 14px 0 24px;
+      }
+      h2 {
+        font-size: 42px;
+        line-height: 1;
+        margin: 0 0 12px;
+      }
+      h3 {
+        font-size: 25px;
+        margin-bottom: 8px;
+      }
+      .hero {
+        background: var(--s);
+        border: 1px solid var(--strong);
+        border-top: 5px solid var(--terra);
+        padding: clamp(28px, 5vw, 64px);
+        box-shadow: 10px 10px 0 var(--s2);
+        margin-bottom: 54px;
+      }
+      .hero p {
+        font-family: var(--fd);
+        font-size: 24px;
+        line-height: 1.35;
+        max-width: 980px;
+        color: var(--dim);
+      }
+      .verdict {
+        border-left: 3px solid var(--sage);
+        padding: 12px 18px;
+        background: var(--sd);
+        font-size: 13px;
+        line-height: 1.7;
+        margin-top: 28px;
+      }
+      .verdict strong {
+        color: var(--sage);
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: 2fr repeat(3, 1fr);
+        gap: 12px;
+        margin-top: 32px;
+      }
+      .metric {
+        min-width: 0;
+        border-top: 1px solid var(--strong);
+        padding-top: 12px;
+      }
+      .metric b {
+        font-family: var(--fd);
+        font-size: 44px;
+        font-weight: 400;
+        display: block;
+        color: var(--terra);
+      }
+      .metric:first-child b {
+        font-size: 56px;
+      }
+      .metric span {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--dim);
+      }
+      section {
+        scroll-margin-top: 30px;
+        margin: 0 0 64px;
+      }
+      .head {
+        display: grid;
+        grid-template-columns: 68px minmax(0, 1fr);
+        gap: 18px;
+        align-items: start;
+        border-top: 1px solid var(--strong);
+        padding-top: 18px;
+        margin-bottom: 22px;
+      }
+      .num {
+        font-family: var(--fd);
+        font-size: 34px;
+        color: var(--terra);
+      }
+      .intro {
+        font-family: var(--fd);
+        font-size: 20px;
+        line-height: 1.45;
+        color: var(--dim);
+        max-width: 950px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .ve-card {
+        min-width: 0;
+        background: var(--s);
+        border: 1px solid var(--line);
+        padding: 18px;
+        animation: rise 0.42s ease-out both;
+        animation-delay: calc(var(--i, 0) * 0.04s);
+      }
+      .hero-card {
+        box-shadow: 5px 5px 0 var(--s2);
+        border-color: var(--strong);
+      }
+      .s4 {
+        grid-column: span 4;
+      }
+      .s5 {
+        grid-column: span 5;
+      }
+      .s6 {
+        grid-column: span 6;
+      }
+      .s7 {
+        grid-column: span 7;
+      }
+      .s12 {
+        grid-column: span 12;
+      }
+      .ve-card p,
+      .ve-card li {
+        font-size: 12px;
+        line-height: 1.65;
+        color: var(--dim);
+      }
+      ul {
+        margin: 8px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      li {
+        position: relative;
+        padding-left: 15px;
+        margin: 4px 0;
+      }
+      li:before {
+        content: "—";
+        position: absolute;
+        left: 0;
+        color: var(--terra);
+      }
+      code,
+      .tag {
+        font-family: var(--fm);
+        font-size: 0.88em;
+        background: var(--s2);
+        padding: 2px 5px;
+        border-radius: 2px;
+        color: var(--blue);
+      }
+      .tag {
+        display: inline-block;
+        margin: 2px 3px 2px 0;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+      .tag.green {
+        color: var(--sage);
+        background: var(--sd);
+      }
+      .tag.gold {
+        color: var(--gold);
+        background: var(--gd);
+      }
+      .tag.red {
+        color: var(--red);
+        background: var(--rd);
+      }
+      .mermaid-wrap {
+        position: relative;
+        min-height: 370px;
+        background: var(--s);
+        border: 1px solid var(--line);
+        padding: 42px 18px 24px;
+        overflow: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .mermaid-wrap .mermaid {
+        transition: transform 0.2s;
+        transform-origin: center;
+      }
+      .zoom {
+        position: absolute;
+        right: 8px;
+        top: 8px;
+        z-index: 5;
+        display: flex;
+        border: 1px solid var(--line);
+        background: var(--s);
+      }
+      .zoom button {
+        width: 30px;
+        height: 28px;
+        border: 0;
+        border-right: 1px solid var(--line);
+        background: transparent;
+        color: var(--dim);
+        font-family: var(--fm);
+        cursor: pointer;
+      }
+      .zoom button:last-child {
+        border: 0;
+      }
+      .zoom button:hover {
+        background: var(--s2);
+        color: var(--ink);
+      }
+      .mermaid-wrap.is-zoomed {
+        cursor: grab;
+      }
+      .mermaid-wrap.is-panning {
+        cursor: grabbing;
+        user-select: none;
+      }
+      .sequence {
+        display: flex;
+        align-items: stretch;
+        overflow: auto;
+        border: 1px solid var(--line);
+        background: var(--s);
+      }
+      .step {
+        min-width: 145px;
+        flex: 1;
+        padding: 16px;
+        border-right: 1px solid var(--line);
+      }
+      .step:last-child {
+        border: 0;
+      }
+      .step b {
+        display: block;
+        color: var(--terra);
+        font-size: 10px;
+        margin-bottom: 8px;
+      }
+      .step span {
+        font-size: 11px;
+        line-height: 1.55;
+        color: var(--dim);
+      }
+      .table-wrap {
+        overflow: auto;
+        border: 1px solid var(--line);
+        background: var(--s);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+        line-height: 1.5;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        background: var(--s2);
+        text-align: left;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--dim);
+        padding: 12px;
+        border-bottom: 2px solid var(--strong);
+      }
+      td {
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      tbody tr:nth-child(even) {
+        background: var(--td);
+      }
+      .status {
+        display: inline-block;
+        padding: 3px 7px;
+        border-radius: 2px;
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+      }
+      .done {
+        color: var(--sage);
+        background: var(--sd);
+      }
+      .partial {
+        color: var(--gold);
+        background: var(--gd);
+      }
+      .open {
+        color: var(--red);
+        background: var(--rd);
+      }
+      details {
+        border: 1px solid var(--line);
+        background: var(--s);
+        margin-top: 10px;
+      }
+      summary {
+        cursor: pointer;
+        padding: 14px 16px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--blue);
+      }
+      details > div {
+        border-top: 1px solid var(--line);
+        padding: 16px;
+      }
+      .warning {
+        border-left: 4px solid var(--gold);
+        background: var(--gd);
+        padding: 16px 18px;
+        font-size: 12px;
+        line-height: 1.65;
+      }
+      .warning strong {
+        color: var(--gold);
+      }
+      footer {
+        border-top: 1px solid var(--strong);
+        padding: 24px 0;
+        color: var(--dim);
+        font-size: 10px;
+      }
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *:before,
+        *:after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+      @media (max-width: 1000px) {
+        .wrap {
+          grid-template-columns: 1fr;
+          padding: 0 22px 30px;
+        }
+        .toc {
+          position: sticky;
+          top: 0;
+          z-index: 20;
+          display: flex;
+          gap: 3px;
+          max-height: none;
+          overflow-x: auto;
+          background: var(--bg);
+          border-bottom: 1px solid var(--line);
+          margin: 0 -22px;
+          padding: 9px 22px;
+          grid-row: auto;
+        }
+        .toc-title {
+          display: none;
+        }
+        .toc a {
+          white-space: nowrap;
+          border-left: 0;
+          border-bottom: 2px solid transparent;
+        }
+        .toc a.active {
+          border-left: 0;
+          border-bottom-color: var(--terra);
+        }
+        .main {
+          padding-top: 22px;
+        }
+        .metrics {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .s4,
+        .s5,
+        .s6,
+        .s7 {
+          grid-column: span 12;
+        }
+        .head {
+          grid-template-columns: 46px 1fr;
+        }
+        .mermaid-wrap {
+          min-height: 310px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <nav class="toc" id="toc">
+        <div class="toc-title">Runtime map</div>
+        <a href="#outcome">01 Outcome</a><a href="#topology">02 Topology</a
+        ><a href="#commands">03 Command spine</a
+        ><a href="#agents">04 Agent control</a
+        ><a href="#extensions">05 Extensions</a
+        ><a href="#rendering">06 Rendering</a><a href="#coverage">07 Coverage</a
+        ><a href="#limits">08 Limits</a>
+      </nav>
+      <main class="main">
+        <header class="hero" id="outcome">
+          <div class="eyebrow">
+            CozyVTT architecture · executable state · 20 August 2026
+          </div>
+          <h1>A tabletop application designed to adapt.</h1>
+          <p>
+            The repository is now a hexagonal modular monolith with a local
+            extension microkernel. Human HTTP calls, Socket.IO mutations, MCP
+            clients, controlled agents, and reviewed extensions meet at explicit
+            application boundaries rather than writing through transport code.
+          </p>
+          <div class="verdict">
+            <strong>The pattern is:</strong> ports-and-adapters for the
+            application core, command/query separation for automation, a
+            microkernel for operator-controlled extensions, and Strategy/Bridge
+            registries for rendering and themes. It remains one self-hosted
+            deployable application; there is no package store or marketplace.
+          </div>
+          <div class="metrics">
+            <div class="metric">
+              <b>99</b><span>shared production commands</span>
+            </div>
+            <div class="metric">
+              <b>11</b><span>agent-safe read queries</span>
+            </div>
+            <div class="metric"><b>30/30</b><span>realtime DB tests</span></div>
+            <div class="metric">
+              <b>2,567</b><span>MapCanvas lines · was 3,643</span>
+            </div>
+          </div>
+        </header>
+        <section id="topology">
+          <div class="head">
+            <div class="num">01</div>
+            <div>
+              <h2>The runtime topology</h2>
+              <p class="intro">
+                Transport adapters point inward. Persistence, realtime
+                publication, local files, sandbox processes, and Canvas2D point
+                outward through ports.
+              </p>
+            </div>
+          </div>
+          <div class="mermaid-wrap">
+            <div class="zoom">
+              <button onclick="zoomDiagram(this, 0.82)">−</button
+              ><button onclick="resetZoom(this)">1:1</button
+              ><button onclick="zoomDiagram(this, 1.22)">+</button>
+            </div>
+            <pre class="mermaid">
 flowchart LR
  subgraph Callers[Callers and transports]
   UI[React UI]
   REST[Express REST]
   WS[Socket.IO]
   AG[Agent API]
+  MCP[MCP Streamable HTTP]
   EX[Extension tools]
  end
  subgraph Core[Application core]
@@ -38,18 +622,127 @@ flowchart LR
  REST --> CB
  WS --> CB
  AG --> AH & QH
+ MCP --> AH & QH
  EX --> AH
  AH --> CB
  CB --> UC --> DM
  UC --> PT
  PT --> PR & EV & FS & OB
-</pre></div><div class="grid" style="margin-top:14px"><div class="ve-card s4"><div class="label">Enforced direction</div><h3>Domain and application</h3><p>An executable test rejects Prisma, Express, Socket.IO, and filesystem imports from core folders.</p></div><div class="ve-card s4"><div class="label">Wire compatibility</div><h3>Adapters keep contracts</h3><p>Existing routes and socket payloads remain stable while mutation rules move inward.</p></div><div class="ve-card s4"><div class="label">One process</div><h3>Modular monolith</h3><p>No distributed-service tax. Boundaries are contracts, transaction scopes, and guards.</p></div></div></section>
-<section id="commands"><div class="head"><div class="num">02</div><div><h2>The command spine</h2><p class="intro">The shared graph covers maps, tokens, scenes, campaigns, sessions, content, identity, administration, chat, dice, initiative, and assets.</p></div></div><div class="sequence"><div class="step"><b>01 · AUTHORITY</b><span>Transport establishes principal, delegated identity, campaign, origin.</span></div><div class="step"><b>02 · POLICY</b><span>Default-deny durable grants gate protected callers.</span></div><div class="step"><b>03 · DEDUPE</b><span>Canonical digest and lease prevent duplicate writes.</span></div><div class="step"><b>04 · TRANSACTION</b><span>Persistence, completion, and outbox commit together.</span></div><div class="step"><b>05 · EFFECTS</b><span>Application publishers fan out results once.</span></div><div class="step"><b>06 · EVIDENCE</b><span>Audit stores decisions and digests, not secrets.</span></div></div><div class="grid" style="margin-top:14px"><div class="ve-card hero-card s7"><h3>Atomic where it matters</h3><p><code>PrismaTransactionContext</code> uses AsyncLocalStorage so participating repositories share one transaction. Idempotency and the value-free outbox event roll back with a failed command.</p><span class="tag green">created</span><span class="tag green">replay</span><span class="tag gold">reclaimed</span><span class="tag red">conflict</span></div><div class="ve-card s5"><h3>Event contract</h3><p><code>application.command.executed.v1</code> has bounded claims, leases, retry, dead-lettering, health counts, and graceful shutdown.</p></div></div></section>
-<section id="agents"><div class="head"><div class="num">03</div><div><h2>Agents have a narrow, attributable door</h2><p class="intro">Agents do not impersonate browser sessions or touch Prisma. They receive campaign-scoped credentials and a filtered catalog.</p></div></div><div class="mermaid-wrap"><div class="zoom"><button onclick="zoomDiagram(this,.82)">−</button><button onclick="resetZoom(this)">1:1</button><button onclick="zoomDiagram(this,1.22)">+</button></div><pre class="mermaid">
+</pre>
+          </div>
+          <div class="grid" style="margin-top: 14px">
+            <div class="ve-card s4">
+              <div class="label">Enforced direction</div>
+              <h3>Domain and application</h3>
+              <p>
+                An executable test rejects Prisma, Express, Socket.IO, and
+                filesystem imports from core folders.
+              </p>
+            </div>
+            <div class="ve-card s4">
+              <div class="label">Wire compatibility</div>
+              <h3>Adapters keep contracts</h3>
+              <p>
+                Existing routes and socket payloads remain stable while mutation
+                rules move inward.
+              </p>
+            </div>
+            <div class="ve-card s4">
+              <div class="label">One process</div>
+              <h3>Modular monolith</h3>
+              <p>
+                No distributed-service tax. Boundaries are contracts,
+                transaction scopes, and guards.
+              </p>
+            </div>
+          </div>
+        </section>
+        <section id="commands">
+          <div class="head">
+            <div class="num">02</div>
+            <div>
+              <h2>The command spine</h2>
+              <p class="intro">
+                The shared graph covers maps, tokens, scenes, campaigns,
+                sessions, content, identity, administration, chat, dice,
+                initiative, and assets.
+              </p>
+            </div>
+          </div>
+          <div class="sequence">
+            <div class="step">
+              <b>01 · AUTHORITY</b
+              ><span
+                >Transport establishes principal, delegated identity, campaign,
+                origin.</span
+              >
+            </div>
+            <div class="step">
+              <b>02 · POLICY</b
+              ><span>Default-deny durable grants gate protected callers.</span>
+            </div>
+            <div class="step">
+              <b>03 · DEDUPE</b
+              ><span>Canonical digest and lease prevent duplicate writes.</span>
+            </div>
+            <div class="step">
+              <b>04 · TRANSACTION</b
+              ><span>Persistence, completion, and outbox commit together.</span>
+            </div>
+            <div class="step">
+              <b>05 · EFFECTS</b
+              ><span>Application publishers fan out results once.</span>
+            </div>
+            <div class="step">
+              <b>06 · EVIDENCE</b
+              ><span>Audit stores decisions and digests, not secrets.</span>
+            </div>
+          </div>
+          <div class="grid" style="margin-top: 14px">
+            <div class="ve-card hero-card s7">
+              <h3>Atomic where it matters</h3>
+              <p>
+                <code>PrismaTransactionContext</code> uses AsyncLocalStorage so
+                participating repositories share one transaction. Idempotency
+                and the value-free outbox event roll back with a failed command.
+              </p>
+              <span class="tag green">created</span
+              ><span class="tag green">replay</span
+              ><span class="tag gold">reclaimed</span
+              ><span class="tag red">conflict</span>
+            </div>
+            <div class="ve-card s5">
+              <h3>Event contract</h3>
+              <p>
+                <code>application.command.executed.v1</code> has bounded claims,
+                leases, retry, dead-lettering, health counts, and graceful
+                shutdown.
+              </p>
+            </div>
+          </div>
+        </section>
+        <section id="agents">
+          <div class="head">
+            <div class="num">03</div>
+            <div>
+              <h2>Agents have a narrow, attributable door</h2>
+              <p class="intro">
+                Agents do not impersonate browser sessions or touch Prisma. They
+                receive campaign-scoped credentials and a filtered catalog.
+              </p>
+            </div>
+          </div>
+          <div class="mermaid-wrap">
+            <div class="zoom">
+              <button onclick="zoomDiagram(this, 0.82)">−</button
+              ><button onclick="resetZoom(this)">1:1</button
+              ><button onclick="zoomDiagram(this, 1.22)">+</button>
+            </div>
+            <pre class="mermaid">
 sequenceDiagram
  participant H as Human session
  participant A as Agent
- participant API as Agent API
+ participant API as Agent API or MCP
  participant P as Policy and audit
  participant C as Application host
  H->>API: Issue campaign credential
@@ -65,8 +758,50 @@ sequenceDiagram
  API->>P: Bind credential campaign and digest
  P->>C: Dispatch authorized command
  C-->>A: Validated redacted result
-</pre></div><div class="grid" style="margin-top:14px"><div class="ve-card s4"><h3>Credentials</h3><p>Only hashes persist. Tokens are campaign-bound, revocable, expiring, and tied to a delegated human membership.</p></div><div class="ve-card s4"><h3>Queries</h3><p>Eleven bounded reads apply role privacy. They need a READ grant, not confirmation or idempotency.</p></div><div class="ve-card s4"><h3>Writes</h3><p>Approval receipts bind credential, user, campaign, command, and canonical input digest, then consume once.</p></div></div></section>
-<section id="extensions"><div class="head"><div class="num">04</div><div><h2>The extension microkernel</h2><p class="intro">Manifests describe contributions; hosts own lifecycle; bridges own execution. A descriptor alone can never become authority.</p></div></div><div class="mermaid-wrap"><div class="zoom"><button onclick="zoomDiagram(this,.82)">−</button><button onclick="resetZoom(this)">1:1</button><button onclick="zoomDiagram(this,1.22)">+</button></div><pre class="mermaid">
+</pre>
+          </div>
+          <div class="grid" style="margin-top: 14px">
+            <div class="ve-card s4">
+              <h3>Credentials</h3>
+              <p>
+                Only hashes persist. Tokens are campaign-bound, revocable,
+                expiring, and tied to a delegated human membership.
+              </p>
+            </div>
+            <div class="ve-card s4">
+              <h3>Queries</h3>
+              <p>
+                Eleven bounded reads apply role privacy. They need a READ grant,
+                not confirmation or idempotency.
+              </p>
+            </div>
+            <div class="ve-card s4">
+              <h3>Writes</h3>
+              <p>
+                Approval receipts bind credential, user, campaign, command, and
+                canonical input digest, then consume once.
+              </p>
+            </div>
+          </div>
+        </section>
+        <section id="extensions">
+          <div class="head">
+            <div class="num">04</div>
+            <div>
+              <h2>The extension microkernel</h2>
+              <p class="intro">
+                Manifests describe contributions; hosts own lifecycle; bridges
+                own execution. A descriptor alone can never become authority.
+              </p>
+            </div>
+          </div>
+          <div class="mermaid-wrap">
+            <div class="zoom">
+              <button onclick="zoomDiagram(this, 0.82)">−</button
+              ><button onclick="resetZoom(this)">1:1</button
+              ><button onclick="zoomDiagram(this, 1.22)">+</button>
+            </div>
+            <pre class="mermaid">
 flowchart TB
  PKG[Checksummed package manifest] --> CAT[Contained local catalog]
  CAT --> MODE{Install mode}
@@ -76,23 +811,378 @@ flowchart TB
  BW --> SP[SandboxRegistryProxy]
  INPROC --> REG[Versioned ExtensionRegistry]
  SP --> REG
- REG --> DESC[Commands · agent tools · themes]
+ REG --> DESC[Commands · agent tools · themes · renderers]
  DESC --> BR[Grant + schema + confirmation bridge]
  BR --> EXEC[Lifecycle-owned command binding]
  EXEC --> AUD[Digest-only audit]
-</pre></div><div class="grid" style="margin-top:14px"><div class="ve-card s6"><h3>Trusted packages</h3><p>Code imports only after path containment, checksum, allowlist, and signature verification. Handler IDs must exactly match manifest commands; activation owns disposal.</p></div><div class="ve-card s6"><h3>Sandboxed packages</h3><p>Code is never imported by the server. Each call gets a fresh process with read-only package, tmpfs, no network, clean environment, and heap/output/time/concurrency caps.</p></div><div class="ve-card s12"><h3>Durable lifecycle and UI</h3><p>Installations, state, errors, dependencies, grants, credentials, and confirmations survive restart. Admins manage lifecycle/grants; users manage agent access and approvals.</p></div></div></section>
-<section id="rendering"><div class="head"><div class="num">05</div><div><h2>Rendering and themes are runtime registries</h2><p class="intro">Canvas2D stays the default adapter, but layer order, replacement, invalidation, and themes are no longer hard-coded global facts.</p></div></div><div class="grid"><div class="ve-card hero-card s7"><h3>Per-canvas renderer host</h3><p><code>MapRendererProvider</code> owns a scoped host. Integrations register, swap, unregister, and invalidate terrain, token, and overlay layers. MapCanvas delegates surface lifecycle, subscriptions, scheduler, toolbar/AoE UI, gesture refs, arbitration, and its five pointer handlers.</p></div><div class="ve-card s5"><h3>Theme host</h3><p>Semantic themes validate all required tokens and 4.5:1 contrast. Active extension themes arrive as data only; partial palettes fail closed.</p><span class="tag green">scoped</span><span class="tag green">versioned</span><span class="tag green">hot-swap</span></div></div><div class="sequence" style="margin-top:14px"><div class="step"><b>STATE</b><span>Map, viewport, entities</span></div><div class="step"><b>SCHEDULER</b><span>Dirty surfaces and rAF</span></div><div class="step"><b>REGISTRY</b><span>Ordered layer callbacks</span></div><div class="step"><b>ADAPTER</b><span>Canvas2D surfaces</span></div><div class="step"><b>SWAP</b><span>Replacement and disposal</span></div></div></section>
-<section id="coverage"><div class="head"><div class="num">06</div><div><h2>What “complete” means here</h2><p class="intro">The route-centric mutation architecture is migrated. Remaining items are explicit platform expansion, not hidden bypasses.</p></div></div><div class="table-wrap"><table><thead><tr><th>Area</th><th>Status</th><th>Evidence</th><th>Boundary</th></tr></thead><tbody>
-<tr><td>REST and Socket mutations</td><td><span class="status done">migrated</span></td><td>99 shared handlers; transport Prisma guard</td><td>CommandBus → use case → port</td></tr>
-<tr><td>Agent reads</td><td><span class="status done">shipped</span></td><td>11 role-filtered campaign queries</td><td>QueryHost → repository port</td></tr>
-<tr><td>Agent security</td><td><span class="status done">shipped</span></td><td>Hash credentials, grants, one-time receipts</td><td>Agent API → ApplicationHost</td></tr>
-<tr><td>Transactions and events</td><td><span class="status partial">command path</span></td><td>Audit, idempotency, outbox, dead-letter health</td><td>AsyncLocalStorage unit of work</td></tr>
-<tr><td>Trusted extensions</td><td><span class="status done">executable</span></td><td>Reviewed import, handler coverage, lifecycle disposal</td><td>TrustedRegistryProxy</td></tr>
-<tr><td>Sandbox extensions</td><td><span class="status done">container verified</span></td><td>OS denial, HTTP approval flow, and unprivileged Docker tests</td><td>Bubblewrap subprocess</td></tr>
-<tr><td>Renderer and themes</td><td><span class="status done">runtime seam</span></td><td>177 frontend tests and management UI</td><td>Scoped providers and registries</td></tr>
-<tr><td>Third-party marketplace</td><td><span class="status open">non-goal</span></td><td>No remote acquisition or frontend JS loader</td><td>Local reviewed packages only</td></tr>
-</tbody></table></div></section>
-<section id="limits"><div class="head"><div class="num">07</div><div><h2>Honest limits and next expansion points</h2><p class="intro">A modular platform is defined as much by what it refuses to promise as by what it exposes.</p></div></div><div class="warning"><strong>Sandbox container qualification passed.</strong> Development and production images now use Node 24 LTS plus bubblewrap. The unprivileged image passed filesystem, network, child-process, crash, timeout, output-cap, and schema-isolation tests. Compose documents the required <code>seccomp=unconfined</code> namespace tradeoff.</div><div class="grid" style="margin-top:14px"><div class="ve-card s4"><h3>No remote marketplace</h3><p>Packages come from an administrator-controlled local root. Acquisition, automated review, campaign pinning, and upgrades remain future products.</p></div><div class="ve-card s4"><h3>No arbitrary frontend code</h3><p>Remote contributions are data-only themes. Renderer code remains reviewed first-party code; no iframe plugin UI exists.</p></div><div class="ve-card s4"><h3>Concurrency is documented</h3><p>Legacy Map JSON aggregates are not all revisioned. Broad JSON-token and map revision enforcement needs a later data migration.</p></div></div><details><summary>Representative source map</summary><div><ul><li><code>backend/src/composition/productionApplicationHost.ts</code> — command graph.</li><li><code>backend/src/composition/productionQueryHost.ts</code> — read graph.</li><li><code>backend/src/composition/ApplicationHost.ts</code> — policy and durability.</li><li><code>backend/src/extensions/host/</code> and <code>extensions/sandbox/</code> — extension execution.</li><li><code>backend/src/routes/agent.ts</code> — controlled agent adapter.</li><li><code>frontend/src/rendering/</code> and <code>frontend/src/theming/</code> — runtime UI boundaries.</li><li><code>frontend/src/components/campaign/map/useMapPointerHandlers.ts</code> — extracted controller.</li></ul></div></details></section>
-<footer>Generated from the CozyVTT working tree, not the pre-refactor audit. Styles and diagrams live in this document except the Mermaid renderer and web fonts.</footer></main></div>
-<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=matchMedia('(prefers-color-scheme:dark)').matches;await mermaid.initialize({startOnLoad:true,theme:'base',securityLevel:'strict',themeVariables:{fontFamily:'IBM Plex Mono',fontSize:'13px',primaryColor:d?'#2b2821':'#fffaf0',primaryTextColor:d?'#eee7da':'#28251f',primaryBorderColor:d?'#8fb9cc':'#355f75',lineColor:d?'#aaa193':'#70695e',secondaryColor:d?'#332c24':'#ece4d5',tertiaryColor:d?'#263029':'#edf2e8',actorBkg:d?'#2b2821':'#fffaf0',actorBorder:d?'#ed8a62':'#b84d2b',actorTextColor:d?'#eee7da':'#28251f',signalColor:d?'#aaa193':'#70695e',signalTextColor:d?'#eee7da':'#28251f'}});</script>
-<script>function zs(w){const t=w.querySelector('.mermaid');w.classList.toggle('is-zoomed',parseFloat(t.dataset.zoom||'1')>1)}function zoomDiagram(b,f){const w=b.closest('.mermaid-wrap'),t=w.querySelector('.mermaid'),n=Math.min(5,Math.max(.35,parseFloat(t.dataset.zoom||'1')*f));t.dataset.zoom=n;t.style.transform='scale('+n+')';zs(w)}function resetZoom(b){const w=b.closest('.mermaid-wrap'),t=w.querySelector('.mermaid');t.dataset.zoom='1';t.style.transform='scale(1)';zs(w)}document.querySelectorAll('.mermaid-wrap').forEach(w=>{w.addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();zoomDiagram(w.querySelector('.zoom button:last-child'),e.deltaY<0?1.1:.9)},{passive:false});let x,y,l,t;w.addEventListener('mousedown',e=>{if(e.target.closest('.zoom')||!w.classList.contains('is-zoomed'))return;w.classList.add('is-panning');x=e.clientX;y=e.clientY;l=w.scrollLeft;t=w.scrollTop});addEventListener('mousemove',e=>{if(w.classList.contains('is-panning')){w.scrollLeft=l-(e.clientX-x);w.scrollTop=t-(e.clientY-y)}});addEventListener('mouseup',()=>w.classList.remove('is-panning'))});const ls=[...document.querySelectorAll('.toc a')],o=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){ls.forEach(l=>l.classList.remove('active'));const l=ls.find(x=>x.hash==='#'+e.target.id);if(l)l.classList.add('active')}}),{rootMargin:'-10% 0px -80% 0px'});ls.forEach(l=>{const e=document.querySelector(l.hash);if(e)o.observe(e)});</script></body></html>
+</pre>
+          </div>
+          <div class="grid" style="margin-top: 14px">
+            <div class="ve-card s6">
+              <h3>Trusted packages</h3>
+              <p>
+                Code imports only after path containment, checksum, allowlist,
+                and signature verification. Handler IDs must exactly match
+                manifest commands; activation owns disposal.
+              </p>
+            </div>
+            <div class="ve-card s6">
+              <h3>Sandboxed packages</h3>
+              <p>
+                Code is never imported by the server. Each call gets a fresh
+                process with read-only package, tmpfs, no network, clean
+                environment, and heap/output/time/concurrency caps.
+              </p>
+            </div>
+            <div class="ve-card s12">
+              <h3>Durable lifecycle and UI</h3>
+              <p>
+                Installations, state, errors, dependencies, grants, credentials,
+                and confirmations survive restart. Admins manage
+                lifecycle/grants; users manage agent access and approvals.
+              </p>
+            </div>
+          </div>
+        </section>
+        <section id="rendering">
+          <div class="head">
+            <div class="num">05</div>
+            <div>
+              <h2>Rendering and themes are runtime registries</h2>
+              <p class="intro">
+                Canvas2D stays the default adapter, but layer order,
+                replacement, invalidation, and themes are no longer hard-coded
+                global facts.
+              </p>
+            </div>
+          </div>
+          <div class="grid">
+            <div class="ve-card hero-card s7">
+              <h3>Per-canvas renderer host</h3>
+              <p>
+                <code>MapRendererProvider</code> owns a scoped host. Active
+                trusted local packages may load a reviewed browser module
+                through a versioned API, then register, replace, unregister, and
+                invalidate terrain, token, and overlay layers. Every
+                registration is lifecycle-owned and disposed on refresh or
+                unmount; sandboxed packages cannot inject browser code.
+              </p>
+            </div>
+            <div class="ve-card s5">
+              <h3>Theme host</h3>
+              <p>
+                Semantic themes validate all required tokens and 4.5:1 contrast.
+                Active extension themes arrive as data only, fail closed when
+                partial, and appear in the ordinary theme picker.
+              </p>
+              <span class="tag green">scoped</span
+              ><span class="tag green">versioned</span
+              ><span class="tag green">hot-swap</span>
+            </div>
+          </div>
+          <div class="sequence" style="margin-top: 14px">
+            <div class="step">
+              <b>STATE</b><span>Map, viewport, entities</span>
+            </div>
+            <div class="step">
+              <b>SCHEDULER</b><span>Dirty surfaces and rAF</span>
+            </div>
+            <div class="step">
+              <b>REGISTRY</b><span>Ordered layer callbacks</span>
+            </div>
+            <div class="step"><b>ADAPTER</b><span>Canvas2D surfaces</span></div>
+            <div class="step">
+              <b>SWAP</b><span>Replacement and disposal</span>
+            </div>
+          </div>
+        </section>
+        <section id="coverage">
+          <div class="head">
+            <div class="num">06</div>
+            <div>
+              <h2>What “complete” means here</h2>
+              <p class="intro">
+                The route-centric mutation architecture is migrated. These
+                end-to-end features exercise the same boundaries through
+                genuinely different adapters.
+              </p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Area</th>
+                  <th>Status</th>
+                  <th>Evidence</th>
+                  <th>Boundary</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>REST and Socket mutations</td>
+                  <td><span class="status done">migrated</span></td>
+                  <td>99 shared handlers; transport Prisma guard</td>
+                  <td>CommandBus → use case → port</td>
+                </tr>
+                <tr>
+                  <td>Agent reads</td>
+                  <td><span class="status done">shipped</span></td>
+                  <td>11 role-filtered campaign queries</td>
+                  <td>QueryHost → repository port</td>
+                </tr>
+                <tr>
+                  <td>Agent security</td>
+                  <td><span class="status done">shipped</span></td>
+                  <td>Hash credentials, grants, one-time receipts</td>
+                  <td>Agent API → ApplicationHost</td>
+                </tr>
+                <tr>
+                  <td>MCP transport</td>
+                  <td><span class="status done">shipped</span></td>
+                  <td>
+                    Protocol, HTTP auth/discovery/query, confirmation tests
+                  </td>
+                  <td>MCP → QueryHost / ApplicationHost / extension bridge</td>
+                </tr>
+                <tr>
+                  <td>Transactions and events</td>
+                  <td><span class="status partial">command path</span></td>
+                  <td>Audit, idempotency, outbox, dead-letter health</td>
+                  <td>AsyncLocalStorage unit of work</td>
+                </tr>
+                <tr>
+                  <td>Trusted extensions</td>
+                  <td><span class="status done">executable</span></td>
+                  <td>Reviewed import, handler coverage, lifecycle disposal</td>
+                  <td>TrustedRegistryProxy</td>
+                </tr>
+                <tr>
+                  <td>Sandbox extensions</td>
+                  <td><span class="status done">container verified</span></td>
+                  <td>
+                    OS denial, HTTP approval flow, and unprivileged Docker tests
+                  </td>
+                  <td>Bubblewrap subprocess</td>
+                </tr>
+                <tr>
+                  <td>Renderer and themes</td>
+                  <td>
+                    <span class="status done">runtime contributions</span>
+                  </td>
+                  <td>
+                    Trusted renderer loading and selectable contributed themes
+                  </td>
+                  <td>Scoped providers and registries</td>
+                </tr>
+                <tr>
+                  <td>Map JSON concurrency</td>
+                  <td><span class="status done">revisioned</span></td>
+                  <td>PostgreSQL concurrent-writer contract</td>
+                  <td>Map revision compare-and-swap</td>
+                </tr>
+                <tr>
+                  <td>Remote package marketplace</td>
+                  <td><span class="status open">non-goal</span></td>
+                  <td>Intentionally absent</td>
+                  <td>Operator-controlled local packages only</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section id="limits">
+          <div class="head">
+            <div class="num">07</div>
+            <div>
+              <h2>Honest limits and next expansion points</h2>
+              <p class="intro">
+                A modular application stays understandable by keeping its
+                extension boundary finite and explicit.
+              </p>
+            </div>
+          </div>
+          <div class="warning">
+            <strong>Sandbox container qualification passed.</strong> Development
+            and production images now use Node 24 LTS plus bubblewrap. The
+            unprivileged image passed filesystem, network, child-process, crash,
+            timeout, output-cap, and schema-isolation tests. Compose documents
+            the required <code>seccomp=unconfined</code> namespace tradeoff.
+          </div>
+          <div class="grid" style="margin-top: 14px">
+            <div class="ve-card s4">
+              <h3>Local packages by design</h3>
+              <p>
+                Packages come from an administrator-controlled local root. There
+                is no store or marketplace. Upgrade/rollback and extension-owned
+                migrations remain useful unfinished operations work.
+              </p>
+            </div>
+            <div class="ve-card s4">
+              <h3>Reviewed rendering, finite UI</h3>
+              <p>
+                Trusted packages can extend or replace map layers. There is
+                still no general React route/component injection, arbitrary CSS,
+                or iframe plugin UI.
+              </p>
+            </div>
+            <div class="ve-card s4">
+              <h3>Map writes reject races</h3>
+              <p>
+                Mutable Map JSON fields share an atomic revision. Two writers at
+                the same revision cannot both commit; REST returns conflict and
+                realtime clients refresh/retry.
+              </p>
+            </div>
+          </div>
+          <details>
+            <summary>Representative source map</summary>
+            <div>
+              <ul>
+                <li>
+                  <code
+                    >backend/src/composition/productionApplicationHost.ts</code
+                  >
+                  — command graph.
+                </li>
+                <li>
+                  <code>backend/src/composition/productionQueryHost.ts</code> —
+                  read graph.
+                </li>
+                <li>
+                  <code>backend/src/composition/ApplicationHost.ts</code> —
+                  policy and durability.
+                </li>
+                <li>
+                  <code>backend/src/extensions/host/</code> and
+                  <code>extensions/sandbox/</code> — extension execution.
+                </li>
+                <li>
+                  <code>backend/src/routes/agent.ts</code> and
+                  <code>backend/src/routes/mcp.ts</code> — controlled agent
+                  transports.
+                </li>
+                <li>
+                  <code
+                    >backend/src/adapters/persistence/PrismaMapRevision.ts</code
+                  >
+                  — map compare-and-swap.
+                </li>
+                <li>
+                  <code>frontend/src/rendering/</code> and
+                  <code>frontend/src/theming/</code> — runtime UI boundaries.
+                </li>
+                <li>
+                  <code
+                    >frontend/src/components/campaign/map/useMapPointerHandlers.ts</code
+                  >
+                  — extracted controller.
+                </li>
+              </ul>
+            </div>
+          </details>
+        </section>
+        <footer>
+          Generated from the CozyVTT working tree, not the pre-refactor audit.
+          Styles and diagrams live in this document except the Mermaid renderer
+          and web fonts.
+        </footer>
+      </main>
+    </div>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      const d = matchMedia("(prefers-color-scheme:dark)").matches;
+      await mermaid.initialize({
+        startOnLoad: true,
+        theme: "base",
+        securityLevel: "strict",
+        themeVariables: {
+          fontFamily: "IBM Plex Mono",
+          fontSize: "13px",
+          primaryColor: d ? "#2b2821" : "#fffaf0",
+          primaryTextColor: d ? "#eee7da" : "#28251f",
+          primaryBorderColor: d ? "#8fb9cc" : "#355f75",
+          lineColor: d ? "#aaa193" : "#70695e",
+          secondaryColor: d ? "#332c24" : "#ece4d5",
+          tertiaryColor: d ? "#263029" : "#edf2e8",
+          actorBkg: d ? "#2b2821" : "#fffaf0",
+          actorBorder: d ? "#ed8a62" : "#b84d2b",
+          actorTextColor: d ? "#eee7da" : "#28251f",
+          signalColor: d ? "#aaa193" : "#70695e",
+          signalTextColor: d ? "#eee7da" : "#28251f",
+        },
+      });
+    </script>
+    <script>
+      function zs(w) {
+        const t = w.querySelector(".mermaid");
+        w.classList.toggle("is-zoomed", parseFloat(t.dataset.zoom || "1") > 1);
+      }
+      function zoomDiagram(b, f) {
+        const w = b.closest(".mermaid-wrap"),
+          t = w.querySelector(".mermaid"),
+          n = Math.min(
+            5,
+            Math.max(0.35, parseFloat(t.dataset.zoom || "1") * f),
+          );
+        t.dataset.zoom = n;
+        t.style.transform = "scale(" + n + ")";
+        zs(w);
+      }
+      function resetZoom(b) {
+        const w = b.closest(".mermaid-wrap"),
+          t = w.querySelector(".mermaid");
+        t.dataset.zoom = "1";
+        t.style.transform = "scale(1)";
+        zs(w);
+      }
+      document.querySelectorAll(".mermaid-wrap").forEach((w) => {
+        w.addEventListener(
+          "wheel",
+          (e) => {
+            if (!e.ctrlKey && !e.metaKey) return;
+            e.preventDefault();
+            zoomDiagram(
+              w.querySelector(".zoom button:last-child"),
+              e.deltaY < 0 ? 1.1 : 0.9,
+            );
+          },
+          { passive: false },
+        );
+        let x, y, l, t;
+        w.addEventListener("mousedown", (e) => {
+          if (e.target.closest(".zoom") || !w.classList.contains("is-zoomed"))
+            return;
+          w.classList.add("is-panning");
+          x = e.clientX;
+          y = e.clientY;
+          l = w.scrollLeft;
+          t = w.scrollTop;
+        });
+        addEventListener("mousemove", (e) => {
+          if (w.classList.contains("is-panning")) {
+            w.scrollLeft = l - (e.clientX - x);
+            w.scrollTop = t - (e.clientY - y);
+          }
+        });
+        addEventListener("mouseup", () => w.classList.remove("is-panning"));
+      });
+      const ls = [...document.querySelectorAll(".toc a")],
+        o = new IntersectionObserver(
+          (es) =>
+            es.forEach((e) => {
+              if (e.isIntersecting) {
+                ls.forEach((l) => l.classList.remove("active"));
+                const l = ls.find((x) => x.hash === "#" + e.target.id);
+                if (l) l.classList.add("active");
+              }
+            }),
+          { rootMargin: "-10% 0px -80% 0px" },
+        );
+      ls.forEach((l) => {
+        const e = document.querySelector(l.hash);
+        if (e) o.observe(e);
+      });
+    </script>
+  </body>
+</html>

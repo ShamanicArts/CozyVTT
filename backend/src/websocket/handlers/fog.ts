@@ -23,6 +23,7 @@ import {
   SceneMutationError,
   SceneRole,
 } from "../../domain/scene/Scene";
+import { MapRevisionConflictError } from "../../domain/maps/MapRevision";
 
 const fogCommands = productionCommandBus;
 
@@ -87,8 +88,16 @@ export function registerFogHandlers(
           }
         }
       } catch (error) {
-        if (error instanceof SceneMutationError) {
-          socket.emit("error", { message: error.message });
+        if (
+          error instanceof SceneMutationError ||
+          error instanceof MapRevisionConflictError
+        ) {
+          socket.emit("error", {
+            message:
+              error instanceof MapRevisionConflictError
+                ? "Map state changed; refresh the map and retry"
+                : error.message,
+          });
           return;
         }
         logger.error("fog:operation failed", { err: error });

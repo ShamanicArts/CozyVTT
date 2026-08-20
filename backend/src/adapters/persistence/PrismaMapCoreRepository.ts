@@ -6,6 +6,7 @@ import {
   MapCoreUpdateData,
 } from '../../domain/maps/MapLifecycle';
 import { MapCoreRepository } from '../../ports/MapCoreRepository';
+import { updateMapAtRevision } from './PrismaMapRevision';
 
 /** Prisma implementation for core map lifecycle persistence. */
 export class PrismaMapCoreRepository implements MapCoreRepository {
@@ -27,8 +28,8 @@ export class PrismaMapCoreRepository implements MapCoreRepository {
     return map as MapCoreRecord;
   }
 
-  async updateMap(mapId: string, data: MapCoreUpdateData): Promise<MapCoreRecord> {
-    const map = await this.client.map.update({ where: { id: mapId }, data });
+  async updateMap(mapId: string, expectedRevision: number, data: MapCoreUpdateData): Promise<MapCoreRecord> {
+    const map = await updateMapAtRevision(this.client, mapId, expectedRevision, data);
     return map as MapCoreRecord;
   }
 

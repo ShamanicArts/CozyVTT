@@ -5,5 +5,5 @@ export interface MapTokenRepository {
   findMap(mapId: string): Promise<MapTokenMap | null>;
   findMembershipRole(userId: string, campaignId: string): Promise<string | null>;
   /** Returns the adapter's normal map representation for the unchanged HTTP response. */
-  updateTokens(mapId: string, tokens: MapToken[]): Promise<unknown>;
+  updateTokens(mapId: string, expectedRevision: number, tokens: MapToken[]): Promise<unknown>;
 }

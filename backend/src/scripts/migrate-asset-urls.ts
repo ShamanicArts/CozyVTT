@@ -12,41 +12,48 @@
  * Run with: npx ts-node src/scripts/migrate-asset-urls.ts
  */
 
-import { PrismaClient } from '@prisma/client';
-import { normalizeAssetUrl } from '../utils/asset-urls';
+import { PrismaClient } from "@prisma/client";
+import { normalizeAssetUrl } from "../utils/asset-urls";
 
 const prisma = new PrismaClient();
 
 async function migrateAssetUrls() {
-  console.log('🔄 Starting asset URL migration...\n');
+  console.log("🔄 Starting asset URL migration...\n");
 
   try {
     // ============================================
     // 1. Migrate Maps
     // ============================================
-    console.log('📍 Migrating map asset URLs...');
+    console.log("📍 Migrating map asset URLs...");
     const maps = await prisma.map.findMany();
 
     let mapsUpdated = 0;
     for (const map of maps) {
       const needsUpdate =
-        (map.imageUrl && !map.imageUrl.startsWith('/api/')) ||
-        (map.baseLayerUrl && !map.baseLayerUrl.startsWith('/api/')) ||
-        (map.spiritLayerUrl && !map.spiritLayerUrl.startsWith('/api/'));
+        (map.imageUrl && !map.imageUrl.startsWith("/api/")) ||
+        (map.baseLayerUrl && !map.baseLayerUrl.startsWith("/api/")) ||
+        (map.spiritLayerUrl && !map.spiritLayerUrl.startsWith("/api/"));
 
       if (needsUpdate) {
-        const normalizedImageUrl = normalizeAssetUrl(map.imageUrl, 'maps') || undefined;
-        const normalizedBaseLayerUrl = normalizeAssetUrl(map.baseLayerUrl, 'maps') || undefined;
+        const normalizedImageUrl =
+          normalizeAssetUrl(map.imageUrl, "maps") || undefined;
+        const normalizedBaseLayerUrl =
+          normalizeAssetUrl(map.baseLayerUrl, "maps") || undefined;
         const normalizedSpiritLayerUrl = map.spiritLayerUrl
-          ? normalizeAssetUrl(map.spiritLayerUrl, 'maps') || undefined
+          ? normalizeAssetUrl(map.spiritLayerUrl, "maps") || undefined
           : undefined;
 
         await prisma.map.update({
           where: { id: map.id },
           data: {
             ...(normalizedImageUrl && { imageUrl: normalizedImageUrl }),
-            ...(normalizedBaseLayerUrl && { baseLayerUrl: normalizedBaseLayerUrl }),
-            ...(normalizedSpiritLayerUrl && { spiritLayerUrl: normalizedSpiritLayerUrl }),
+            ...(normalizedBaseLayerUrl && {
+              baseLayerUrl: normalizedBaseLayerUrl,
+            }),
+            ...(normalizedSpiritLayerUrl && {
+              spiritLayerUrl: normalizedSpiritLayerUrl,
+            }),
+            revision: { increment: 1 },
           },
         });
 
@@ -60,13 +67,13 @@ async function migrateAssetUrls() {
     // ============================================
     // 2. Migrate Tokens (in map.tokens JSON array)
     // ============================================
-    console.log('🎭 Migrating token asset URLs...');
+    console.log("🎭 Migrating token asset URLs...");
     const mapsWithTokens = await prisma.map.findMany({
       where: {
         tokens: {
-          not: []
-        }
-      }
+          not: [],
+        },
+      },
     });
 
     let tokensUpdated = 0;
@@ -75,9 +82,11 @@ async function migrateAssetUrls() {
       let mapHasUpdates = false;
 
       const updatedTokens = tokens.map((token: any) => {
-        if (token.imageUrl && !token.imageUrl.startsWith('/api/')) {
-          const normalizedUrl = normalizeAssetUrl(token.imageUrl, 'tokens');
-          console.log(`  ✅ Updated token "${token.name}" on map "${map.name}"`);
+        if (token.imageUrl && !token.imageUrl.startsWith("/api/")) {
+          const normalizedUrl = normalizeAssetUrl(token.imageUrl, "tokens");
+          console.log(
+            `  ✅ Updated token "${token.name}" on map "${map.name}"`,
+          );
           console.log(`     imageUrl: ${token.imageUrl} → ${normalizedUrl}`);
           tokensUpdated++;
           mapHasUpdates = true;
@@ -89,7 +98,10 @@ async function migrateAssetUrls() {
       if (mapHasUpdates) {
         await prisma.map.update({
           where: { id: map.id },
-          data: { tokens: updatedTokens as any },
+          data: {
+            tokens: updatedTokens as any,
+            revision: { increment: 1 },
+          },
         });
       }
     }
@@ -98,43 +110,54 @@ async function migrateAssetUrls() {
     // ============================================
     // 3. Migrate Characters
     // ============================================
-    console.log('🧙 Migrating character asset URLs...');
+    console.log("🧙 Migrating character asset URLs...");
     const characters = await prisma.character.findMany({
       where: {
         tokenImageUrl: {
-          not: null
-        }
-      }
+          not: null,
+        },
+      },
     });
 
     let charactersUpdated = 0;
     for (const character of characters) {
-      if (character.tokenImageUrl && !character.tokenImageUrl.startsWith('/api/')) {
-        const normalizedUrl = normalizeAssetUrl(character.tokenImageUrl, 'tokens');
+      if (
+        character.tokenImageUrl &&
+        !character.tokenImageUrl.startsWith("/api/")
+      ) {
+        const normalizedUrl = normalizeAssetUrl(
+          character.tokenImageUrl,
+          "tokens",
+        );
 
         await prisma.character.update({
           where: { id: character.id },
           data: { tokenImageUrl: normalizedUrl },
         });
 
-        console.log(`  ✅ Updated character "${character.name}" (${character.id})`);
-        console.log(`     tokenImageUrl: ${character.tokenImageUrl} → ${normalizedUrl}`);
+        console.log(
+          `  ✅ Updated character "${character.name}" (${character.id})`,
+        );
+        console.log(
+          `     tokenImageUrl: ${character.tokenImageUrl} → ${normalizedUrl}`,
+        );
         charactersUpdated++;
       }
     }
-    console.log(`✅ Characters migrated: ${charactersUpdated}/${characters.length}\n`);
+    console.log(
+      `✅ Characters migrated: ${charactersUpdated}/${characters.length}\n`,
+    );
 
     // ============================================
     // Summary
     // ============================================
-    console.log('📊 Migration Summary:');
+    console.log("📊 Migration Summary:");
     console.log(`   Maps updated: ${mapsUpdated}`);
     console.log(`   Tokens updated: ${tokensUpdated}`);
     console.log(`   Characters updated: ${charactersUpdated}`);
-    console.log('\n✅ Asset URL migration completed successfully!');
-
+    console.log("\n✅ Asset URL migration completed successfully!");
   } catch (error) {
-    console.error('❌ Migration failed:', error);
+    console.error("❌ Migration failed:", error);
     throw error;
   } finally {
     await prisma.$disconnect();
@@ -144,10 +167,10 @@ async function migrateAssetUrls() {
 // Run migration
 migrateAssetUrls()
   .then(() => {
-    console.log('\n👍 All done!');
+    console.log("\n👍 All done!");
     process.exit(0);
   })
   .catch((error) => {
-    console.error('\n❌ Migration failed:', error);
+    console.error("\n❌ Migration failed:", error);
     process.exit(1);
   });

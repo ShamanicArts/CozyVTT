@@ -15,6 +15,23 @@ export interface ActiveExtensionThemeContribution {
   theme: ExtensionThemeContribution;
 }
 
+export interface ExtensionRendererContribution {
+  id: string;
+  name: string;
+  contractVersion: "1.0.0";
+  moduleUrl: string;
+}
+
+export interface ActiveExtensionRendererContribution {
+  extensionId: string;
+  renderer: ExtensionRendererContribution;
+}
+
+export interface ActiveExtensionContributions {
+  themes: ActiveExtensionThemeContribution[];
+  renderers: ActiveExtensionRendererContribution[];
+}
+
 export interface ExtensionPackage {
   id: string;
   version: string;
@@ -40,7 +57,15 @@ export interface ExtensionInstallation {
       version?: string;
       description?: string;
     };
-    contributions?: { themes?: ExtensionThemeContribution[] };
+    contributions?: {
+      themes?: ExtensionThemeContribution[];
+      renderers?: Array<{
+        id: string;
+        name: string;
+        contractVersion: "1.0.0";
+        browserEntrypoint: string;
+      }>;
+    };
   };
 }
 

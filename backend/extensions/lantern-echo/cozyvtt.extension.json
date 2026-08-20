@@ -5,12 +5,12 @@
     "id": "cozyvtt.sample-lantern",
     "name": "Lantern Echo",
     "version": "1.0.0",
-    "description": "A minimal sandboxed agent tool and semantic theme example.",
+    "description": "A local agent tool, semantic theme, and map renderer example.",
     "compatibility": {
       "extensionApi": "^1.0.0",
       "cozyVtt": "^1.1.0"
     },
-    "capabilities": ["commands", "agent-tools", "themes"],
+    "capabilities": ["commands", "agent-tools", "themes", "renderers"],
     "permissions": ["campaign.read"],
     "commands": [
       {
@@ -52,7 +52,7 @@
     ]
   },
   "entrypoint": "runner.js",
-  "checksum": "sha256:8ac230ce5c84f430e0666c5ea48c28a9f84cc1ea6843f34358b85691702de45c",
+  "checksum": "sha256:c76580483d27ef73244c61d5ae5863720180f0306906d27c6a752c7f23360b19",
   "dependencies": {},
   "contributions": {
     "themes": [
@@ -77,6 +77,14 @@
           "--color-danger": "202 92 84",
           "--color-spirit": "126 106 177"
         }
+      }
+    ],
+    "renderers": [
+      {
+        "id": "lantern-glow",
+        "name": "Lantern Glow Overlay",
+        "contractVersion": "1.0.0",
+        "browserEntrypoint": "renderer.mjs"
       }
     ]
   }

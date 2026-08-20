@@ -113,7 +113,7 @@ export class CreateMapToken extends MapTokenCommandBase implements CommandHandle
       statBlock: data.statBlock || null,
       creatureTemplateId: data.creatureTemplateId || null,
     };
-    const updatedMap = await this.repository.updateTokens(map.id, [...map.tokens, token]);
+    const updatedMap = await this.repository.updateTokens(map.id, map.revision, [...map.tokens, token]);
     return { token, map: updatedMap };
   }
 }
@@ -193,7 +193,7 @@ export class UpdateMapToken extends MapTokenCommandBase implements CommandHandle
     } as MapToken;
     const tokens = [...map.tokens];
     tokens[tokenIndex] = token;
-    const updatedMap = await this.repository.updateTokens(map.id, tokens);
+    const updatedMap = await this.repository.updateTokens(map.id, map.revision, tokens);
     return { token, map: updatedMap };
   }
 }
@@ -204,6 +204,6 @@ export class DeleteMapToken extends MapTokenCommandBase implements CommandHandle
     if (!map.tokens.some((token) => token.id === command.tokenId)) {
       throw new MapTokenError(404, 'Not Found', 'Token not found on this map');
     }
-    await this.repository.updateTokens(map.id, map.tokens.filter((token) => token.id !== command.tokenId));
+    await this.repository.updateTokens(map.id, map.revision, map.tokens.filter((token) => token.id !== command.tokenId));
   }
 }

@@ -29,6 +29,7 @@ import {
   TokenMovementError,
   TokenMovementRole,
 } from "../../domain/tokens/TokenMovement";
+import { MapRevisionConflictError } from "../../domain/maps/MapRevision";
 
 // Socket.IO remains a transport and recipient-filtering adapter. The mutation
 // and its authorization now run through the same command bus future HTTP,
@@ -125,6 +126,12 @@ export function registerTokenHandlers(
           mapId,
         });
       } catch (error) {
+        if (error instanceof MapRevisionConflictError) {
+          socket.emit("error", {
+            message: "Map state changed; refresh the map and retry",
+          });
+          return;
+        }
         if (isTokenMovementError(error)) {
           socket.emit("error", { message: error.message });
           return;
@@ -412,6 +419,12 @@ export function registerTokenHandlers(
           userId: socket.userId,
         });
       } catch (error) {
+        if (error instanceof MapRevisionConflictError) {
+          socket.emit("error", {
+            message: "Map state changed; refresh the map and retry",
+          });
+          return;
+        }
         if (isTokenMovementError(error)) {
           socket.emit("error", { message: error.message });
           return;

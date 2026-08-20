@@ -9,7 +9,7 @@ path has already been replaced or that arbitrary plugins can run safely.
 
 This document describes code that is present in this repository. It separates
 the shipped execution model from planned work so it can be used for design and
-operational decisions without overstating the platform.
+operational decisions without overstating the application.
 
 ## Topology
 
@@ -21,6 +21,7 @@ flowchart LR
   Socket --> Bus
 
   Agent[Bearer agent HTTP adapter] --> Host[Production ApplicationHost]
+  MCP[MCP Streamable HTTP adapter] --> Host
   Host --> Guard[Durable execution middleware]
   Guard --> Bus
 
@@ -38,6 +39,7 @@ flowchart LR
   Browser --> Theme[ThemeHost]
   Browser --> Renderer[Per-canvas MapCanvasRendererHost]
   ExtHost -. active theme data .-> Theme
+  ExtHost -. reviewed renderer module .-> Renderer
 ```
 
 The important distinction is intentional: the production `ApplicationHost`
@@ -113,7 +115,16 @@ extension, command, and canonical input digest.
 The route can also list and invoke active extension tools through the extension
 bridge. That bridge has separate runtime bindings and policy/audit
 adapters, so it is not a general escape hatch to arbitrary REST, Socket.IO,
-database, shell, or network access. There is no MCP transport in this build.
+database, shell, or network access.
+
+`/api/mcp/campaigns/:campaignId` is a Streamable HTTP MCP adapter over those
+same protected boundaries. It authenticates the same hash-only bearer
+credential on every request, filters tool discovery by exact campaign grants,
+exposes the finite production query catalogue as read tools, and dispatches
+core/extension writes through their existing hosts. Confirmation remains a
+separate human action in CozyVTT; the MCP client can only submit the resulting
+one-time receipt. `MCP_ALLOWED_HOSTS` can additionally restrict exact HTTP Host
+values at the deployment edge.
 
 The Profile UI exposes credential issuance/list/revocation and the pending
 confirmation inbox. It never displays stored credential hashes or raw command
@@ -150,8 +161,11 @@ a persistent worker supervisor or a user-facing restart facility.
 
 The map renderer is a per-`MapCanvas` host with stable terrain, token, and
 overlay layer contracts. Registration, replacement, detach, and invalidation
-are local to a canvas. It remains a controlled in-process React/Canvas seam;
-it does not download or execute renderer bundles from installed packages.
+are local to a canvas. Active trusted local packages may contribute a reviewed,
+self-contained browser module. The package checksum is revalidated before the
+module is served; the frontend imports it through a versioned API that owns and
+disposes every registered/replaced layer. Sandboxed installations do not expose
+renderer modules.
 
 `ThemeHost` validates versioned semantic palettes and contrast. After login,
 `ThemeSyncBridge` loads authenticated active theme contributions from
@@ -163,9 +177,21 @@ Partial palettes and arbitrary CSS variables are rejected.
 The Admin Extensions screen lists the local package catalogue and persisted
 installations, performs trusted/sandboxed lifecycle actions, and lists,
 creates, and revokes grants with trust/risk copy. This is a control plane, not
-a marketplace. Active extension themes are loaded into the runtime host, but
-the existing picker still lists only built-in presets and custom colors;
-remote renderers are not supported.
+a marketplace. Active validated extension themes now appear in the ordinary
+theme picker alongside built-in presets and use the same live-preview and
+preference persistence path.
+
+### Map aggregate concurrency
+
+Every mutable `Map` row has an integer `revision`. Map lifecycle, token,
+movement, walls, fog, lights, initiative-token, and spirit-token application
+adapters update with `WHERE id = ? AND revision = ?` and atomically increment
+the revision. When two commands read the same aggregate revision, PostgreSQL
+accepts exactly one write; the other becomes a stable conflict instead of
+silently replacing JSON written by the winner. REST adapters return `409` and
+Socket.IO adapters request a refresh/retry. Maintenance/session restoration
+writes increment the revision as well so later commands cannot reuse a stale
+snapshot.
 
 ## Boundary rules
 
@@ -189,18 +215,18 @@ remote renderers are not supported.
 
 ## Remaining limits and non-goals
 
-* The core and installed-extension command runtimes are separate. A future
+- The core and installed-extension command runtimes are separate. A future
   shared command/query host needs a deliberate binding and authorization model
   rather than an implicit bridge between their buses.
-* The agent surface has an explicit read-only query catalogue, but there is no
-  MCP endpoint, plugin marketplace, remote package download/upload, dependency
-  solver, upgrade/rollback flow, or extension migration framework.
-* Host metadata schemas are catalog/documentation metadata for many core
+- The agent surface has an explicit read-only query catalogue and MCP endpoint.
+  A remote package store/marketplace is intentionally not part of the design;
+  package upgrade/rollback and extension migration workflows remain absent.
+- Host metadata schemas are catalog/documentation metadata for many core
   commands; they are not yet one strict schema implementation reused by every
   transport.
-* Durable middleware/outbox coverage is currently the protected host path,
+- Durable middleware/outbox coverage is currently the protected host path,
   not every legacy/direct core transport command.
-* The sandbox is Linux/bubblewrap/Node dependent. The supplied Node 24 Docker
+- The sandbox is Linux/bubblewrap/Node dependent. The supplied Node 24 Docker
   images include bubblewrap and the Compose services have a verified
   unprivileged execution path. They intentionally use `seccomp=unconfined`
   because Docker's default profile blocks the user namespace bubblewrap needs,
@@ -208,9 +234,9 @@ remote renderers are not supported.
   tradeoff or run the sandbox separately. There is still no cgroup CPU quota,
   persistent worker process, per-extension storage/network grant, automatic
   child restart loop, or rich operational telemetry.
-* There is no frontend code sandbox, remote renderer loading, or arbitrary CSS
-  contribution. Theme contributions are data-only and current picker exposure
-  remains limited.
+- Executable browser rendering is limited to explicitly trusted local packages;
+  it is not available to sandboxed packages. There is no frontend code sandbox,
+  arbitrary CSS contribution, route/component injection, or iframe plugin UI.
 
 ## Evidence and verification
 
@@ -218,6 +244,7 @@ The architecture is covered by focused tests including
 `ApplicationHost.transaction.test.ts`, `productionApplicationHost.test.ts`,
 durable-foundation persistence tests, outbox dispatcher/runtime tests,
 extension host/route/sandbox tests, agent route tests, renderer host tests,
-and ThemeHost/contribution tests. A change is not considered migrated merely
+MCP protocol/HTTP tests, PostgreSQL map-revision races, and
+ThemeHost/contribution-picker tests. A change is not considered migrated merely
 because interfaces compile: it needs a production adapter path and behaviour,
 authorization, and failure coverage.

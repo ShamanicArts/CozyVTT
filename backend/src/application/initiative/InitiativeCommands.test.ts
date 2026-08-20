@@ -39,8 +39,8 @@ function makeStore(initial: InitiativeState = emptyState()): InitiativeCombatSta
 
 function makeRepository(tokens: InitiativeToken[] = [token('token-1', 'Mira')]): InitiativeRepository {
   return {
-    findMap: jest.fn(async () => ({ id: 'map-1', campaignId: 'campaign-1', tokens })),
-    updateTokens: jest.fn(async () => undefined),
+    findMap: jest.fn(async () => ({ id: 'map-1', revision: 2, campaignId: 'campaign-1', tokens })),
+    updateTokens: jest.fn(async () => 3),
     findUserDisplayName: jest.fn(async () => 'The DM'),
   };
 }
@@ -69,7 +69,7 @@ describe('initiative application commands', () => {
   it('persists a set token value before it updates the ephemeral combat state', async () => {
     const calls: string[] = [];
     const repository = makeRepository();
-    repository.updateTokens = jest.fn(async () => { calls.push('persist'); });
+    repository.updateTokens = jest.fn(async () => { calls.push('persist'); return 3; });
     const store = makeStore({
       ...emptyState(),
       combatants: [{ tokenId: 'token-1', name: 'Mira', imageUrl: '/token-1.png', initiative: null, hp: { current: 10, max: 10, temp: 0 }, type: 'npc', disposition: 'hostile' }],
@@ -90,7 +90,7 @@ describe('initiative application commands', () => {
       type: 'initiative.roll', context: dm, tokenId: 'token-1', mapId: 'map-1', expression: '1d20+3', characterName: 'Mira Fen',
     });
 
-    expect(repository.updateTokens).toHaveBeenCalledWith('map-1', expect.arrayContaining([expect.objectContaining({ id: 'token-1', initiative: 18 })]));
+    expect(repository.updateTokens).toHaveBeenCalledWith('map-1', 2, expect.arrayContaining([expect.objectContaining({ id: 'token-1', initiative: 18 })]));
     expect(result.state.combatants).toEqual([expect.objectContaining({ tokenId: 'token-1', initiative: 18 })]);
     expect(result.roll).toMatchObject({ userId: 'dm-1', userName: 'The DM', characterName: 'Mira Fen', expression: '1d20+3', result: 18, purpose: 'Mira Initiative', secret: false });
   });

@@ -30,6 +30,7 @@ import {
   InitiativeError,
   InitiativeState,
 } from "../../domain/initiative/Initiative";
+import { MapRevisionConflictError } from "../../domain/maps/MapRevision";
 
 // Commands own initiative transitions, validation and persistence. Socket.IO
 // authenticates the actor and fans the resulting state out to campaign peers.
@@ -39,8 +40,13 @@ function commandContext(socket: AuthenticatedSocket, campaignId: string) {
   return { campaignId, userId: socket.userId!, role: socket.role };
 }
 
-function isInitiativeError(error: unknown): error is InitiativeError {
-  return error instanceof InitiativeError;
+function isInitiativeError(
+  error: unknown,
+): error is InitiativeError | MapRevisionConflictError {
+  return (
+    error instanceof InitiativeError ||
+    error instanceof MapRevisionConflictError
+  );
 }
 
 export function registerInitiativeHandlers(
