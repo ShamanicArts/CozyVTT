@@ -54,6 +54,7 @@ export interface SceneMap {
   wallSegments: WallSegment[];
   fogData: FogState | null;
   lights: LightSource[];
+  lightingEnabled: boolean;
 }
 
 export class SceneMutationError extends Error {
