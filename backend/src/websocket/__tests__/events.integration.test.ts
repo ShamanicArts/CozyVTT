@@ -442,6 +442,42 @@ describe('initiative', () => {
     dm.disconnect();
     player.disconnect();
   });
+
+  it('preserves the initiative roll and combat-control wire contracts', async () => {
+    const dm = await server.connectAndAuth(dmCookie, campaignId);
+    const player = await server.connectAndAuth(player1Cookie, campaignId);
+
+    let stateEvent: Promise<any> = waitForEvent<{ combatants: any[] }>(player, 'initiative.state');
+    dm.emit('initiative.add', { tokenId: PLAYER_TOKEN_ID, mapId });
+    await stateEvent;
+    stateEvent = waitForEvent<{ combatants: any[] }>(player, 'initiative.state');
+    dm.emit('initiative.add', { tokenId: DM_TOKEN_ID, mapId });
+    await stateEvent;
+
+    const rolled = waitForEvent<{ purpose: string; secret: boolean; result: number }>(player, 'dice.rolled');
+    stateEvent = waitForEvent<{ combatants: any[] }>(player, 'initiative.state');
+    dm.emit('initiative.roll', { tokenId: DM_TOKEN_ID, mapId, expression: '1d20', characterName: 'Goblin' });
+    expect((await rolled)).toMatchObject({ purpose: 'Goblin Initiative', secret: false });
+    expect((await stateEvent).combatants).toEqual(expect.arrayContaining([expect.objectContaining({ tokenId: DM_TOKEN_ID })]));
+
+    stateEvent = waitForEvent<{ combatants: any[] }>(player, 'initiative.state');
+    dm.emit('initiative.reorder', { orderedTokenIds: [DM_TOKEN_ID, PLAYER_TOKEN_ID] });
+    expect((await stateEvent).combatants.map((combatant: { tokenId: string }) => combatant.tokenId)).toEqual([DM_TOKEN_ID, PLAYER_TOKEN_ID]);
+
+    stateEvent = waitForEvent<{ active: boolean; round: number; currentTokenId: string }>(player, 'initiative.state');
+    dm.emit('initiative.start');
+    expect(await stateEvent).toMatchObject({ active: true, round: 1, currentTokenId: DM_TOKEN_ID });
+    stateEvent = waitForEvent<{ currentTokenId: string }>(player, 'initiative.state');
+    dm.emit('initiative.next');
+    expect((await stateEvent).currentTokenId).toBe(PLAYER_TOKEN_ID);
+
+    stateEvent = waitForEvent<{ combatants: any[]; active: boolean; round: number; currentTokenId: string | null }>(player, 'initiative.state');
+    dm.emit('initiative.end');
+    expect(await stateEvent).toEqual({ active: false, round: 0, currentTokenId: null, combatants: [] });
+
+    dm.disconnect();
+    player.disconnect();
+  });
 });
 
 // ── 7. Chat ──────────────────────────────────────────────────────────────────
