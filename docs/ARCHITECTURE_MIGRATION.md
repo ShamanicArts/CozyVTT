@@ -78,8 +78,28 @@ flowchart LR
   `initiative.state` payload and the legacy `dice.rolled` then
   `initiative.state` ordering for a rolled initiative. `initiative.request_state`
   remains a read-only adapter query.
-* `BlobStorage` and its filesystem adapter establish the storage boundary; no
-  upload flow has been migrated to it yet.
+* Asset upload, deletion, and scope changes now dispatch `asset.upload.prepare`,
+  `asset.create`, `asset.delete`, and `asset.scope.update`. The HTTP adapter
+  still owns multipart parsing, magic-byte/MIME and size validation, and
+  thumbnail generation; commands own scope/campaign authorization, metadata
+  persistence, deletion policy, and cleanup decisions through
+  `AssetMutationRepository` and `AssetFileStore`. A metadata-create failure
+  rolls back both the original stored file and any generated thumbnail. The
+  current schema has no content-hash or de-duplication field, so this slice
+  intentionally does not claim a de-duplication feature.
+* Character create, update, delete, assign/unassign, and copy actions now
+  dispatch `character.*` commands. Their command layer owns user/campaign
+  authorization, game-system and character-data validation, token-image URL
+  normalization, membership updates, and existing best-effort campaign event
+  publication; HTTP retains response bodies and status mapping.
+* Campaign administration writes now dispatch `campaign.*` commands: create,
+  settings/vibe updates, delete (including campaign-asset re-homing), invite,
+  membership removal/role changes, and invitation accept/decline. Campaign
+  session lifecycle and import/export mutations remain legacy route/service
+  paths.
+* `BlobStorage` and its filesystem adapter establish a separate generic blob
+  boundary. Asset mutations currently use the narrower `AssetFileStore` port;
+  no object-store implementation or content-addressed asset store exists yet.
 * The extension package validates versioned manifests, compatibility,
   capability declarations, permission declarations, command/tool references,
   duplicate identifiers, and lifecycle transitions for **trusted in-process**
@@ -242,8 +262,11 @@ Migrate every mutation, prioritised by shared use:
 1. complete remaining map/token mutations and migrate the read/query paths
    needed by other transports while preserving scene request/reconnect
    semantics;
-2. campaigns/membership/characters/assets/sessions;
-3. import/export and admin configuration.
+2. campaign session lifecycle, import/export, admin configuration, and the
+   remaining asset read/query paths that need to be shared by new transports;
+3. replace route-local command-bus composition with a host-owned command
+   registry so approved extension/agent bindings can reach the same production
+   command instances without importing a route module.
 
 For each, add an application command, domain input/output types, repository or
 service ports, existing Prisma/filesystem/Socket.IO adapters, and contract
@@ -297,6 +320,8 @@ activation and support user/instance defaults plus optional system preference.
 * frontend typecheck, build, and focused Vitest suite;
 * REST and Socket.IO compatibility tests for migrated actions;
 * authorization and cross-campaign isolation tests;
+* filesystem cleanup/rollback tests for byte-backed mutations, including
+  original-plus-thumbnail cleanup after metadata persistence failure;
 * lifecycle failure, duplicate, compatibility, and cleanup tests;
 * renderer order, swap, unmount, redraw, and throwing-layer containment tests;
 * an end-to-end campaign smoke test using exported/imported sample data.

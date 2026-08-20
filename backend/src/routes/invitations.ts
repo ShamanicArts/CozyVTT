@@ -9,8 +9,24 @@ import { authenticated } from '../middleware/compose';
 import { prisma } from '../config/database';
 import { broadcastToCampaign } from '../websocket/utils';
 import logger from '../utils/logger';
+import { PrismaCampaignAdministrationRepository } from '../adapters/persistence/PrismaCampaignAdministrationRepository';
+import { CommandBus } from '../application/commands/CommandBus';
+import {
+  ACCEPT_CAMPAIGN_INVITATION,
+  DECLINE_CAMPAIGN_INVITATION,
+  AcceptCampaignInvitation,
+  AcceptCampaignInvitationCommand,
+  DeclineCampaignInvitation,
+  DeclineCampaignInvitationCommand,
+  isCampaignCommandError,
+} from '../application/campaigns/CampaignCommands';
 
 const router = Router();
+
+const invitationRepository = new PrismaCampaignAdministrationRepository(prisma);
+const invitationCommands = new CommandBus();
+invitationCommands.register(ACCEPT_CAMPAIGN_INVITATION, new AcceptCampaignInvitation(invitationRepository));
+invitationCommands.register(DECLINE_CAMPAIGN_INVITATION, new DeclineCampaignInvitation(invitationRepository));
 
 /**
  * GET /api/invitations
@@ -64,103 +80,19 @@ router.post('/:id/accept', authenticated, async (req: AuthenticatedRequest, res:
     const { id: invitationId } = req.params;
     const { characterIds = [] } = req.body;
 
-    // Verify invitation exists and belongs to user
-    const invitation = await prisma.campaignInvitation.findUnique({
-      where: { id: invitationId },
-      include: { campaign: true },
-    });
-
-    if (!invitation) {
-      return res.status(404).json({ message: 'Invitation not found' });
-    }
-
-    if (invitation.userId !== userId) {
-      return res.status(403).json({ message: 'Not authorized' });
-    }
-
-    if (invitation.status !== 'PENDING') {
-      return res.status(400).json({ message: 'Invitation already processed' });
-    }
-
-    // Check if invitation is expired
-    if (invitation.expiresAt && new Date() > invitation.expiresAt) {
-      return res.status(400).json({ message: 'Invitation expired' });
-    }
-
-    // Verify all characters belong to user and are compatible with campaign
-    if (characterIds.length > 0) {
-      const characters = await prisma.character.findMany({
-        where: {
-          id: { in: characterIds },
-          userId,
-        },
-      });
-
-      if (characters.length !== characterIds.length) {
-        return res.status(400).json({ message: 'Invalid character selection' });
-      }
-
-      // Check if any characters are already assigned to a campaign
-      const assignedCharacter = characters.find((c) => c.campaignId !== null);
-      if (assignedCharacter) {
-        return res.status(400).json({
-          message: `Character "${assignedCharacter.name}" is already assigned to a campaign`,
-        });
-      }
-
-      // Check game system compatibility
-      if (invitation.campaign.gameSystem) {
-        const incompatibleCharacter = characters.find(
-          (c) => c.gameSystem && c.gameSystem !== invitation.campaign.gameSystem
-        );
-        if (incompatibleCharacter) {
-          return res.status(400).json({
-            message: `Character "${incompatibleCharacter.name}" is not compatible with campaign game system`,
-          });
-        }
-      }
-    }
-
-    // Use transaction to ensure consistency
-    const result = await prisma.$transaction(async (tx) => {
-      // Update invitation status
-      await tx.campaignInvitation.update({
-        where: { id: invitationId },
-        data: { status: 'ACCEPTED' },
-      });
-
-      // Create campaign membership
-      const membership = await tx.campaignMembership.create({
-        data: {
-          userId,
-          campaignId: invitation.campaignId,
-          role: 'PLAYER',
-          characterIds,
-        },
-      });
-
-      // Assign characters to campaign
-      if (characterIds.length > 0) {
-        await tx.character.updateMany({
-          where: {
-            id: { in: characterIds },
-            userId,
-          },
-          data: {
-            campaignId: invitation.campaignId,
-          },
-        });
-      }
-
-      return membership;
+    const result = await invitationCommands.dispatch<AcceptCampaignInvitationCommand, Awaited<ReturnType<AcceptCampaignInvitation['execute']>>>({
+      type: ACCEPT_CAMPAIGN_INVITATION,
+      invitationId,
+      userId,
+      characterIds,
     });
 
     // Broadcast roster.updated to campaign members
     try {
-      broadcastToCampaign(invitation.campaignId, 'roster.updated', {
+      broadcastToCampaign(result.invitation.campaignId, 'roster.updated', {
         action: 'member.joined',
         userId,
-        campaignId: invitation.campaignId,
+        campaignId: result.invitation.campaignId,
         characterIds,
       });
     } catch (error) {
@@ -170,9 +102,10 @@ router.post('/:id/accept', authenticated, async (req: AuthenticatedRequest, res:
 
     return res.json({
       message: 'Invitation accepted',
-      membership: result,
+      membership: result.membership,
     });
   } catch (error) {
+    if (isCampaignCommandError(error)) return res.status(error.status).json({ message: error.message });
     logger.error('Error accepting invitation', { err: error });
     return res.status(500).json({ message: 'Failed to accept invitation' });
   }
@@ -187,31 +120,11 @@ router.post('/:id/decline', authenticated, async (req: AuthenticatedRequest, res
     const userId = req.session.userId!;
     const { id: invitationId } = req.params;
 
-    // Verify invitation exists and belongs to user
-    const invitation = await prisma.campaignInvitation.findUnique({
-      where: { id: invitationId },
-    });
-
-    if (!invitation) {
-      return res.status(404).json({ message: 'Invitation not found' });
-    }
-
-    if (invitation.userId !== userId) {
-      return res.status(403).json({ message: 'Not authorized' });
-    }
-
-    if (invitation.status !== 'PENDING') {
-      return res.status(400).json({ message: 'Invitation already processed' });
-    }
-
-    // Update invitation status
-    await prisma.campaignInvitation.update({
-      where: { id: invitationId },
-      data: { status: 'DECLINED' },
-    });
+    await invitationCommands.dispatch<DeclineCampaignInvitationCommand, void>({ type: DECLINE_CAMPAIGN_INVITATION, invitationId, userId });
 
     return res.json({ message: 'Invitation declined' });
   } catch (error) {
+    if (isCampaignCommandError(error)) return res.status(error.status).json({ message: error.message });
     logger.error('Error declining invitation', { err: error });
     return res.status(500).json({ message: 'Failed to decline invitation' });
   }

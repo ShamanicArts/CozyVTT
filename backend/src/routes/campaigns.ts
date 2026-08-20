@@ -3,18 +3,57 @@ import multer from 'multer';
 import { AuthenticatedRequest } from '../middleware/rbac';
 import { authenticated, campaignMember, campaignDM, adminOnly } from '../middleware/compose';
 import { prisma } from '../config/database';
-import { canDeleteCampaign } from '../services/permissions';
 import { captureGameState, restoreGameState, getNextSessionNumber, getLastSession } from '../services/sessionState';
 import { sendSystemMessage, broadcastToUser, broadcastToCampaign } from '../websocket/utils';
 import { isSmtpConfigured, sendCampaignInvitationEmail } from '../services/email';
-import { DEFAULT_VIBE_SETTINGS, validateVibeSettings, findVibePeriod, VibeSettings } from '../utils/vibe-presets';
-import { GameSystem } from '../game-systems';
 import { exportCampaign } from '../services/campaignExporter';
 import { previewCampaignImport, importCampaign } from '../services/campaignImporter';
 import { CreateCampaignSchema } from '../validators/campaigns';
 import logger from '../utils/logger';
+import { PrismaCampaignAdministrationRepository } from '../adapters/persistence/PrismaCampaignAdministrationRepository';
+import { CommandBus } from '../application/commands/CommandBus';
+import {
+  CHANGE_CAMPAIGN_MEMBER_ROLE,
+  CREATE_CAMPAIGN,
+  DELETE_CAMPAIGN,
+  INVITE_TO_CAMPAIGN,
+  REMOVE_CAMPAIGN_MEMBER,
+  UPDATE_CAMPAIGN,
+  UPDATE_CAMPAIGN_VIBE,
+  ChangeCampaignMemberRole,
+  ChangeCampaignMemberRoleCommand,
+  CreateCampaign,
+  CreateCampaignCommand,
+  DeleteCampaign,
+  DeleteCampaignCommand,
+  InviteToCampaign,
+  InviteToCampaignCommand,
+  RemoveCampaignMember,
+  RemoveCampaignMemberCommand,
+  UpdateCampaign,
+  UpdateCampaignCommand,
+  UpdateCampaignVibe,
+  UpdateCampaignVibeCommand,
+  isCampaignCommandError,
+} from '../application/campaigns/CampaignCommands';
 
 const router = Router();
+
+const campaignAdministrationRepository = new PrismaCampaignAdministrationRepository(prisma);
+const campaignCommands = new CommandBus();
+campaignCommands.register(CREATE_CAMPAIGN, new CreateCampaign(campaignAdministrationRepository));
+campaignCommands.register(UPDATE_CAMPAIGN, new UpdateCampaign(campaignAdministrationRepository));
+campaignCommands.register(UPDATE_CAMPAIGN_VIBE, new UpdateCampaignVibe(campaignAdministrationRepository));
+campaignCommands.register(DELETE_CAMPAIGN, new DeleteCampaign(campaignAdministrationRepository));
+campaignCommands.register(INVITE_TO_CAMPAIGN, new InviteToCampaign(campaignAdministrationRepository));
+campaignCommands.register(REMOVE_CAMPAIGN_MEMBER, new RemoveCampaignMember(campaignAdministrationRepository));
+campaignCommands.register(CHANGE_CAMPAIGN_MEMBER_ROLE, new ChangeCampaignMemberRole(campaignAdministrationRepository));
+
+function sendCampaignCommandError(res: Response, error: unknown): boolean {
+  if (!isCampaignCommandError(error)) return false;
+  res.status(error.status).json(error.error ? { error: error.error, message: error.message } : { message: error.message });
+  return true;
+}
 
 // ── Import file upload (memory storage — ZIP stays in buffer) ───────────────
 const importUpload = multer({
@@ -118,51 +157,17 @@ router.post('/', authenticated, async (req: AuthenticatedRequest, res: Response)
       });
     }
     const { name, description, gameSystem } = parsed.data;
-
-    // Create campaign with default vibe settings and optional gameSystem
-    const campaign = await prisma.campaign.create({
-      data: {
-        name,
-        description: description || '',
-        ownerId: userId,
-        vibeSettings: DEFAULT_VIBE_SETTINGS as any,
-        gameSystem: gameSystem || null,
-      },
-    });
-
-    // Automatically add creator as DM
-    await prisma.campaignMembership.create({
-      data: {
-        userId,
-        campaignId: campaign.id,
-        role: 'DM',
-        characterIds: [],
-      },
-    });
-
-    // Fetch campaign with memberships to return complete data.
-    // SECURITY: see note in GET /api/campaigns — never embed `email` in
-    // member-facing payloads.
-    const campaignWithMemberships = await prisma.campaign.findUnique({
-      where: { id: campaign.id },
-      include: {
-        memberships: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
-          },
-        },
-      },
+    const result = await campaignCommands.dispatch<CreateCampaignCommand, Awaited<ReturnType<CreateCampaign['execute']>>>({
+      type: CREATE_CAMPAIGN,
+      ownerId: userId,
+      name,
+      description,
+      gameSystem,
     });
 
     return res.status(201).json({
       message: 'Campaign created successfully',
-      campaign: campaignWithMemberships,
+      campaign: result.campaign,
     });
   } catch (error) {
     logger.error('Error creating campaign', { err: error });
@@ -393,64 +398,17 @@ router.get('/:campaignId/characters', campaignMember, async (req: AuthenticatedR
 router.put('/:campaignId', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { campaignId } = req.params;
-    const { name, description, status, vibeSettings, spiritLayerEnabled, spiritLayerStyle, gameSystem, chatCooldownEnabled, chatCooldownSeconds } = req.body;
-
-    const updateData: any = {};
-    if (name !== undefined) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
-    if (status !== undefined) updateData.status = status;
-    if (vibeSettings !== undefined) updateData.vibeSettings = vibeSettings;
-    if (spiritLayerEnabled !== undefined) updateData.spiritLayerEnabled = spiritLayerEnabled;
-    if (spiritLayerStyle !== undefined) updateData.spiritLayerStyle = spiritLayerStyle;
-    if (chatCooldownEnabled !== undefined) updateData.chatCooldownEnabled = chatCooldownEnabled;
-    if (chatCooldownSeconds !== undefined) {
-      const secs = Number(chatCooldownSeconds);
-      if (!Number.isInteger(secs) || secs < 1 || secs > 300) {
-        return res.status(400).json({ error: 'Validation Error', message: 'chatCooldownSeconds must be an integer between 1 and 300' });
-      }
-      updateData.chatCooldownSeconds = secs;
+    const result = await campaignCommands.dispatch<UpdateCampaignCommand, Awaited<ReturnType<UpdateCampaign['execute']>>>({ type: UPDATE_CAMPAIGN, campaignId, input: req.body });
+    if (result.gameSystemCharacterCount) {
+      logger.warn('campaign game system changed with existing characters', { campaignId, characterCount: result.gameSystemCharacterCount });
     }
-
-    // Handle gameSystem update
-    if (gameSystem !== undefined) {
-      // Validate gameSystem if not null
-      if (gameSystem !== null) {
-        const validSystems: string[] = [
-          GameSystem.DND_5E,
-          GameSystem.PATHFINDER_2E,
-          GameSystem.SHADOWRUN_6E,
-          GameSystem.CALL_OF_CTHULHU_7E,
-        ];
-        if (!validSystems.includes(gameSystem as string)) {
-          return res.status(400).json({
-            error: 'Validation Error',
-            message: `Invalid game system. Must be one of: ${validSystems.join(', ')}`,
-          });
-        }
-      }
-
-      // Check if campaign has characters - log warning if changing gameSystem
-      const characterCount = await prisma.character.count({
-        where: { campaignId },
-      });
-
-      if (characterCount > 0) {
-        logger.warn('campaign game system changed with existing characters', { campaignId, characterCount });
-      }
-
-      updateData.gameSystem = gameSystem;
-    }
-
-    const campaign = await prisma.campaign.update({
-      where: { id: campaignId },
-      data: updateData,
-    });
 
     return res.status(200).json({
       message: 'Campaign updated successfully',
-      campaign,
+      campaign: result.campaign,
     });
   } catch (error) {
+    if (sendCampaignCommandError(res, error)) return;
     logger.error('Error updating campaign', { err: error });
     return res.status(500).json({
       error: 'Internal Server Error',
@@ -468,56 +426,15 @@ router.put('/:campaignId', campaignDM, async (req: AuthenticatedRequest, res: Re
 router.put('/:campaignId/vibe', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { campaignId } = req.params;
-    const { vibeSettings } = req.body;
-
-    if (!vibeSettings) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'vibeSettings is required',
-      });
-    }
-
-    // Validate structure
-    const validationError = validateVibeSettings(vibeSettings);
-    if (validationError) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: validationError,
-      });
-    }
-
-    // If campaign has a currentVibe, verify it still exists in the new periods
-    const campaign = await prisma.campaign.findUnique({
-      where: { id: campaignId },
-      select: { currentVibe: true },
-    });
-
-    const updateData: any = { vibeSettings };
-
-    // Reset currentVibe if current period no longer exists in new settings
-    if (campaign?.currentVibe) {
-      const period = findVibePeriod(vibeSettings as VibeSettings, campaign.currentVibe);
-      if (!period) {
-        updateData.currentVibe = null;
-      }
-    }
-
-    const updatedCampaign = await prisma.campaign.update({
-      where: { id: campaignId },
-      data: updateData,
-      select: {
-        id: true,
-        vibeSettings: true,
-        currentVibe: true,
-      },
-    });
+    const result = await campaignCommands.dispatch<UpdateCampaignVibeCommand, Awaited<ReturnType<UpdateCampaignVibe['execute']>>>({ type: UPDATE_CAMPAIGN_VIBE, campaignId, vibeSettings: req.body.vibeSettings });
 
     return res.status(200).json({
       message: 'Vibe settings updated successfully',
-      vibeSettings: updatedCampaign.vibeSettings,
-      currentVibe: updatedCampaign.currentVibe,
+      vibeSettings: result.vibeSettings,
+      currentVibe: result.currentVibe,
     });
   } catch (error) {
+    if (sendCampaignCommandError(res, error)) return;
     logger.error('Error updating vibe settings', { err: error });
     return res.status(500).json({
       error: 'Internal Server Error',
@@ -537,31 +454,13 @@ router.delete('/:campaignId', authenticated, async (req: AuthenticatedRequest, r
     const platformRole = req.session.platformRole!;
     const { campaignId } = req.params;
 
-    // Check permission using helper function
-    const hasPermission = await canDeleteCampaign(userId, campaignId, platformRole);
-
-    if (!hasPermission) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'Only the campaign owner or admin can delete this campaign',
-      });
-    }
-
-    // Convert CAMPAIGN-scoped assets to USER scope before deleting.
-    // Each asset is reassigned to its uploader's personal library.
-    await prisma.asset.updateMany({
-      where: { campaignId, scope: 'CAMPAIGN' },
-      data: { scope: 'USER', campaignId: null },
-    });
-
-    await prisma.campaign.delete({
-      where: { id: campaignId },
-    });
+    await campaignCommands.dispatch<DeleteCampaignCommand, void>({ type: DELETE_CAMPAIGN, campaignId, requesterId: userId, platformRole });
 
     return res.status(200).json({
       message: 'Campaign deleted successfully',
     });
   } catch (error) {
+    if (sendCampaignCommandError(res, error)) return;
     logger.error('Error deleting campaign', { err: error });
     return res.status(500).json({
       error: 'Internal Server Error',
@@ -631,115 +530,20 @@ router.get('/:campaignId/invitable-users', campaignDM, async (req: Authenticated
 router.post('/:campaignId/invite', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { campaignId } = req.params;
-    const { userId, expiresInDays } = req.body;
-
-    if (!userId) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'User ID is required',
-      });
-    }
-
-    // Check if user exists
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'User not found',
-      });
-    }
-
-    // Check if user is already a member
-    const existingMembership = await prisma.campaignMembership.findUnique({
-      where: {
-        userId_campaignId: {
-          userId,
-          campaignId,
-        },
-      },
-    });
-
-    if (existingMembership) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'User is already a member of this campaign',
-      });
-    }
-
-    // Check if there's already a pending invitation
-    const existingInvitation = await prisma.campaignInvitation.findUnique({
-      where: {
-        userId_campaignId: {
-          userId,
-          campaignId,
-        },
-      },
-    });
-
-    if (existingInvitation && existingInvitation.status === 'PENDING') {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'User already has a pending invitation to this campaign',
-      });
-    }
-
-    // Calculate expiration date if specified
-    let expiresAt = null;
-    if (expiresInDays && expiresInDays > 0) {
-      expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
-    }
-
-    // Get campaign info and DM info for notification and email
-    const [campaign, dmUser] = await Promise.all([
-      prisma.campaign.findUnique({
-        where: { id: campaignId },
-        select: { name: true, description: true },
-      }),
-      prisma.user.findUnique({
-        where: { id: req.session.userId! },
-        select: { displayName: true },
-      }),
-    ]);
-
-    // Create or update invitation
-    const invitation = await prisma.campaignInvitation.upsert({
-      where: {
-        userId_campaignId: {
-          userId,
-          campaignId,
-        },
-      },
-      create: {
-        userId,
-        campaignId,
-        status: 'PENDING',
-        expiresAt,
-      },
-      update: {
-        status: 'PENDING',
-        expiresAt,
-        createdAt: new Date(), // Reset creation time
-      },
-      include: {
-        campaign: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
+    const result = await campaignCommands.dispatch<InviteToCampaignCommand, Awaited<ReturnType<InviteToCampaign['execute']>>>({
+      type: INVITE_TO_CAMPAIGN,
+      campaignId,
+      invitedBy: req.session.userId!,
+      userId: req.body.userId,
+      expiresInDays: req.body.expiresInDays,
     });
 
     // Broadcast invitation.received to the invited user (WebSocket, if online)
     try {
-      broadcastToUser(userId, 'invitation.received', {
-        invitationId: invitation.id,
+      broadcastToUser(req.body.userId, 'invitation.received', {
+        invitationId: result.invitation.invitation.id,
         campaignId,
-        campaignName: campaign!.name,
+        campaignName: result.campaign.name,
         invitedBy: req.session.userId,
         timestamp: new Date().toISOString(),
       });
@@ -751,21 +555,22 @@ router.post('/:campaignId/invite', campaignDM, async (req: AuthenticatedRequest,
     // Send invitation email if SMTP is configured
     if (isSmtpConfigured()) {
       sendCampaignInvitationEmail(
-        user.email,
-        user.displayName,
-        campaign!.name,
-        dmUser?.displayName ?? 'Your Dungeon Master',
-        campaign!.description ?? null
+        result.invitedUser.email,
+        result.invitedUser.displayName,
+        result.campaign.name,
+        result.inviterDisplayName ?? 'Your Dungeon Master',
+        result.campaign.description ?? null
       ).catch((err) => {
-        logger.error(`[campaigns] Failed to send invitation email to ${user.email}`, { err: err });
+        logger.error(`[campaigns] Failed to send invitation email to ${result.invitedUser.email}`, { err: err });
       });
     }
 
     return res.status(201).json({
       message: 'Invitation sent successfully',
-      invitation,
+      invitation: result.invitation,
     });
   } catch (error) {
+    if (sendCampaignCommandError(res, error)) return;
     logger.error('Error inviting user to campaign', { err: error });
     return res.status(500).json({
       error: 'Internal Server Error',
@@ -783,46 +588,13 @@ router.post('/:campaignId/invite', campaignDM, async (req: AuthenticatedRequest,
 router.delete('/:campaignId/members/:userId', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { campaignId, userId } = req.params;
-
-    // Find the membership
-    const membership = await prisma.campaignMembership.findUnique({
-      where: {
-        userId_campaignId: {
-          userId,
-          campaignId,
-        },
-      },
-    });
-
-    if (!membership) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'User is not a member of this campaign',
-      });
-    }
-
-    // CRITICAL: Cannot remove the DM
-    if (membership.role === 'DM') {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Cannot remove the Dungeon Master from the campaign',
-      });
-    }
-
-    // Delete the membership
-    await prisma.campaignMembership.delete({
-      where: {
-        userId_campaignId: {
-          userId,
-          campaignId,
-        },
-      },
-    });
+    await campaignCommands.dispatch<RemoveCampaignMemberCommand, void>({ type: REMOVE_CAMPAIGN_MEMBER, campaignId, userId });
 
     return res.status(200).json({
       message: 'Member removed successfully',
     });
   } catch (error) {
+    if (sendCampaignCommandError(res, error)) return;
     logger.error('Error removing member from campaign', { err: error });
     return res.status(500).json({
       error: 'Internal Server Error',
@@ -840,79 +612,11 @@ router.delete('/:campaignId/members/:userId', campaignDM, async (req: Authentica
 router.put('/:campaignId/members/:userId/role', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { campaignId, userId } = req.params;
-    const { role } = req.body;
-
-    // Validate role
-    if (!role || !['DM', 'PLAYER', 'SPECTATOR'].includes(role)) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'Role must be DM, PLAYER, or SPECTATOR',
-      });
-    }
-
-    // Find the membership
-    const membership = await prisma.campaignMembership.findUnique({
-      where: {
-        userId_campaignId: {
-          userId,
-          campaignId,
-        },
-      },
-    });
-
-    if (!membership) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'User is not a member of this campaign',
-      });
-    }
-
-    // CRITICAL: Cannot change the DM's role
-    if (membership.role === 'DM') {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Cannot change the Dungeon Master\'s role',
-      });
-    }
-
-    // CRITICAL: Cannot promote to DM (only one DM allowed per campaign)
-    if (role === 'DM') {
-      // Check if a DM already exists
-      const existingDM = await prisma.campaignMembership.findFirst({
-        where: {
-          campaignId,
-          role: 'DM',
-        },
-      });
-
-      if (existingDM) {
-        return res.status(400).json({
-          error: 'Bad Request',
-          message: 'Campaign already has a Dungeon Master. Only one DM per campaign is allowed.',
-        });
-      }
-    }
-
-    // Update the role
-    const updatedMembership = await prisma.campaignMembership.update({
-      where: {
-        userId_campaignId: {
-          userId,
-          campaignId,
-        },
-      },
-      data: { role },
-      include: {
-        user: {
-          select: {
-            id: true,
-            displayName: true,
-            avatarUrl: true,
-            // SECURITY: never embed `email` — this payload is returned to
-            // DM-role users who shouldn't be able to harvest member emails.
-          },
-        },
-      },
+    const updatedMembership = await campaignCommands.dispatch<ChangeCampaignMemberRoleCommand, Awaited<ReturnType<ChangeCampaignMemberRole['execute']>>>({
+      type: CHANGE_CAMPAIGN_MEMBER_ROLE,
+      campaignId,
+      userId,
+      role: req.body.role,
     });
 
     return res.status(200).json({
@@ -920,6 +624,7 @@ router.put('/:campaignId/members/:userId/role', campaignDM, async (req: Authenti
       membership: updatedMembership,
     });
   } catch (error) {
+    if (sendCampaignCommandError(res, error)) return;
     logger.error('Error updating member role', { err: error });
     return res.status(500).json({
       error: 'Internal Server Error',
