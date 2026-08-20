@@ -33,6 +33,7 @@ import {
 // Campaign components
 import CampaignInfo from '@/components/campaign/CampaignInfo';
 import CampaignRoster from '@/components/campaign/CampaignRoster';
+import { MapRendererProvider } from '@/components/campaign/MapRendererProvider';
 // Lazy-loaded — MapCanvas is by far the largest component in the app; splitting
 // it into its own chunk keeps the CampaignPage shell fast to load and paints
 // the sidebars while the canvas code downloads.
@@ -368,14 +369,16 @@ function CampaignPageContent() {
                   </div>
                 }
               >
-                <MapCanvas
-                  onEditToken={(token) => {
-                    const effectiveType = token.type ?? (token.characterId ? TokenType.PLAYER : TokenType.NPC);
-                    if (effectiveType === TokenType.NPC || effectiveType === TokenType.OBJECT) {
-                      setQuickEditToken(token);
-                    }
-                  }}
-                />
+                <MapRendererProvider>
+                  <MapCanvas
+                    onEditToken={(token) => {
+                      const effectiveType = token.type ?? (token.characterId ? TokenType.PLAYER : TokenType.NPC);
+                      if (effectiveType === TokenType.NPC || effectiveType === TokenType.OBJECT) {
+                        setQuickEditToken(token);
+                      }
+                    }}
+                  />
+                </MapRendererProvider>
               </Suspense>
             </section>
           </Panel>

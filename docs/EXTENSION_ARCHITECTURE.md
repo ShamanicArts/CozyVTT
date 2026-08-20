@@ -1,159 +1,150 @@
-# Extension and agent contract — first slice
+# Extension and agent architecture
 
-This document defines CozyVTT's first stable extension boundary. It is a
-small, versioned microkernel inside the existing modular monolith—not a claim
-that arbitrary third-party JavaScript can safely execute in the backend today.
+## Status and scope
 
-The canonical TypeScript contracts live in
-`backend/src/extensions/`. They are deliberately backend-local while the
-repository has no shared package build. A future published contract package
-must be generated from these schemas or adopted with a coordinated backend and
-frontend build change; do not manually copy the types into a new package.
+CozyVTT ships a controlled local-extension runtime, durable grant/audit
+foundations, a bearer-agent HTTP surface, and renderer/theme integration seams.
+It is not yet a general plugin marketplace, an MCP server, or an arbitrary
+third-party frontend-code platform.
 
-## Boundary
+The canonical contracts live under `backend/src/extensions/`. Keep transport
+details (Express paths, Socket.IO events, Prisma models, SQL, DOM, and React
+closures) out of manifests and extension contracts.
 
-Extensions describe **capabilities** and **application commands**. Their
-manifest never contains Express route paths, HTTP methods, Socket.IO event
-names, Prisma models, SQL, or renderer implementation references.
+## Runtime shape
 
 ```mermaid
 flowchart LR
-  UI[React UI adapter] --> Bus[Application command bus]
-  REST[REST adapter] --> Bus
-  Socket[Socket adapter] --> Bus
-  Agent[MCP / agent adapter] --> Catalog[Agent tool catalog]
-  Catalog --> Bridge[Policy + confirmation + schema bridge]
-  Bridge --> Bus
-  Plugin[Trusted extension] --> Registry[Extension registry]
-  Registry --> Catalog
-  Registry --> Commands[Command descriptors]
-  Commands --> Bus
+  Admin[Platform administrator] --> AdminApi[/api/admin/extensions]
+  AdminApi --> Host[ExtensionHostService]
+  Host --> Store[(ExtensionInstallation)]
+  Host --> T[TrustedRegistryProxy]
+  Host --> S[SandboxedExtensionSupervisor]
+  S --> B[bwrap + Node child]
+  T --> R[ExtensionRegistry]
+  S --> R
+  R --> Bridge[ExtensionCommandBridge]
+  Bridge --> EBus[Extension runtime CommandBus]
+
+  User[Delegated campaign user] --> AgentApi[/api/agent]
+  AgentApi --> Core[Production ApplicationHost]
+  Core --> CoreBus[Shared core CommandBus]
+  AgentApi --> Bridge
+  Core --> Durable[(grant / audit / idempotency / outbox)]
+  Bridge --> Durable
 ```
 
-The key rule for agents is simple: an agent tool's `commandId` identifies an
-application command. It does not identify a request endpoint. The agent-facing
-bridge resolves the active descriptor, obtains the caller's grants and
-approval, validates JSON input, and dispatches an allowlisted command factory
-through the same command bus as a UI or socket adapter.
+There are two execution surfaces:
 
-## Guarded agent-tool bridge
+* The built-in core agent catalog calls `productionApplicationHost`, which
+  delegates to the shared core command registry and enforces durable middleware.
+* Installed extension tools call `ExtensionCommandBridge` and the extension
+  runtime's own registry/command bus. That runtime has durable grant and audit
+  adapters, but is not yet unified with the core host/outbox transaction path.
 
-`extensions/bridge/` is a transport-neutral service—not an HTTP or MCP route.
-It accepts a trusted principal and campaign scope from an adapter, then:
-
-1. exposes only active tools with a matching, explicit extension grant;
-2. requires a pre-registered command binding for every descriptor;
-3. validates descriptor input against its portable JSON schema and rejects a
-   supplied `campaignId` that conflicts with the authorized scope;
-4. requires attributable confirmation for `always`, `when-risky` non-read, and
-   all high-risk tools;
-5. validates handler output, recursively redacts secret-shaped result fields,
-   and emits value-free audit evidence.
-
-The bridge has no Express, Socket.IO, Prisma, or raw extension-handler access.
-`InMemoryExtensionPolicy` and `InMemoryAgentToolAudit` are safe local/test
-adapters; deployments without grants use the default-deny policy. A future MCP
-adapter must establish the principal and confirmation receipt outside of the
-model's untrusted tool arguments.
+Do not describe these as one universal plugin command bus until that joining
+layer is designed and tested.
 
 ## Manifest contract
 
-`ExtensionManifest` is validated with Zod before lifecycle code is invoked.
-The current manifest version is `1.0` and the current extension API version is
-`1.0.0`.
+`ExtensionManifest` is parsed before lifecycle code runs. The current manifest
+version is `1.0` and extension API version is `1.0.0`. A manifest declares an
+identifier, version/compatibility ranges, capabilities, permissions, command
+descriptors, and optional agent tools.
 
-```ts
-const manifest = {
-  manifestVersion: '1.0',
-  id: 'cozyvtt.lantern-tools',
-  name: 'Lantern Tools',
-  version: '1.0.0',
-  description: 'Campaign note tools.',
-  compatibility: {
-    extensionApi: '^1.0.0',
-    cozyVtt: '^1.1.0',
-  },
-  capabilities: ['commands', 'agent-tools'],
-  permissions: ['campaign.read', 'campaign.write'],
-  commands: [{
-    id: 'campaign.add-note',
-    version: '1.0.0',
-    title: 'Add campaign note',
-    description: 'Adds a note to a campaign.',
-    inputSchema: { type: 'object', properties: { campaignId: { type: 'string' } } },
-    outputSchema: { type: 'object', properties: { noteId: { type: 'string' } } },
-    requiredPermissions: ['campaign.write'],
-    idempotent: false,
-  }],
-  agentTools: [{
-    id: 'campaign_add_note',
-    title: 'Add campaign note',
-    description: 'Create a note after user confirmation.',
-    commandId: 'campaign.add-note',
-    requiredPermissions: ['campaign.read', 'campaign.write'],
-    risk: 'low',
-    confirmation: 'when-risky',
-  }],
-};
-```
+Capabilities currently model contribution categories such as `commands`,
+`agent-tools`, `scene-layers`, `renderers`, `themes`, `game-systems`,
+`importers`, and `exporters`. Permissions are finite requested capabilities
+such as campaign/map/token/asset/theme access. A declaration is never an
+authorization grant. Tool permissions must cover their command permissions,
+and high-risk tools cannot request `confirmation: "never"`.
 
-### Compatibility
+Compatibility is checked before `onInstall`; duplicate extension, command, and
+tool identifiers are rejected. The registry lifecycle is install, activate,
+deactivate, uninstall. Activation failure leaves an installation inactive;
+deactivation failure leaves it active rather than falsely hiding a still-live
+contribution. Per-extension concurrent lifecycle transitions are rejected.
 
-Both `compatibility.extensionApi` and `compatibility.cozyVtt` use the supported
-semver grammar: an exact version, `*`, caret (`^`), tilde (`~`), comparator
-sets such as `>=1.1.0 <2.0.0`, and `||` alternatives. The registry rejects a
-manifest that does not support the host before calling `onInstall`.
+## Trust and installation
 
-### Capabilities and permissions
+Packages are discovered below `EXTENSION_PACKAGE_ROOT` with a package manifest
+and relative entrypoint. The admin API accepts only a catalogue package ID.
+Before a trusted package is imported, the host resolves real paths within the
+root, rejects traversal/symlink escape, recomputes checksum, checks the exact
+allowlist from `TRUSTED_EXTENSION_ALLOWLIST`, and verifies its signature. The
+default verifier uses the review HMAC key in `TRUSTED_EXTENSION_REVIEW_KEY`;
+an installation may supply an asymmetric verifier instead. No configuration
+means no trusted import.
 
-Capabilities state what sort of contribution an extension offers:
+Persisted installation records retain package identity/digest, parsed
+manifest, requested install mode, lifecycle state, and safe error state.
+They do not turn a package descriptor into permission to execute arbitrary
+server code.
 
-- `commands`, `agent-tools`
-- `scene-layers`, `renderers`, `themes`, `game-systems`
-- `importers`, `exporters`
+## Sandboxed lifecycle
 
-Permissions are explicit, finite declarations such as `campaign.read`,
-`maps.write`, `tokens.write`, `assets.write`, `themes.write`, and
-`network.fetch`. A command and an agent tool may only request permissions that
-the manifest itself declares. An agent tool must declare every permission of
-the command it dispatches. A declaration is not a grant: user, campaign, and
-service-identity policy checks still happen at dispatch time.
+Sandboxed packages are not dynamically imported into the server process. Each
+lifecycle/tool invocation is a fresh Node child communicating over versioned
+NDJSON and launched under bubblewrap. The child has a read-only package,
+temporary work directory, disabled network, Node read permission only for the
+package, and bounded concurrency, duration, heap, stdout, and stderr. Protocol
+errors, crashes, and timeouts terminate that child.
 
-High-risk agent tools cannot use `confirmation: 'never'`.
+Configured active installations are rehydrated before the server starts
+listening. This restores lifecycle state but does not create a daemon worker,
+automatic restart service, package rollback, CPU/cgroup management, or a
+configurable filesystem/network capability system. The supplied Node 24
+Docker images include bubblewrap and have a verified unprivileged execution
+path. Compose deliberately uses `seccomp=unconfined`, because Docker's default
+profile blocks the user namespace bubblewrap requires, while retaining
+`no-new-privileges`; deployments that reject that tradeoff should isolate the
+sandbox runner or leave the extension root disabled.
 
-## Lifecycle and safety
+## Agents, grants, and confirmation
 
-`ExtensionRegistry` has four lifecycle stages:
+The HTTP agent adapter authenticates a campaign-scoped bearer credential whose
+plaintext is issued once and whose SHA-256 hash is stored. It checks delegated
+membership on every use. Core write commands require an idempotency key;
+protected core host commands record canonical input digests and durable
+allowed/denied/executed/failed audit entries, require exact campaign grant(s),
+and produce transactional outbox events.
 
-1. `install`: parse manifest, check compatibility and all descriptor conflicts,
-   then call `onInstall`.
-2. `activate`: call `onActivate`; only on success are commands and agent tools
-   discoverable.
-3. `deactivate`: call `onDeactivate`; on success descriptors disappear.
-4. `uninstall`: only allowed after deactivation, then calls `onUninstall`.
+An agent requests a confirmation; it cannot approve one. Only the delegated
+human's authenticated session can approve or deny. Approval returns a
+five-minute, one-time receipt bound to credential, human, campaign, extension,
+command, and canonical input digest. The browser UI intentionally avoids
+rendering raw command input and stored hashes.
 
-Duplicate extension IDs and command declarations fail before hooks run. An
-activation failure leaves an extension installed but inactive, so none of its
-tools are exposed. A deactivation failure leaves it active and still exposed;
-that is safer than falsely advertising an unavailable extension. Concurrent
-lifecycle transitions for the same extension are rejected as `BUSY`.
+`/api/agent` is HTTP only. There is no MCP adapter, arbitrary HTTP proxy,
+database access, shell tool, or raw Socket.IO capability.
 
-This registry is an in-memory trusted-module kernel. Production installation of
-untrusted packages remains a later hardening milestone: backend code must run
-in WASM/WASI or an isolated worker/container; frontend extensions must run in a
-sandboxed iframe; networking must be default-deny; and package signatures,
-durable storage, audit events, and policy grants must be added before exposing
-the feature to third parties.
+## Frontend contributions
 
-## Next integration steps
+The renderer host is per map canvas and supports controlled terrain, token,
+and overlay registrations. It does not load remote extension renderer code.
 
-1. Wire durable policy grants and audit storage, then add a narrow MCP adapter
-   that establishes principals and confirmation receipts.
-2. Migrate further actions—starting with token movement—so REST, Socket.IO,
-   React UI, and test adapters dispatch the same application command.
-3. Add idempotency and transactional outbox ports around command dispatch.
-4. Add renderer and scene-layer ports; retain Canvas2D as the first adapter.
+After authentication, `ThemeSyncBridge` fetches active contributions from
+`GET /api/extensions/contributions`. Only complete data-only semantic palettes
+are converted to a validated `ThemeHost` manifest; partial palettes and
+arbitrary document-variable injection fail closed. Admin lifecycle actions
+notify the browser to refresh that feed. Current theme picker exposure does
+not yet make every registered extension theme a user-selectable product option.
 
-The bridge is intentionally inert until a host registers a command binding and
-provides an explicit policy grant. It is not permission to invoke existing
-transport handlers directly.
+The admin extensions panel manages discovery, trusted/sandboxed installation,
+lifecycle, and grants. It deliberately presents trust/risk information and is
+not a package registry or publishing workflow.
+
+## Non-goals before the next architecture step
+
+* A single command/query host shared by core, installed extensions, REST,
+  Socket.IO, jobs, and agents.
+* General external package acquisition, dependency resolution, migrations,
+  upgrades, rollback, or a marketplace.
+* Browser-plugin execution, remote renderer replacement, arbitrary CSS, or
+  third-party iframe/plugin isolation.
+* MCP, persistent sandbox workers, sandbox network/storage grants, and richer
+  resource/observability controls.
+
+New work should extend explicit ports and versioned contracts, preserve the
+separate core/extension boundary until it is intentionally unified, and add
+transport, authorization, failure, and lifecycle tests with every capability.

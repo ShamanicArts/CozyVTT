@@ -10,6 +10,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { profileService } from '@/services/profile.service';
 import { api } from '@/services/api';
 import MFASection from '@/components/profile/MFASection';
+import AgentAccessPanel from '@/components/profile/AgentAccessPanel';
 import ThemePicker, { DEFAULT_CUSTOM_COLORS, type ThemePickerColors } from '@/components/appearance/ThemePicker';
 import { AssetType } from '@/types';
 import type { UserPreferences } from '@/types';
@@ -874,6 +875,8 @@ export default function ProfilePage() {
             />
           )}
         </section>
+
+        <AgentAccessPanel />
 
         {/* ── Danger Zone ── */}
         <section className="glass-panel p-6 border-2 border-red-200/60">

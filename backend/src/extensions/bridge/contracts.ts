@@ -1,9 +1,13 @@
-import type { Command } from '../../application/commands/CommandBus';
-import type { AgentPrincipal, CampaignScope } from '../../application/policy/ExtensionPolicy';
-import type { AgentRisk, ExtensionPermission, JsonSchema } from '../contracts';
+import type { Command } from "../../application/commands/CommandBus";
+import type {
+  AgentPrincipal,
+  CampaignScope,
+} from "../../application/policy/ExtensionPolicy";
+import type { AgentRisk, ExtensionPermission, JsonSchema } from "../contracts";
 
 export type JsonPrimitive = string | number | boolean | null;
-export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 
 export interface AgentToolInvocationContext {
   principal: AgentPrincipal;
@@ -25,7 +29,10 @@ export interface AgentToolInvocation extends AgentToolInvocationContext {
 /** A pre-registered factory is the only way a descriptor can reach the bus. */
 export interface CommandBinding {
   commandId: string;
-  createCommand(input: Record<string, unknown>, context: AgentToolInvocationContext): Command;
+  createCommand(
+    input: Record<string, unknown>,
+    context: AgentToolInvocationContext,
+  ): Command;
 }
 
 export interface AgentToolCatalogEntry {
@@ -39,20 +46,22 @@ export interface AgentToolCatalogEntry {
   confirmationRequired: boolean;
 }
 
-export type AgentToolAuditOutcome = 'listed' | 'succeeded' | 'denied' | 'rejected' | 'failed';
+export type AgentToolAuditOutcome =
+  "listed" | "succeeded" | "denied" | "rejected" | "failed";
 
 /** Audit events intentionally omit input values and command results. */
 export interface AgentToolAuditEvent {
   occurredAt: string;
   outcome: AgentToolAuditOutcome;
   principalId: string;
-  principalKind: AgentPrincipal['kind'];
+  principalKind: AgentPrincipal["kind"];
   campaignId: string;
   extensionId?: string;
   toolId?: string;
   commandId?: string;
   reason?: string;
   inputKeys?: string[];
+  inputDigest?: string;
 }
 
 export interface AgentToolAuditPort {
@@ -69,13 +78,16 @@ export class InMemoryAgentToolAudit implements AgentToolAuditPort {
   readonly events: AgentToolAuditEvent[] = [];
 
   async record(event: AgentToolAuditEvent): Promise<void> {
-    this.events.push({ ...event, inputKeys: event.inputKeys ? [...event.inputKeys] : undefined });
+    this.events.push({
+      ...event,
+      inputKeys: event.inputKeys ? [...event.inputKeys] : undefined,
+    });
   }
 }
 
 /** JSON-safe output after recursive key-based secret redaction. */
 export interface RedactedAgentToolResult {
-  readonly kind: 'redacted-agent-tool-result';
+  readonly kind: "redacted-agent-tool-result";
   readonly data: JsonValue;
   readonly redactedFields: number;
 }

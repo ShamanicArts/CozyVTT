@@ -18,7 +18,6 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef, Re
 import { api } from '@/services/api';
 import type { AppearanceSettings, UserPreferences } from '@/types';
 import {
-  getThemeById,
   getFontById,
   applyThemeColors,
   applyFont,
@@ -27,6 +26,12 @@ import {
   FONT_OPTIONS,
 } from '@/themes';
 import type { ThemeColors } from '@/themes';
+import {
+  registerActiveThemeContributions,
+  THEME_CONTRACT_VERSION,
+  ThemeHost,
+  type ActiveThemeContributionLoader,
+} from '@/theming';
 
 // localStorage key for flash-prevention cache. Keep stable across releases —
 // changing it would force a one-time flash for every existing user on upgrade.
@@ -58,7 +63,15 @@ interface ThemeContextValue {
    * Pass `null` to revert to the system theme (e.g. on logout).
    */
   applyUserPreferences: (prefs: UserPreferences | null) => void;
+  /** Scoped registry for trusted runtime semantic-theme contributions. */
+  themeHost: ThemeHost;
+  /** Auth bridge configures the server contribution transport after login. */
+  setContributionLoader: (loader: ActiveThemeContributionLoader | null) => void;
+  /** Re-read active contributions after an extension lifecycle change. */
+  refreshThemeContributions: () => void;
 }
+
+const fallbackThemeHost = new ThemeHost();
 
 const ThemeContext = createContext<ThemeContextValue>({
   appearance: null,
@@ -67,6 +80,9 @@ const ThemeContext = createContext<ThemeContextValue>({
   logoUrl: '/default-logo.png',
   faviconUrl: '/default-mascot.png',
   applyUserPreferences: () => {},
+  themeHost: fallbackThemeHost,
+  setContributionLoader: () => {},
+  refreshThemeContributions: () => {},
 });
 
 export function useTheme() {
@@ -107,19 +123,20 @@ function clearUserThemeCache() {
 
 /** Compute ThemeColors for a given themeId/customThemeColors pair. */
 function resolveColors(
+  themeHost: ThemeHost,
   themeId: string | undefined,
   customColors: UserThemeCache['customThemeColors'] | Record<string, string> | null | undefined
 ): ThemeColors {
   if (themeId === 'custom' && customColors) {
-    return buildCustomThemeColors(customColors as any);
+    return buildCustomThemeColors(customColors as Parameters<typeof buildCustomThemeColors>[0]);
   }
-  const theme = getThemeById(themeId || '') || PRESET_THEMES[0];
+  const theme = themeHost.get(themeId || '') || PRESET_THEMES[0];
   return theme.colors;
 }
 
 /** Apply a full system AppearanceSettings record (theme + font + favicon). */
-function applySystemAppearance(data: AppearanceSettings) {
-  applyThemeColors(resolveColors(data.themeId, data.customThemeColors));
+function applySystemAppearance(themeHost: ThemeHost, data: AppearanceSettings) {
+  applyThemeColors(resolveColors(themeHost, data.themeId, data.customThemeColors));
   applyFont(getFontById(data.fontId) || FONT_OPTIONS[0]);
 
   if (data.customFaviconUrl) {
@@ -129,9 +146,9 @@ function applySystemAppearance(data: AppearanceSettings) {
 }
 
 /** Synchronously paint cached user theme on first render to avoid flash. */
-function applyCachedUserTheme(cache: UserThemeCache) {
+function applyCachedUserTheme(themeHost: ThemeHost, cache: UserThemeCache) {
   if (cache.themeId) {
-    applyThemeColors(resolveColors(cache.themeId, cache.customThemeColors ?? null));
+    applyThemeColors(resolveColors(themeHost, cache.themeId, cache.customThemeColors ?? null));
   }
   if (cache.fontId) {
     const font = getFontById(cache.fontId);
@@ -141,7 +158,48 @@ function applyCachedUserTheme(cache: UserThemeCache) {
 
 // ─── Provider ────────────────────────────────────────────────────────────────
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
+export function ThemeProvider({
+  children,
+  contributionLoader: injectedContributionLoader,
+}: {
+  children: ReactNode;
+  /** Optional bootstrap transport, normally configured by ThemeSyncBridge after login. */
+  contributionLoader?: ActiveThemeContributionLoader;
+}) {
+  const themeHostRef = useRef<ThemeHost | null>(null);
+  if (themeHostRef.current === null) {
+    const host = new ThemeHost();
+    for (const theme of PRESET_THEMES) {
+      host.register({ ...theme, contractVersion: THEME_CONTRACT_VERSION });
+    }
+    themeHostRef.current = host;
+  }
+  const themeHost = themeHostRef.current;
+  const [contributionLoader, setContributionLoader] = useState<ActiveThemeContributionLoader | null>(
+    injectedContributionLoader ?? null,
+  );
+  const [contributionRevision, setContributionRevision] = useState(0);
+  const refreshThemeContributions = useCallback(() => {
+    setContributionRevision((revision) => revision + 1);
+  }, []);
+
+  useEffect(() => {
+    if (!contributionLoader) return;
+    let active = true;
+    let dispose = () => {};
+    registerActiveThemeContributions(themeHost, contributionLoader)
+      .then((cleanup) => {
+        if (active) dispose = cleanup;
+        else cleanup();
+      })
+      .catch(() => {
+        // Contributions are optional; validation failures must not block base UI.
+      });
+    return () => {
+      active = false;
+      dispose();
+    };
+  }, [contributionLoader, contributionRevision, themeHost]);
   // Apply localStorage cache synchronously, before the first paint, so that
   // logged-in users don't see a flash of the admin's default theme on reload.
   // Runs at module-evaluation time of the component (still before child paint).
@@ -149,7 +207,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   if (cachedRef.current === null) {
     cachedRef.current = readUserThemeCache() ?? {};
     if (cachedRef.current.themeId || cachedRef.current.fontId) {
-      applyCachedUserTheme(cachedRef.current);
+      applyCachedUserTheme(themeHost, cachedRef.current);
     }
   }
 
@@ -173,7 +231,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       // Only repaint theme/font if no user overlay is active. Otherwise the
       // overlay's chosen theme should stay on screen.
       if (!userOverlayRef.current) {
-        applySystemAppearance(data);
+        applySystemAppearance(themeHost, data);
       }
     } catch {
       // Defaults already applied via CSS — public pages remain usable offline.
@@ -190,7 +248,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         // Clear overlay → revert to system defaults.
         userOverlayRef.current = null;
         clearUserThemeCache();
-        if (appearance) applySystemAppearance(appearance);
+        if (appearance) applySystemAppearance(themeHost, appearance);
         return;
       }
 
@@ -204,7 +262,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           : appearance?.themeId === 'custom'
           ? (appearance?.customThemeColors as any) ?? null
           : null;
-      applyThemeColors(resolveColors(themeId, customColors));
+      applyThemeColors(resolveColors(themeHost, themeId, customColors));
 
       // Font: prefer user choice, fall back to system default.
       const fontId = prefs.fontId ?? appearance?.fontId ?? 'default';
@@ -217,7 +275,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         customThemeColors: prefs.themeId === 'custom' ? prefs.customThemeColors ?? null : null,
       });
     },
-    [appearance]
+    [appearance, themeHost]
   );
 
   const mascotUrl = appearance?.customMascotUrl || '/default-mascot.png';
@@ -233,6 +291,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         logoUrl,
         faviconUrl,
         applyUserPreferences,
+        themeHost,
+        setContributionLoader,
+        refreshThemeContributions,
       }}
     >
       {children}

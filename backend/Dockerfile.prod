@@ -1,8 +1,10 @@
 # Production Dockerfile — multi-stage build
 # Stage 1: build TypeScript and generate Prisma client
-FROM node:20-alpine AS builder
+FROM node:24-bookworm-slim AS builder
 
-RUN apk add --no-cache bash postgresql-client openssl
+RUN apt-get update \
+  && apt-get install --no-install-recommends -y bash bubblewrap openssl postgresql-client \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -15,12 +17,14 @@ RUN npx prisma generate
 RUN npm run build
 
 # Stage 2: production image — only compiled output + production deps
-FROM node:20-alpine AS production
+FROM node:24-bookworm-slim AS production
 
-RUN apk add --no-cache bash postgresql-client openssl su-exec
+RUN apt-get update \
+  && apt-get install --no-install-recommends -y bash bubblewrap gosu openssl postgresql-client \
+  && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN groupadd --system appgroup && useradd --system --gid appgroup appuser
 
 WORKDIR /app
 
@@ -40,7 +44,7 @@ COPY scripts/start.sh /usr/local/bin/start.sh
 RUN sed -i 's/\r$//' /usr/local/bin/start.sh && chmod +x /usr/local/bin/start.sh
 
 # Create directories; ownership will be set at container startup by start.sh
-# (bind mounts override Dockerfile chown, so we fix it at runtime via su-exec)
+# (bind mounts override Dockerfile chown, so we fix it at runtime via gosu)
 RUN mkdir -p /app/uploads /app/logs && chown -R appuser:appgroup /app
 
 # Run as root so start.sh can fix bind-mount permissions, then drops to appuser

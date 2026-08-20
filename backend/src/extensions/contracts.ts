@@ -7,18 +7,18 @@
  * package with a published build pipeline.
  */
 
-export const EXTENSION_API_VERSION = '1.0.0';
-export const COZYVTT_PLATFORM_VERSION = '1.1.1';
+export const EXTENSION_API_VERSION = "1.0.0";
+export const COZYVTT_PLATFORM_VERSION = "1.1.1";
 
 export const EXTENSION_CAPABILITIES = [
-  'commands',
-  'agent-tools',
-  'scene-layers',
-  'renderers',
-  'themes',
-  'game-systems',
-  'importers',
-  'exporters',
+  "commands",
+  "agent-tools",
+  "scene-layers",
+  "renderers",
+  "themes",
+  "game-systems",
+  "importers",
+  "exporters",
 ] as const;
 
 export type ExtensionCapability = (typeof EXTENSION_CAPABILITIES)[number];
@@ -28,23 +28,23 @@ export type ExtensionCapability = (typeof EXTENSION_CAPABILITIES)[number];
  * adapter which executes a command must still check the caller's grants.
  */
 export const EXTENSION_PERMISSIONS = [
-  'campaign.read',
-  'campaign.write',
-  'characters.read',
-  'characters.write',
-  'maps.read',
-  'maps.write',
-  'tokens.read',
-  'tokens.write',
-  'chat.write',
-  'dice.roll',
-  'assets.read',
-  'assets.write',
-  'themes.read',
-  'themes.write',
-  'storage.read',
-  'storage.write',
-  'network.fetch',
+  "campaign.read",
+  "campaign.write",
+  "characters.read",
+  "characters.write",
+  "maps.read",
+  "maps.write",
+  "tokens.read",
+  "tokens.write",
+  "chat.write",
+  "dice.roll",
+  "assets.read",
+  "assets.write",
+  "themes.read",
+  "themes.write",
+  "storage.read",
+  "storage.write",
+  "network.fetch",
 ] as const;
 
 export type ExtensionPermission = (typeof EXTENSION_PERMISSIONS)[number];
@@ -66,8 +66,8 @@ export interface ApplicationCommandDescriptor {
   idempotent: boolean;
 }
 
-export type AgentConfirmation = 'never' | 'when-risky' | 'always';
-export type AgentRisk = 'read' | 'low' | 'high';
+export type AgentConfirmation = "never" | "when-risky" | "always";
+export type AgentRisk = "read" | "low" | "high";
 
 /**
  * A discoverable tool for an agent adapter. `commandId` is the only execution
@@ -96,7 +96,7 @@ export interface ExtensionCompatibility {
  * extension code is activated.
  */
 export interface ExtensionManifest {
-  manifestVersion: '1.0';
+  manifestVersion: "1.0";
   id: string;
   name: string;
   version: string;
@@ -108,7 +108,7 @@ export interface ExtensionManifest {
   agentTools: AgentToolDescriptor[];
 }
 
-export type ExtensionLifecycleState = 'installed' | 'active';
+export type ExtensionLifecycleState = "installed" | "active";
 
 export interface ExtensionLifecycleContext {
   extensionId: string;
@@ -116,12 +116,27 @@ export interface ExtensionLifecycleContext {
   extensionApiVersion: string;
 }
 
+export interface ExtensionCommandExecutionContext {
+  readonly principal: {
+    readonly id: string;
+    readonly kind: "agent" | "user" | "service";
+  };
+  readonly scope: { readonly campaignId: string };
+}
+
+export type ExtensionCommandHandler = (
+  input: Readonly<Record<string, unknown>>,
+  context: ExtensionCommandExecutionContext,
+) => unknown | Promise<unknown>;
+
 /**
  * First-party/trusted extension module contract. Loading untrusted code is not
  * part of this first slice; it requires a process or WASM sandbox first.
  */
 export interface ExtensionModule {
   manifest: ExtensionManifest;
+  /** Executable handlers must exactly match the manifest command IDs. */
+  commandHandlers?: Readonly<Record<string, ExtensionCommandHandler>>;
   onInstall?(context: ExtensionLifecycleContext): void | Promise<void>;
   onActivate?(context: ExtensionLifecycleContext): void | Promise<void>;
   onDeactivate?(context: ExtensionLifecycleContext): void | Promise<void>;

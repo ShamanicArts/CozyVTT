@@ -1,0 +1,115 @@
+import type {
+  Command,
+  CommandBus,
+  CommandHandler,
+} from "../../application/commands/CommandBus";
+import type { ExtensionCommandBridge } from "../bridge/ExtensionCommandBridge";
+import type {
+  AgentToolInvocationContext,
+  CommandBinding,
+} from "../bridge/contracts";
+import type { ExtensionModule } from "../contracts";
+import { ExtensionRegistry } from "../registry";
+import type { ExtensionLifecycleRegistry } from "./ports";
+
+interface TrustedExtensionCommand extends Command<unknown> {
+  readonly type: string;
+  readonly input: Record<string, unknown>;
+  readonly context: AgentToolInvocationContext;
+}
+
+/**
+ * Connects reviewed in-process extension code to the same guarded command
+ * bridge used by sandboxed modules. Descriptor publication and executable
+ * registration therefore share one lifecycle and are removed atomically.
+ */
+export class TrustedRegistryProxy implements ExtensionLifecycleRegistry {
+  private readonly modules = new Map<string, ExtensionModule>();
+  private readonly disposers = new Map<string, Array<() => void>>();
+
+  public constructor(
+    private readonly registry: ExtensionRegistry,
+    private readonly commandBus: CommandBus,
+    private readonly bridge: ExtensionCommandBridge,
+  ) {}
+
+  async install(module: ExtensionModule): Promise<unknown> {
+    assertHandlerCoverage(module);
+    const installed = await this.registry.install(module);
+    this.modules.set(module.manifest.id, module);
+    return installed;
+  }
+
+  async activate(extensionId: string): Promise<unknown> {
+    const module = this.requireModule(extensionId);
+    const disposers: Array<() => void> = [];
+    try {
+      for (const descriptor of module.manifest.commands) {
+        const execute = module.commandHandlers?.[descriptor.id];
+        if (!execute) throw new Error(`Missing handler for ${descriptor.id}`);
+        const type = trustedCommandType(extensionId, descriptor.id);
+        const handler: CommandHandler<TrustedExtensionCommand, unknown> = {
+          execute: async (command) => execute(command.input, command.context),
+        };
+        disposers.push(this.commandBus.register(type, handler));
+        const binding: CommandBinding = {
+          commandId: descriptor.id,
+          createCommand: (input, context) => ({ type, input, context }),
+        };
+        disposers.push(this.bridge.registerBinding(binding));
+      }
+      const activated = await this.registry.activate(extensionId);
+      this.disposers.set(extensionId, disposers);
+      return activated;
+    } catch (error) {
+      disposeAll(disposers);
+      throw error;
+    }
+  }
+
+  async deactivate(extensionId: string): Promise<unknown> {
+    const deactivated = await this.registry.deactivate(extensionId);
+    disposeAll(this.disposers.get(extensionId) ?? []);
+    this.disposers.delete(extensionId);
+    return deactivated;
+  }
+
+  async uninstall(extensionId: string): Promise<void> {
+    await this.registry.uninstall(extensionId);
+    disposeAll(this.disposers.get(extensionId) ?? []);
+    this.disposers.delete(extensionId);
+    this.modules.delete(extensionId);
+  }
+
+  getExtension(extensionId: string): unknown | undefined {
+    return this.registry.getExtension(extensionId);
+  }
+
+  private requireModule(extensionId: string): ExtensionModule {
+    const module = this.modules.get(extensionId);
+    if (!module) throw new Error(`Extension ${extensionId} is not installed`);
+    return module;
+  }
+}
+
+function assertHandlerCoverage(module: ExtensionModule): void {
+  const declared = new Set(module.manifest.commands.map(({ id }) => id));
+  const implemented = Object.keys(module.commandHandlers ?? {});
+  const missing = [...declared].filter((id) => !implemented.includes(id));
+  const extra = implemented.filter((id) => !declared.has(id));
+  if (missing.length || extra.length) {
+    throw new Error(
+      `Extension ${module.manifest.id} command handlers do not match its manifest` +
+        `${missing.length ? `; missing: ${missing.join(", ")}` : ""}` +
+        `${extra.length ? `; undeclared: ${extra.join(", ")}` : ""}`,
+    );
+  }
+}
+
+function trustedCommandType(extensionId: string, commandId: string): string {
+  return `trusted.${extensionId}.${commandId}`;
+}
+
+function disposeAll(disposers: readonly (() => void)[]): void {
+  for (const dispose of [...disposers].reverse()) dispose();
+}

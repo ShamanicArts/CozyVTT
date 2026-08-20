@@ -1,8 +1,15 @@
-import type { CommandBus } from '../../application/commands/CommandBus';
-import type { ExtensionPolicyPort } from '../../application/policy/ExtensionPolicy';
-import type { AgentToolDescriptor, ApplicationCommandDescriptor } from '../contracts';
-import type { ExtensionRegistry } from '../registry';
-import { JsonSchemaValidationError, validateJsonSchema } from './JsonSchemaValidator';
+import { createHash } from "crypto";
+import type { CommandBus } from "../../application/commands/CommandBus";
+import type { ExtensionPolicyPort } from "../../application/policy/ExtensionPolicy";
+import type {
+  AgentToolDescriptor,
+  ApplicationCommandDescriptor,
+} from "../contracts";
+import type { ExtensionRegistry } from "../registry";
+import {
+  JsonSchemaValidationError,
+  validateJsonSchema,
+} from "./JsonSchemaValidator";
 import type {
   AgentToolAuditEvent,
   AgentToolAuditPort,
@@ -13,25 +20,28 @@ import type {
   CommandBinding,
   JsonValue,
   RedactedAgentToolResult,
-} from './contracts';
+} from "./contracts";
 
 export type AgentToolBridgeErrorCode =
-  | 'UNKNOWN_TOOL'
-  | 'UNBOUND_COMMAND'
-  | 'PERMISSION_DENIED'
-  | 'CONFIRMATION_REQUIRED'
-  | 'INVALID_INPUT'
-  | 'INVALID_OUTPUT'
-  | 'COMMAND_FAILED';
+  | "UNKNOWN_TOOL"
+  | "UNBOUND_COMMAND"
+  | "PERMISSION_DENIED"
+  | "CONFIRMATION_REQUIRED"
+  | "INVALID_INPUT"
+  | "INVALID_OUTPUT"
+  | "COMMAND_FAILED";
 
 export class AgentToolBridgeError extends Error {
   constructor(
     message: string,
     public readonly code: AgentToolBridgeErrorCode,
-    public readonly details?: { missingPermissions?: string[]; issues?: string[] }
+    public readonly details?: {
+      missingPermissions?: string[];
+      issues?: string[];
+    },
   ) {
     super(message);
-    this.name = 'AgentToolBridgeError';
+    this.name = "AgentToolBridgeError";
   }
 }
 
@@ -47,17 +57,21 @@ export class ExtensionCommandBridge {
     private readonly commandBus: CommandBus,
     private readonly policy: ExtensionPolicyPort,
     private readonly audit: AgentToolAuditPort,
-    bindings: readonly CommandBinding[]
+    bindings: readonly CommandBinding[],
   ) {
     for (const binding of bindings) {
       if (this.bindings.has(binding.commandId)) {
-        throw new Error(`Duplicate extension command binding for "${binding.commandId}"`);
+        throw new Error(
+          `Duplicate extension command binding for "${binding.commandId}"`,
+        );
       }
       this.bindings.set(binding.commandId, binding);
     }
   }
 
-  async listCatalog(context: AgentToolInvocationContext): Promise<AgentToolCatalogEntry[]> {
+  async listCatalog(
+    context: AgentToolInvocationContext,
+  ): Promise<AgentToolCatalogEntry[]> {
     const entries: AgentToolCatalogEntry[] = [];
     for (const tool of this.registry.listAgentTools()) {
       const command = this.registry.getCommand(tool.commandId);
@@ -83,31 +97,48 @@ export class ExtensionCommandBridge {
       });
     }
 
-    await this.audit.record(eventFor('listed', context));
+    await this.audit.record(eventFor("listed", context));
     return entries;
   }
 
-  async invoke(invocation: AgentToolInvocation): Promise<AgentToolInvocationResult> {
+  async invoke(
+    invocation: AgentToolInvocation,
+  ): Promise<AgentToolInvocationResult> {
     let tool: (AgentToolDescriptor & { extensionId: string }) | undefined;
     let command: ApplicationCommandDescriptor | undefined;
     try {
-      tool = this.registry.listAgentTools().find((candidate) => candidate.id === invocation.toolId);
-      if (!tool) throw new AgentToolBridgeError(`Unknown active agent tool "${invocation.toolId}"`, 'UNKNOWN_TOOL');
+      tool = this.registry
+        .listAgentTools()
+        .find((candidate) => candidate.id === invocation.toolId);
+      if (!tool)
+        throw new AgentToolBridgeError(
+          `Unknown active agent tool "${invocation.toolId}"`,
+          "UNKNOWN_TOOL",
+        );
 
       command = this.registry.getCommand(tool.commandId);
       const binding = command ? this.bindings.get(command.id) : undefined;
       if (!command || !binding) {
-        throw new AgentToolBridgeError(`No allowlisted command binding for "${tool.commandId}"`, 'UNBOUND_COMMAND');
+        throw new AgentToolBridgeError(
+          `No allowlisted command binding for "${tool.commandId}"`,
+          "UNBOUND_COMMAND",
+        );
       }
 
       try {
         validateJsonSchema(command.inputSchema, invocation.input);
         if (!isPlainObject(invocation.input)) {
-          throw new JsonSchemaValidationError(['$: command input must be a JSON object']);
+          throw new JsonSchemaValidationError([
+            "$: command input must be a JSON object",
+          ]);
         }
       } catch (error) {
         if (error instanceof JsonSchemaValidationError) {
-          throw new AgentToolBridgeError('Tool input did not satisfy its schema', 'INVALID_INPUT', { issues: error.issues });
+          throw new AgentToolBridgeError(
+            "Tool input did not satisfy its schema",
+            "INVALID_INPUT",
+            { issues: error.issues },
+          );
         }
         throw error;
       }
@@ -119,30 +150,46 @@ export class ExtensionCommandBridge {
         permissions: requiredPermissions(tool, command),
       });
       if (!decision.allowed) {
-        throw new AgentToolBridgeError('The principal lacks an explicit extension permission grant', 'PERMISSION_DENIED', {
-          missingPermissions: decision.missing,
-        });
+        throw new AgentToolBridgeError(
+          "The principal lacks an explicit extension permission grant",
+          "PERMISSION_DENIED",
+          {
+            missingPermissions: decision.missing,
+          },
+        );
       }
 
       if (requiresConfirmation(tool) && !hasValidConfirmation(invocation)) {
-        throw new AgentToolBridgeError('This tool requires explicit confirmation before execution', 'CONFIRMATION_REQUIRED');
+        throw new AgentToolBridgeError(
+          "This tool requires explicit confirmation before execution",
+          "CONFIRMATION_REQUIRED",
+        );
       }
 
       const input = bindScope(invocation.input, invocation.scope.campaignId);
       let output: unknown;
       try {
-        output = await this.commandBus.dispatch(binding.createCommand(input, invocation));
+        output = await this.commandBus.dispatch(
+          binding.createCommand(input, invocation),
+        );
       } catch (error) {
-        throw new AgentToolBridgeError('The command handler failed', 'COMMAND_FAILED');
+        throw new AgentToolBridgeError(
+          "The command handler failed",
+          "COMMAND_FAILED",
+        );
       }
 
       try {
         validateJsonSchema(command.outputSchema, output);
       } catch (error) {
         if (error instanceof JsonSchemaValidationError) {
-          throw new AgentToolBridgeError('The command handler returned data outside its declared schema', 'INVALID_OUTPUT', {
-            issues: error.issues,
-          });
+          throw new AgentToolBridgeError(
+            "The command handler returned data outside its declared schema",
+            "INVALID_OUTPUT",
+            {
+              issues: error.issues,
+            },
+          );
         }
         throw error;
       }
@@ -153,50 +200,98 @@ export class ExtensionCommandBridge {
         extensionId: tool.extensionId,
         result: redactResult(output),
       };
-      await this.audit.record(eventFor('succeeded', invocation, tool, command));
+      await this.audit.record(eventFor("succeeded", invocation, tool, command));
       return result;
     } catch (error) {
       const bridgeError = toBridgeError(error);
-      await this.audit.record(eventFor(outcomeFor(bridgeError), invocation, tool, command, bridgeError.code));
+      await this.audit.record(
+        eventFor(
+          outcomeFor(bridgeError),
+          invocation,
+          tool,
+          command,
+          bridgeError.code,
+        ),
+      );
       throw bridgeError;
     }
   }
+
+  /** Registers a host-created binding and returns an ownership-safe disposer. */
+  registerBinding(binding: CommandBinding): () => void {
+    if (this.bindings.has(binding.commandId))
+      throw new Error(
+        `Duplicate extension command binding for "${binding.commandId}"`,
+      );
+    this.bindings.set(binding.commandId, binding);
+    return () => {
+      if (this.bindings.get(binding.commandId) === binding)
+        this.bindings.delete(binding.commandId);
+    };
+  }
 }
 
-function requiredPermissions(tool: AgentToolDescriptor, command: ApplicationCommandDescriptor): AgentToolDescriptor['requiredPermissions'] {
-  return [...new Set([...tool.requiredPermissions, ...command.requiredPermissions])];
+function requiredPermissions(
+  tool: AgentToolDescriptor,
+  command: ApplicationCommandDescriptor,
+): AgentToolDescriptor["requiredPermissions"] {
+  return [
+    ...new Set([...tool.requiredPermissions, ...command.requiredPermissions]),
+  ];
 }
 
 function requiresConfirmation(tool: AgentToolDescriptor): boolean {
-  return tool.confirmation === 'always' || tool.risk === 'high' || (tool.confirmation === 'when-risky' && tool.risk !== 'read');
+  return (
+    tool.confirmation === "always" ||
+    tool.risk === "high" ||
+    (tool.confirmation === "when-risky" && tool.risk !== "read")
+  );
 }
 
 function hasValidConfirmation(invocation: AgentToolInvocation): boolean {
-  return invocation.confirmation?.confirmed === true && invocation.confirmation.approvedByPrincipalId === invocation.principal.id;
+  return (
+    invocation.confirmation?.confirmed === true &&
+    invocation.confirmation.approvedByPrincipalId === invocation.principal.id
+  );
 }
 
 /** Scope is authoritative, and a contradictory input scope is rejected. */
-function bindScope(input: Record<string, unknown>, campaignId: string): Record<string, unknown> {
-  if ('campaignId' in input && input.campaignId !== campaignId) {
-    throw new AgentToolBridgeError('Input campaignId does not match the authorized campaign scope', 'INVALID_INPUT');
+function bindScope(
+  input: Record<string, unknown>,
+  campaignId: string,
+): Record<string, unknown> {
+  if ("campaignId" in input && input.campaignId !== campaignId) {
+    throw new AgentToolBridgeError(
+      "Input campaignId does not match the authorized campaign scope",
+      "INVALID_INPUT",
+    );
   }
   return { ...input };
 }
 
 function redactResult(value: unknown): RedactedAgentToolResult {
   const state = { count: 0 };
-  return { kind: 'redacted-agent-tool-result', data: redact(value, state), redactedFields: state.count };
+  return {
+    kind: "redacted-agent-tool-result",
+    data: redact(value, state),
+    redactedFields: state.count,
+  };
 }
 
 function redact(value: unknown, state: { count: number }): JsonValue {
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (value === null || typeof value === "string" || typeof value === "boolean")
+    return value;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
   if (Array.isArray(value)) return value.map((item) => redact(item, state));
   if (isPlainObject(value)) {
     const result: Record<string, JsonValue> = {};
     for (const [key, child] of Object.entries(value)) {
-      if (/(?:password|secret|token|authorization|cookie|api[_-]?key|private[_-]?key)/i.test(key)) {
-        result[key] = '[REDACTED]';
+      if (
+        /(?:password|secret|token|authorization|cookie|api[_-]?key|private[_-]?key)/i.test(
+          key,
+        )
+      ) {
+        result[key] = "[REDACTED]";
         state.count += 1;
       } else {
         result[key] = redact(child, state);
@@ -204,21 +299,22 @@ function redact(value: unknown, state: { count: number }): JsonValue {
     }
     return result;
   }
-  return '[UNSERIALIZABLE]';
+  return "[UNSERIALIZABLE]";
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 }
 
 function eventFor(
-  outcome: AgentToolAuditEvent['outcome'],
+  outcome: AgentToolAuditEvent["outcome"],
   context: AgentToolInvocationContext,
-  tool?: (AgentToolDescriptor & { extensionId: string }),
+  tool?: AgentToolDescriptor & { extensionId: string },
   command?: ApplicationCommandDescriptor,
-  reason?: string
+  reason?: string,
 ): AgentToolAuditEvent {
   const invocation = context as Partial<AgentToolInvocation>;
   return {
@@ -231,17 +327,53 @@ function eventFor(
     toolId: tool?.id,
     commandId: command?.id,
     reason,
-    inputKeys: isPlainObject(invocation.input) ? Object.keys(invocation.input).sort() : undefined,
+    inputKeys: isPlainObject(invocation.input)
+      ? Object.keys(invocation.input).sort()
+      : undefined,
+    inputDigest:
+      invocation.input === undefined
+        ? undefined
+        : digestInput(invocation.input),
   };
+}
+
+function digestInput(value: unknown): string {
+  return `sha256:${createHash("sha256")
+    .update(JSON.stringify(canonical(value)))
+    .digest("hex")}`;
+}
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (isPlainObject(value))
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, child]) => [key, canonical(child)]),
+    );
+  return value;
 }
 
 function toBridgeError(error: unknown): AgentToolBridgeError {
   if (error instanceof AgentToolBridgeError) return error;
-  return new AgentToolBridgeError('The agent tool invocation failed', 'COMMAND_FAILED');
+  return new AgentToolBridgeError(
+    "The agent tool invocation failed",
+    "COMMAND_FAILED",
+  );
 }
 
-function outcomeFor(error: AgentToolBridgeError): AgentToolAuditEvent['outcome'] {
-  if (error.code === 'PERMISSION_DENIED' || error.code === 'CONFIRMATION_REQUIRED') return 'denied';
-  if (error.code === 'INVALID_INPUT' || error.code === 'UNKNOWN_TOOL' || error.code === 'UNBOUND_COMMAND') return 'rejected';
-  return 'failed';
+function outcomeFor(
+  error: AgentToolBridgeError,
+): AgentToolAuditEvent["outcome"] {
+  if (
+    error.code === "PERMISSION_DENIED" ||
+    error.code === "CONFIRMATION_REQUIRED"
+  )
+    return "denied";
+  if (
+    error.code === "INVALID_INPUT" ||
+    error.code === "UNKNOWN_TOOL" ||
+    error.code === "UNBOUND_COMMAND"
+  )
+    return "rejected";
+  return "failed";
 }

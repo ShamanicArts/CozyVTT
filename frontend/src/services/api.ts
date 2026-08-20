@@ -44,6 +44,17 @@ import type {
   UserPreferences,
   ServerConfig,
 } from '@/types';
+import type {
+  AgentCredential,
+  ActiveExtensionThemeContribution,
+  ExtensionGrant,
+  ExtensionGrantPermission,
+  ExtensionGrantPrincipal,
+  ExtensionInstallation,
+  ExtensionInstallMode,
+  ExtensionPackage,
+  PendingAgentConfirmation,
+} from '@/types/extensions';
 
 // ============================================
 // API Client Configuration
@@ -373,6 +384,93 @@ class ApiClient {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
+  }
+
+  // ============================================
+  // Extensions and controlled agent access
+  // ============================================
+
+  async listActiveThemeContributions(): Promise<ActiveExtensionThemeContribution[]> {
+    const response = await this.client.get<{ themes: ActiveExtensionThemeContribution[] }>('/api/extensions/contributions');
+    return response.data.themes;
+  }
+
+  async listExtensionPackages(): Promise<ExtensionPackage[]> {
+    const response = await this.client.get<{ packages: ExtensionPackage[] }>('/api/admin/extensions/available');
+    return response.data.packages;
+  }
+
+  async listExtensionInstallations(): Promise<ExtensionInstallation[]> {
+    const response = await this.client.get<{ installations: ExtensionInstallation[] }>('/api/admin/extensions');
+    return response.data.installations;
+  }
+
+  async installExtension(packageId: string, mode: ExtensionInstallMode): Promise<ExtensionInstallation> {
+    const response = await this.client.post<{ installation: ExtensionInstallation }>('/api/admin/extensions/install', { packageId, mode });
+    return response.data.installation;
+  }
+
+  async activateExtension(extensionId: string): Promise<ExtensionInstallation> {
+    const response = await this.client.post<{ installation: ExtensionInstallation }>(`/api/admin/extensions/${encodeURIComponent(extensionId)}/activate`);
+    return response.data.installation;
+  }
+
+  async deactivateExtension(extensionId: string): Promise<ExtensionInstallation> {
+    const response = await this.client.post<{ installation: ExtensionInstallation }>(`/api/admin/extensions/${encodeURIComponent(extensionId)}/deactivate`);
+    return response.data.installation;
+  }
+
+  async uninstallExtension(extensionId: string): Promise<void> {
+    await this.client.delete(`/api/admin/extensions/${encodeURIComponent(extensionId)}`);
+  }
+
+  async listExtensionGrants(campaignId?: string): Promise<ExtensionGrant[]> {
+    const response = await this.client.get<{ grants: ExtensionGrant[] }>('/api/admin/extensions/grants', { params: campaignId ? { campaignId } : undefined });
+    return response.data.grants;
+  }
+
+  async createExtensionGrant(input: {
+    principalType: ExtensionGrantPrincipal;
+    principalId: string;
+    scopeCampaignId: string;
+    extensionId: string;
+    permission: ExtensionGrantPermission;
+    expiresAt: string | null;
+  }): Promise<ExtensionGrant> {
+    const response = await this.client.post<{ grant: ExtensionGrant }>('/api/admin/extensions/grants', input);
+    return response.data.grant;
+  }
+
+  async revokeExtensionGrant(grantId: string): Promise<void> {
+    await this.client.delete(`/api/admin/extensions/grants/${encodeURIComponent(grantId)}`);
+  }
+
+  async issueAgentCredential(input: { campaignId: string; label: string; expiresAt?: string | null }): Promise<{ credential: AgentCredential; token: string }> {
+    const response = await this.client.post<{ credential: AgentCredential; token: string }>('/api/agent/credentials', input);
+    return response.data;
+  }
+
+  async listAgentCredentials(): Promise<AgentCredential[]> {
+    const response = await this.client.get<{ credentials: AgentCredential[] }>('/api/agent/credentials');
+    return response.data.credentials;
+  }
+
+  async revokeAgentCredential(credentialId: string): Promise<void> {
+    await this.client.delete(`/api/agent/credentials/${encodeURIComponent(credentialId)}`);
+  }
+
+  async listPendingAgentConfirmations(): Promise<PendingAgentConfirmation[]> {
+    const response = await this.client.get<{ confirmations: PendingAgentConfirmation[] }>('/api/agent/confirmations/pending');
+    return response.data.confirmations;
+  }
+
+  async approveAgentConfirmation(confirmationId: string): Promise<{ receipt: string; expiresInSeconds: number }> {
+    const response = await this.client.post<{ receipt: string; expiresInSeconds: number }>(`/api/agent/confirmations/${encodeURIComponent(confirmationId)}/approve`);
+    return response.data;
+  }
+
+  async denyAgentConfirmation(confirmationId: string): Promise<void> {
+    await this.client.post(`/api/agent/confirmations/${encodeURIComponent(confirmationId)}/deny`);
   }
 
   // ============================================

@@ -78,6 +78,62 @@ enum InvitationStatus {
   DECLINED
 }
 
+/// Principals are deliberately generic: an extension may be granted to a
+/// human user, an agent identity, or a system worker without implying access.
+enum ExtensionPrincipalType {
+  USER
+  AGENT
+  SYSTEM
+}
+
+enum ExtensionPermission {
+  READ
+  WRITE
+  EXECUTE
+  ADMIN
+}
+
+enum AgentAuditDecision {
+  ALLOWED
+  DENIED
+  EXECUTED
+  FAILED
+}
+
+enum IdempotencyStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum OutboxEventStatus {
+  PENDING
+  CLAIMED
+  DELIVERED
+  DEAD_LETTER
+}
+
+/// Durable desired state for a reviewed local extension package. Untrusted
+/// packages never receive a row: they are rejected before persistence or code
+/// loading and will require a future sandbox host.
+enum ExtensionInstallationState {
+  INSTALLED
+  ACTIVE
+  ERROR
+}
+
+enum ExtensionInstallMode {
+  TRUSTED
+  SANDBOXED
+}
+
+enum AgentConfirmationState {
+  PENDING
+  APPROVED
+  CONSUMED
+  EXPIRED
+}
+
 // ============================================
 // USER MANAGEMENT
 // ============================================
@@ -109,7 +165,7 @@ model User {
 
   // Preferences
   rememberMe  Boolean @default(false)
-  preferences Json?   // UserPreferences shape — see backend/src/validators/userPreferences.ts
+  preferences Json? // UserPreferences shape — see backend/src/validators/userPreferences.ts
 
   // Metadata
   createdAt   DateTime  @default(now())
@@ -117,7 +173,7 @@ model User {
   lastLoginAt DateTime?
 
   // Relations
-  ownedCampaigns      Campaign[]             @relation("CampaignOwner")
+  ownedCampaigns      Campaign[]           @relation("CampaignOwner")
   campaignMemberships CampaignMembership[]
   campaignInvitations CampaignInvitation[]
   characters          Character[]
@@ -171,7 +227,7 @@ model Campaign {
   currentMap   Map?    @relation("CurrentMap", fields: [currentMapId], references: [id])
 
   // Vibe Tracker Settings
-  vibeSettings Json    // {periods: ["dawn", "day", "dusk", "night"], hues: {...}}
+  vibeSettings Json // {periods: ["dawn", "day", "dusk", "night"], hues: {...}}
   currentVibe  String? // Current time period
 
   // Spirit Layer Settings
@@ -188,17 +244,17 @@ model Campaign {
   lastPlayedAt DateTime?
 
   // Relations
-  memberships        CampaignMembership[]
-  invitations        CampaignInvitation[]
-  maps               Map[]                @relation("CampaignMaps")
-  characters         Character[]
-  messages           Message[]
-  diceRolls          DiceRoll[]
-  assets             Asset[]
-  sessions           Session[]
-  creatureTemplates  CreatureTemplate[]
-  creatureFavorites  CreatureFavorite[]
-  tokenTemplates     TokenTemplate[]
+  memberships       CampaignMembership[]
+  invitations       CampaignInvitation[]
+  maps              Map[]                @relation("CampaignMaps")
+  characters        Character[]
+  messages          Message[]
+  diceRolls         DiceRoll[]
+  assets            Asset[]
+  sessions          Session[]
+  creatureTemplates CreatureTemplate[]
+  creatureFavorites CreatureFavorite[]
+  tokenTemplates    TokenTemplate[]
 
   @@index([ownerId])
   @@index([status])
@@ -308,12 +364,12 @@ model Map {
   campaign   Campaign @relation("CampaignMaps", fields: [campaignId], references: [id], onDelete: Cascade)
 
   // Map Data
-  name     String
-  imageUrl String
-  width    Int // In grid units
-  height   Int // In grid units
+  name          String
+  imageUrl      String
+  width         Int // In grid units
+  height        Int // In grid units
   gridSize      Int    @default(50) // Pixels per grid square
-  feetPerSquare Int    @default(5)  // Feet represented by one grid square
+  feetPerSquare Int    @default(5) // Feet represented by one grid square
   diagonalRule  String @default("flat") // "flat" (D&D 5e) or "alternating" (PF2e 5/10)
 
   // Layers
@@ -326,7 +382,7 @@ model Map {
 
   // Walls & Fog of War (Phase 1/2 feature)
   wallSegments    Json    @default("[]") // Array of WallSegment objects
-  fogData         Json?                  // FogState object (null = not initialized)
+  fogData         Json? // FogState object (null = not initialized)
   lightingEnabled Boolean @default(false) // Enable dynamic lighting/raycasting
   lights          Json    @default("[]") // Array of LightSource objects
 
@@ -361,7 +417,7 @@ model Asset {
   filename     String
   originalName String
   mimeType     String
-  fileSize     Int    // In bytes
+  fileSize     Int // In bytes
   filePath     String // Relative path in storage
 
   // Metadata
@@ -441,28 +497,28 @@ model CreatureTemplate {
   id String @id @default(uuid())
 
   // Classification
-  name         String
-  gameSystem   GameSystem?
-  source       String      @default("custom") // "srd", "custom", or a homebrew source name
-  challengeRating String?  // e.g. "1/4", "5", "20"
+  name            String
+  gameSystem      GameSystem?
+  source          String      @default("custom") // "srd", "custom", or a homebrew source name
+  challengeRating String? // e.g. "1/4", "5", "20"
 
   // Creature info
-  creatureType String?     // e.g. "Medium humanoid (goblinoid)"
-  alignment    String?     // e.g. "neutral evil"
-  imageUrl     String?     // Optional token image
+  creatureType String? // e.g. "Medium humanoid (goblinoid)"
+  alignment    String? // e.g. "neutral evil"
+  imageUrl     String? // Optional token image
 
   // Full stat block (JSON — matches NpcStatBlock interface)
-  statBlock    Json
+  statBlock Json
 
   // Token placement defaults
-  size         Json        @default("{\"width\":1,\"height\":1}") // Size object
-  disposition  String      @default("hostile")                     // friendly/neutral/hostile
-  displayMode  String      @default("pog")                         // pog/top-down/full-art
+  size        Json   @default("{\"width\":1,\"height\":1}") // Size object
+  disposition String @default("hostile") // friendly/neutral/hostile
+  displayMode String @default("pog") // pog/top-down/full-art
 
   // Ownership: null = global SRD, userId = homebrew by that user
-  createdById  String?
-  campaignId   String?    // null = available globally, set = campaign-specific
-  campaign     Campaign?  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdById String?
+  campaignId  String? // null = available globally, set = campaign-specific
+  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   // Metadata
   createdAt DateTime @default(now())
@@ -487,9 +543,9 @@ model CreatureFavorite {
   creatureId String
   createdAt  DateTime @default(now())
 
-  campaign Campaign          @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  creature CreatureTemplate  @relation(fields: [creatureId], references: [id], onDelete: Cascade)
+  campaign Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creature CreatureTemplate @relation(fields: [creatureId], references: [id], onDelete: Cascade)
 
   @@unique([campaignId, userId, creatureId])
   @@index([campaignId, userId])
@@ -557,11 +613,11 @@ model SystemSettings {
   setupCompleted Boolean @default(false)
 
   // Instance Configuration
-  instanceName String  @default("CozyVTT")
-  timezone     String  @default("UTC")
+  instanceName String @default("CozyVTT")
+  timezone     String @default("UTC")
 
   // User Registration Settings
-  allowRegistration Boolean @default(false)
+  allowRegistration    Boolean @default(false)
   requireAdminApproval Boolean @default(true)
 
   // Appearance
@@ -578,4 +634,163 @@ model SystemSettings {
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ============================================
+// EXTENSION / AGENT DURABLE FOUNDATIONS
+// ============================================
+
+/// Default-deny capability grant. Absence of a row is denial. scopeCampaignId
+/// uses an empty string for global scope so the composite uniqueness guarantee
+/// works on PostgreSQL (where NULL values are otherwise distinct).
+model ExtensionGrant {
+  id              String                 @id @default(uuid())
+  principalType   ExtensionPrincipalType
+  principalId     String
+  scopeCampaignId String                 @default("")
+  extensionId     String
+  permission      ExtensionPermission
+  grantedById     String?
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@unique([principalType, principalId, scopeCampaignId, extensionId, permission])
+  @@index([principalType, principalId, scopeCampaignId, extensionId])
+  @@index([expiresAt])
+}
+
+/// The extension host's durable inventory. The package itself remains on the
+/// configured local filesystem; this table records the reviewed immutable
+/// digest, its parsed manifest, and lifecycle state across process restarts.
+model ExtensionInstallation {
+  id              String                     @id @default(uuid())
+  extensionId     String                     @unique
+  version         String
+  packagePath     String
+  packageChecksum String
+  installMode     ExtensionInstallMode       @default(TRUSTED)
+  manifestJson    Json
+  state           ExtensionInstallationState @default(INSTALLED)
+  lastError       String?
+  installedAt     DateTime                   @default(now())
+  activatedAt     DateTime?
+  updatedAt       DateTime                   @updatedAt
+
+  @@index([state])
+}
+
+/// A hash-only bearer credential used by an agent acting for one human inside
+/// one campaign. The plaintext token is issued once and never retained.
+model AgentCredential {
+  id              String    @id @default(uuid())
+  credentialHash  String    @unique
+  delegatedUserId String
+  campaignId      String
+  label           String
+  createdById     String
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  lastUsedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([delegatedUserId, campaignId])
+  @@index([expiresAt])
+}
+
+/// A human approval request created by an agent. A receipt hash is written
+/// only after the delegated user approves it, then atomically consumed once.
+model AgentConfirmation {
+  id              String                 @id @default(uuid())
+  credentialId    String
+  delegatedUserId String
+  campaignId      String
+  extensionId     String
+  commandId       String
+  inputDigest     String
+  state           AgentConfirmationState @default(PENDING)
+  receiptHash     String?                @unique
+  expiresAt       DateTime
+  approvedById    String?
+  approvedAt      DateTime?
+  consumedAt      DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([credentialId, campaignId, state, expiresAt])
+  @@index([delegatedUserId, state, expiresAt])
+}
+
+/// Immutable, value-free decision record: payloads are represented only by a
+/// digest, never persisted alongside delegated identity or agent decisions.
+model AgentAuditRecord {
+  id                String                 @id @default(uuid())
+  principalType     ExtensionPrincipalType
+  principalId       String
+  delegatedIdentity String?
+  campaignId        String?
+  extensionId       String?
+  commandType       String
+  inputDigest       String
+  decision          AgentAuditDecision
+  reasonCode        String?
+  correlationId     String?
+  createdAt         DateTime               @default(now())
+
+  @@index([principalType, principalId, createdAt])
+  @@index([campaignId, createdAt])
+  @@index([correlationId])
+}
+
+/// Replay protection and durable command completion state. The lease is only
+/// acquired by an explicit adapter operation, making it safe across workers.
+model CommandIdempotencyRecord {
+  id              String                 @id @default(uuid())
+  principalType   ExtensionPrincipalType
+  principalId     String
+  scopeCampaignId String                 @default("")
+  commandType     String
+  idempotencyKey  String
+  requestDigest   String
+  status          IdempotencyStatus      @default(PROCESSING)
+  resultDigest    String?
+  claimToken      String?
+  leaseExpiresAt  DateTime?
+  completedAt     DateTime?
+  expiresAt       DateTime
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@unique([principalType, principalId, scopeCampaignId, commandType, idempotencyKey])
+  @@index([status, leaseExpiresAt])
+  @@index([expiresAt])
+}
+
+/// Transactional outbox. claimToken + lease allows at-least-once multi-worker
+/// delivery; the original payload remains available for retry/dead-letter.
+model OutboxEvent {
+  id             String            @id @default(uuid())
+  topic          String
+  aggregateType  String
+  aggregateId    String
+  campaignId     String?
+  payload        Json
+  status         OutboxEventStatus @default(PENDING)
+  attempts       Int               @default(0)
+  availableAt    DateTime          @default(now())
+  claimedBy      String?
+  claimToken     String?
+  claimedAt      DateTime?
+  leaseExpiresAt DateTime?
+  deliveredAt    DateTime?
+  deadLetteredAt DateTime?
+  lastError      String?           @db.Text
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([status, availableAt, leaseExpiresAt])
+  @@index([campaignId, createdAt])
+  @@index([aggregateType, aggregateId])
 }

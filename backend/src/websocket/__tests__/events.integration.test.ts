@@ -10,16 +10,16 @@
  * Requires PostgreSQL at DATABASE_URL (same as the route e2e tests).
  */
 
-import { randomUUID } from 'crypto';
-import { io as ioc } from 'socket.io-client';
-import { prisma } from '../../config/database';
-import { clearState as clearCombatState } from '../initiativeState';
+import { randomUUID } from "crypto";
+import { io as ioc } from "socket.io-client";
+import { prisma } from "../../config/database";
+import { clearState as clearCombatState } from "../initiativeState";
 import {
   createWsTestServer,
   waitForEvent,
   expectNoEvent,
   WsTestServer,
-} from '../../__tests__/helpers/websocket-test-server';
+} from "../../__tests__/helpers/websocket-test-server";
 
 jest.setTimeout(20000);
 
@@ -49,7 +49,7 @@ let outsiderCookie: string;
 
 function seedTokens() {
   const base = {
-    imageUrl: '/api/assets/tokens/placeholder',
+    imageUrl: "/api/assets/tokens/placeholder",
     size: { width: 1, height: 1 },
     visible: true,
     rotation: 0,
@@ -57,17 +57,38 @@ function seedTokens() {
     metadata: {} as Record<string, unknown>,
   };
   return [
-    { ...base, id: PLAYER_TOKEN_ID, name: 'Hero', position: { x: 5, y: 5 }, layer: 'token', controlledBy: player1Id },
-    { ...base, id: DM_TOKEN_ID, name: 'Goblin', position: { x: 10, y: 10 }, layer: 'token', controlledBy: null },
-    { ...base, id: SPIRIT_TOKEN_ID, name: 'Ghost', position: { x: 15, y: 15 }, layer: 'spirit', controlledBy: null },
+    {
+      ...base,
+      id: PLAYER_TOKEN_ID,
+      name: "Hero",
+      position: { x: 5, y: 5 },
+      layer: "token",
+      controlledBy: player1Id,
+    },
+    {
+      ...base,
+      id: DM_TOKEN_ID,
+      name: "Goblin",
+      position: { x: 10, y: 10 },
+      layer: "token",
+      controlledBy: null,
+    },
+    {
+      ...base,
+      id: SPIRIT_TOKEN_ID,
+      name: "Ghost",
+      position: { x: 15, y: 15 },
+      layer: "spirit",
+      controlledBy: null,
+    },
   ];
 }
 
 function seedWalls() {
   return [
-    { id: WALL_ID, x1: 0, y1: 0, x2: 5, y2: 0, type: 'wall' },
-    { id: DOOR_CLOSED_ID, x1: 5, y1: 0, x2: 6, y2: 0, type: 'door-closed' },
-    { id: DOOR_LOCKED_ID, x1: 6, y1: 0, x2: 7, y2: 0, type: 'door-locked' },
+    { id: WALL_ID, x1: 0, y1: 0, x2: 5, y2: 0, type: "wall" },
+    { id: DOOR_CLOSED_ID, x1: 5, y1: 0, x2: 6, y2: 0, type: "door-closed" },
+    { id: DOOR_LOCKED_ID, x1: 6, y1: 0, x2: 7, y2: 0, type: "door-locked" },
   ];
 }
 
@@ -84,7 +105,12 @@ async function resetGameState() {
   });
   await prisma.campaign.update({
     where: { id: campaignId },
-    data: { spiritLayerEnabled: false, chatCooldownEnabled: false },
+    data: {
+      spiritLayerEnabled: false,
+      chatCooldownEnabled: false,
+      currentVibe: null,
+      vibeSettings: {},
+    },
   });
   clearCombatState(campaignId);
 }
@@ -92,15 +118,15 @@ async function resetGameState() {
 beforeAll(async () => {
   // Seed users
   const [dm, player1, player2, outsider] = await Promise.all(
-    ['dm', 'player1', 'player2', 'outsider'].map((name) =>
+    ["dm", "player1", "player2", "outsider"].map((name) =>
       prisma.user.create({
         data: {
           email: email(name),
-          passwordHash: 'not-used-by-socket-auth',
+          passwordHash: "not-used-by-socket-auth",
           displayName: `WS ${name}`,
         },
-      })
-    )
+      }),
+    ),
   );
   dmId = dm.id;
   player1Id = player1.id;
@@ -120,9 +146,9 @@ beforeAll(async () => {
   const map = await prisma.map.create({
     data: {
       campaignId,
-      name: 'WS Test Map',
-      imageUrl: '/api/assets/maps/placeholder',
-      baseLayerUrl: '/api/assets/maps/placeholder',
+      name: "WS Test Map",
+      imageUrl: "/api/assets/maps/placeholder",
+      baseLayerUrl: "/api/assets/maps/placeholder",
       width: 30,
       height: 30,
       gridSize: 50,
@@ -133,13 +159,16 @@ beforeAll(async () => {
   });
   mapId = map.id;
 
-  await prisma.campaign.update({ where: { id: campaignId }, data: { currentMapId: mapId } });
+  await prisma.campaign.update({
+    where: { id: campaignId },
+    data: { currentMapId: mapId },
+  });
 
   await prisma.campaignMembership.createMany({
     data: [
-      { userId: dmId, campaignId, role: 'DM', characterIds: [] },
-      { userId: player1Id, campaignId, role: 'PLAYER', characterIds: [] },
-      { userId: player2Id, campaignId, role: 'PLAYER', characterIds: [] },
+      { userId: dmId, campaignId, role: "DM", characterIds: [] },
+      { userId: player1Id, campaignId, role: "PLAYER", characterIds: [] },
+      { userId: player2Id, campaignId, role: "PLAYER", characterIds: [] },
     ],
   });
 
@@ -156,7 +185,9 @@ afterAll(async () => {
   await server?.close();
   // Campaign cascade removes memberships, maps, messages, dice rolls
   await prisma.campaign.deleteMany({ where: { id: campaignId } });
-  await prisma.user.deleteMany({ where: { id: { in: [dmId, player1Id, player2Id, outsiderId] } } });
+  await prisma.user.deleteMany({
+    where: { id: { in: [dmId, player1Id, player2Id, outsiderId] } },
+  });
   await prisma.$disconnect();
 });
 
@@ -166,65 +197,150 @@ beforeEach(async () => {
 
 // ── 1. Connection & campaign authentication ─────────────────────────────────
 
-describe('connection & authentication', () => {
-  it('rejects a socket with no session', async () => {
-    const rejection = await new Promise<{ message: string }>((resolve, reject) => {
-      const client = ioc(server.url, {
-        transports: ['websocket'],
-        forceNew: true,
-        reconnection: false,
-      });
-      const timer = setTimeout(() => reject(new Error('no rejection received')), 5000);
-      client.on('error', (err: { message: string }) => {
-        clearTimeout(timer);
-        client.disconnect();
-        resolve(err);
-      });
-      client.on('connected', () => {
-        clearTimeout(timer);
-        client.disconnect();
-        reject(new Error('unauthenticated socket received "connected"'));
-      });
-    });
-    expect(rejection.message).toBe('Unauthorized');
+describe("connection & authentication", () => {
+  it("rejects a socket with no session", async () => {
+    const rejection = await new Promise<{ message: string }>(
+      (resolve, reject) => {
+        const client = ioc(server.url, {
+          transports: ["websocket"],
+          forceNew: true,
+          reconnection: false,
+        });
+        const timer = setTimeout(
+          () => reject(new Error("no rejection received")),
+          5000,
+        );
+        client.on("error", (err: { message: string }) => {
+          clearTimeout(timer);
+          client.disconnect();
+          resolve(err);
+        });
+        client.on("connected", () => {
+          clearTimeout(timer);
+          client.disconnect();
+          reject(new Error('unauthenticated socket received "connected"'));
+        });
+      },
+    );
+    expect(rejection.message).toBe("Unauthorized");
   });
 
-  it('rejects campaign authentication for a non-member', async () => {
+  it("rejects campaign authentication for a non-member", async () => {
     const client = await server.connectClient(outsiderCookie);
-    const error = waitForEvent<{ message: string }>(client, 'error');
-    client.emit('authenticate', { campaignId });
-    expect((await error).message).toBe('You are not a member of this campaign');
+    const error = waitForEvent<{ message: string }>(client, "error");
+    client.emit("authenticate", { campaignId });
+    expect((await error).message).toBe("You are not a member of this campaign");
     client.disconnect();
   });
 
-  it('authenticates a member and reports their role', async () => {
+  it("authenticates a member and reports their role", async () => {
     const client = await server.connectClient(player1Cookie);
-    const authed = waitForEvent<{ userId: string; campaignId: string; role: string }>(client, 'authenticated');
-    client.emit('authenticate', { campaignId });
+    const authed = waitForEvent<{
+      userId: string;
+      campaignId: string;
+      role: string;
+    }>(client, "authenticated");
+    client.emit("authenticate", { campaignId });
     const payload = await authed;
     expect(payload.userId).toBe(player1Id);
     expect(payload.campaignId).toBe(campaignId);
-    expect(payload.role).toBe('PLAYER');
+    expect(payload.role).toBe("PLAYER");
     client.disconnect();
   });
 });
 
-// ── 2. Token movement ────────────────────────────────────────────────────────
+// ── 2. Campaign realtime controls ─────────────────────────────────────────
 
-describe('token movement', () => {
-  it('broadcasts and persists a player moving their own token', async () => {
+describe("campaign realtime controls", () => {
+  it("persists and broadcasts each shared control command exactly once", async () => {
+    const dm = await server.connectAndAuth(dmCookie, campaignId);
+    const player = await server.connectAndAuth(player1Cookie, campaignId);
+
+    let effectEventCount = 0;
+    player.on("atmosphere.effect.updated", () => {
+      effectEventCount += 1;
+    });
+    const effectUpdated = waitForEvent<{
+      effect: string | null;
+      setBy: string;
+    }>(player, "atmosphere.effect.updated");
+    dm.emit("atmosphere.effect.set", { effect: "rain" });
+    expect(await effectUpdated).toMatchObject({ effect: "rain", setBy: dmId });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(effectEventCount).toBe(1);
+
+    const audioUpdated = waitForEvent<{
+      assetId: string | null;
+      audioUrl: string | null;
+      volume: number;
+      loop: boolean;
+      setBy: string;
+    }>(player, "atmosphere.audio.updated");
+    dm.emit("atmosphere.audio.set", {
+      assetId: null,
+      volume: 0.2,
+      loop: false,
+    });
+    expect(await audioUpdated).toMatchObject({
+      assetId: null,
+      audioUrl: null,
+      volume: 0.2,
+      loop: false,
+      setBy: dmId,
+    });
+
+    const vibeUpdated = waitForEvent<{
+      period: string;
+      updatedBy: string;
+    }>(player, "vibe.updated");
+    dm.emit("vibe.update", { period: "dusk" });
+    expect(await vibeUpdated).toMatchObject({
+      period: "dusk",
+      updatedBy: dmId,
+    });
+
+    const campaign = await prisma.campaign.findUniqueOrThrow({
+      where: { id: campaignId },
+      select: { currentVibe: true, vibeSettings: true },
+    });
+    expect(campaign.currentVibe).toBe("dusk");
+    expect(campaign.vibeSettings).toMatchObject({
+      atmosphereEffect: "rain",
+      atmosphereAudio: null,
+    });
+
+    dm.disconnect();
+    player.disconnect();
+  });
+});
+
+// ── 3. Token movement ────────────────────────────────────────────────────────
+
+describe("token movement", () => {
+  it("broadcasts and persists a player moving their own token", async () => {
     const player = await server.connectAndAuth(player1Cookie, campaignId);
     const dm = await server.connectAndAuth(dmCookie, campaignId);
 
-    const dmSees = waitForEvent<{ tokenId: string; x: number; y: number }>(dm, 'token.moved');
-    player.emit('token.move.end', { tokenId: PLAYER_TOKEN_ID, mapId, x: 8, y: 9 });
+    const dmSees = waitForEvent<{ tokenId: string; x: number; y: number }>(
+      dm,
+      "token.moved",
+    );
+    player.emit("token.move.end", {
+      tokenId: PLAYER_TOKEN_ID,
+      mapId,
+      x: 8,
+      y: 9,
+    });
 
     const moved = await dmSees;
     expect(moved.tokenId).toBe(PLAYER_TOKEN_ID);
     expect(moved.x).toBe(8);
     expect(moved.y).toBe(9);
 
-    const map = await prisma.map.findUniqueOrThrow({ where: { id: mapId }, select: { tokens: true } });
+    const map = await prisma.map.findUniqueOrThrow({
+      where: { id: mapId },
+      select: { tokens: true },
+    });
     const token = (map.tokens as any[]).find((t) => t.id === PLAYER_TOKEN_ID);
     expect(token.position).toEqual({ x: 8, y: 9 });
 
@@ -232,18 +348,28 @@ describe('token movement', () => {
     dm.disconnect();
   });
 
-  it('denies a player moving a token they do not control, without broadcasting', async () => {
+  it("denies a player moving a token they do not control, without broadcasting", async () => {
     const player = await server.connectAndAuth(player1Cookie, campaignId);
     const dm = await server.connectAndAuth(dmCookie, campaignId);
 
-    const denial = waitForEvent<{ message: string }>(player, 'error');
-    const silence = expectNoEvent(dm, 'token.moved');
-    player.emit('token.move.end', { tokenId: DM_TOKEN_ID, mapId, x: 12, y: 12 });
+    const denial = waitForEvent<{ message: string }>(player, "error");
+    const silence = expectNoEvent(dm, "token.moved");
+    player.emit("token.move.end", {
+      tokenId: DM_TOKEN_ID,
+      mapId,
+      x: 12,
+      y: 12,
+    });
 
-    expect((await denial).message).toBe('You do not have permission to move this token');
+    expect((await denial).message).toBe(
+      "You do not have permission to move this token",
+    );
     await silence;
 
-    const map = await prisma.map.findUniqueOrThrow({ where: { id: mapId }, select: { tokens: true } });
+    const map = await prisma.map.findUniqueOrThrow({
+      where: { id: mapId },
+      select: { tokens: true },
+    });
     const token = (map.tokens as any[]).find((t) => t.id === DM_TOKEN_ID);
     expect(token.position).toEqual({ x: 10, y: 10 });
 
@@ -251,191 +377,263 @@ describe('token movement', () => {
     dm.disconnect();
   });
 
-  it('rejects out-of-bounds positions', async () => {
+  it("rejects out-of-bounds positions", async () => {
     const player = await server.connectAndAuth(player1Cookie, campaignId);
-    const denial = waitForEvent<{ message: string }>(player, 'error');
-    player.emit('token.move.end', { tokenId: PLAYER_TOKEN_ID, mapId, x: 999, y: 5 });
-    expect((await denial).message).toBe('Token position out of bounds');
+    const denial = waitForEvent<{ message: string }>(player, "error");
+    player.emit("token.move.end", {
+      tokenId: PLAYER_TOKEN_ID,
+      mapId,
+      x: 999,
+      y: 5,
+    });
+    expect((await denial).message).toBe("Token position out of bounds");
     player.disconnect();
   });
 });
 
 // ── 3. Walls & doors ─────────────────────────────────────────────────────────
 
-describe('walls & doors', () => {
-  it('DM can add a wall segment: broadcast + persisted', async () => {
+describe("walls & doors", () => {
+  it("DM can add a wall segment: broadcast + persisted", async () => {
     const dm = await server.connectAndAuth(dmCookie, campaignId);
     const player = await server.connectAndAuth(player1Cookie, campaignId);
 
-    const segment = { id: randomUUID(), x1: 1, y1: 1, x2: 2, y2: 2, type: 'wall' };
-    const playerSees = waitForEvent<{ mapId: string; segment: any }>(player, 'wall:added');
-    dm.emit('wall:add', { mapId, segment });
+    const segment = {
+      id: randomUUID(),
+      x1: 1,
+      y1: 1,
+      x2: 2,
+      y2: 2,
+      type: "wall",
+    };
+    const playerSees = waitForEvent<{ mapId: string; segment: any }>(
+      player,
+      "wall:added",
+    );
+    dm.emit("wall:add", { mapId, segment });
 
     expect((await playerSees).segment).toEqual(segment);
 
-    const map = await prisma.map.findUniqueOrThrow({ where: { id: mapId }, select: { wallSegments: true } });
-    expect((map.wallSegments as any[]).some((s) => s.id === segment.id)).toBe(true);
+    const map = await prisma.map.findUniqueOrThrow({
+      where: { id: mapId },
+      select: { wallSegments: true },
+    });
+    expect((map.wallSegments as any[]).some((s) => s.id === segment.id)).toBe(
+      true,
+    );
 
     dm.disconnect();
     player.disconnect();
   });
 
-  it('rejects a Zod-invalid wall segment without persisting', async () => {
+  it("rejects a Zod-invalid wall segment without persisting", async () => {
     const dm = await server.connectAndAuth(dmCookie, campaignId);
-    const denial = waitForEvent<{ message: string }>(dm, 'error');
-    dm.emit('wall:add', { mapId, segment: { id: randomUUID(), x1: 1, y1: 1, x2: 2, y2: 2, type: 'force-field' } });
+    const denial = waitForEvent<{ message: string }>(dm, "error");
+    dm.emit("wall:add", {
+      mapId,
+      segment: {
+        id: randomUUID(),
+        x1: 1,
+        y1: 1,
+        x2: 2,
+        y2: 2,
+        type: "force-field",
+      },
+    });
     expect((await denial).message).toBeTruthy();
 
-    const map = await prisma.map.findUniqueOrThrow({ where: { id: mapId }, select: { wallSegments: true } });
+    const map = await prisma.map.findUniqueOrThrow({
+      where: { id: mapId },
+      select: { wallSegments: true },
+    });
     expect(map.wallSegments as any[]).toHaveLength(seedWalls().length);
     dm.disconnect();
   });
 
-  it('denies wall:add from a PLAYER', async () => {
+  it("denies wall:add from a PLAYER", async () => {
     const player = await server.connectAndAuth(player1Cookie, campaignId);
-    const denial = waitForEvent<{ message: string }>(player, 'error');
-    player.emit('wall:add', { mapId, segment: { id: randomUUID(), x1: 1, y1: 1, x2: 2, y2: 2, type: 'wall' } });
-    expect((await denial).message).toBe('Only DMs can add wall segments');
+    const denial = waitForEvent<{ message: string }>(player, "error");
+    player.emit("wall:add", {
+      mapId,
+      segment: { id: randomUUID(), x1: 1, y1: 1, x2: 2, y2: 2, type: "wall" },
+    });
+    expect((await denial).message).toBe("Only DMs can add wall segments");
     player.disconnect();
   });
 
-  it('a player can toggle an unlocked door', async () => {
+  it("a player can toggle an unlocked door", async () => {
     const player = await server.connectAndAuth(player1Cookie, campaignId);
     const dm = await server.connectAndAuth(dmCookie, campaignId);
 
-    const opened = { ...seedWalls()[1], type: 'door-open' };
-    const dmSees = waitForEvent<{ segment: any }>(dm, 'wall:updated');
-    player.emit('wall:update', { mapId, segment: opened });
+    const opened = { ...seedWalls()[1], type: "door-open" };
+    const dmSees = waitForEvent<{ segment: any }>(dm, "wall:updated");
+    player.emit("wall:update", { mapId, segment: opened });
 
-    expect((await dmSees).segment.type).toBe('door-open');
+    expect((await dmSees).segment.type).toBe("door-open");
     player.disconnect();
     dm.disconnect();
   });
 
-  it('a player cannot open a locked door', async () => {
+  it("a player cannot open a locked door", async () => {
     const player = await server.connectAndAuth(player1Cookie, campaignId);
-    const denial = waitForEvent<{ message: string }>(player, 'error');
-    player.emit('wall:update', { mapId, segment: { ...seedWalls()[2], type: 'door-open' } });
-    expect((await denial).message).toBe('That door is locked');
+    const denial = waitForEvent<{ message: string }>(player, "error");
+    player.emit("wall:update", {
+      mapId,
+      segment: { ...seedWalls()[2], type: "door-open" },
+    });
+    expect((await denial).message).toBe("That door is locked");
     player.disconnect();
   });
 
-  it('a player cannot convert a plain wall into a door', async () => {
+  it("a player cannot convert a plain wall into a door", async () => {
     const player = await server.connectAndAuth(player1Cookie, campaignId);
-    const denial = waitForEvent<{ message: string }>(player, 'error');
-    player.emit('wall:update', { mapId, segment: { ...seedWalls()[0], type: 'door-open' } });
-    expect((await denial).message).toBe('Players may only toggle doors');
+    const denial = waitForEvent<{ message: string }>(player, "error");
+    player.emit("wall:update", {
+      mapId,
+      segment: { ...seedWalls()[0], type: "door-open" },
+    });
+    expect((await denial).message).toBe("Players may only toggle doors");
     player.disconnect();
   });
 });
 
 // ── 4. Fog of war ────────────────────────────────────────────────────────────
 
-describe('fog of war', () => {
-  it('DM fog reveal: DM gets full state, player gets revealed cells, state persists', async () => {
+describe("fog of war", () => {
+  it("DM fog reveal: DM gets full state, player gets revealed cells, state persists", async () => {
     const dm = await server.connectAndAuth(dmCookie, campaignId);
     const player = await server.connectAndAuth(player1Cookie, campaignId);
 
-    const dmSees = waitForEvent<{ mapId: string; fogState: any }>(dm, 'fog:updated');
-    const playerSees = waitForEvent<{ revealedCells: number[]; fogCols: number; fogRows: number }>(player, 'fog:cells');
-    dm.emit('fog:operation', { mapId, operation: { op: 'reveal', cells: [0, 1, 2] } });
+    const dmSees = waitForEvent<{ mapId: string; fogState: any }>(
+      dm,
+      "fog:updated",
+    );
+    const playerSees = waitForEvent<{
+      revealedCells: number[];
+      fogCols: number;
+      fogRows: number;
+    }>(player, "fog:cells");
+    dm.emit("fog:operation", {
+      mapId,
+      operation: { op: "reveal", cells: [0, 1, 2] },
+    });
 
     const dmPayload = await dmSees;
     expect(dmPayload.fogState.revealed[0]).toBe(true);
 
     const playerPayload = await playerSees;
-    expect(playerPayload.revealedCells).toEqual(expect.arrayContaining([0, 1, 2]));
+    expect(playerPayload.revealedCells).toEqual(
+      expect.arrayContaining([0, 1, 2]),
+    );
     expect(playerPayload.fogCols).toBe(30);
 
-    const map = await prisma.map.findUniqueOrThrow({ where: { id: mapId }, select: { fogData: true } });
+    const map = await prisma.map.findUniqueOrThrow({
+      where: { id: mapId },
+      select: { fogData: true },
+    });
     expect((map.fogData as any).revealed[1]).toBe(true);
 
     dm.disconnect();
     player.disconnect();
   });
 
-  it('denies fog operations from a PLAYER', async () => {
+  it("denies fog operations from a PLAYER", async () => {
     const player = await server.connectAndAuth(player1Cookie, campaignId);
-    const denial = waitForEvent<{ message: string }>(player, 'error');
-    player.emit('fog:operation', { mapId, operation: { op: 'reveal_all' } });
-    expect((await denial).message).toBe('Only DMs can modify fog of war');
+    const denial = waitForEvent<{ message: string }>(player, "error");
+    player.emit("fog:operation", { mapId, operation: { op: "reveal_all" } });
+    expect((await denial).message).toBe("Only DMs can modify fog of war");
     player.disconnect();
   });
 });
 
 // ── 5. Lights ────────────────────────────────────────────────────────────────
 
-describe('lights', () => {
+describe("lights", () => {
   const validLight = () => ({
     id: randomUUID(),
     x: 10,
     y: 10,
     brightRadius: 4,
     dimRadius: 8,
-    color: '#ffcc88',
+    color: "#ffcc88",
     enabled: true,
   });
 
-  it('DM can add a light: broadcast + persisted', async () => {
+  it("DM can add a light: broadcast + persisted", async () => {
     const dm = await server.connectAndAuth(dmCookie, campaignId);
     const player = await server.connectAndAuth(player1Cookie, campaignId);
 
     const light = validLight();
-    const playerSees = waitForEvent<{ light: any }>(player, 'light:added');
-    dm.emit('light:add', { mapId, light });
+    const playerSees = waitForEvent<{ light: any }>(player, "light:added");
+    dm.emit("light:add", { mapId, light });
     expect((await playerSees).light).toEqual(light);
 
-    const map = await prisma.map.findUniqueOrThrow({ where: { id: mapId }, select: { lights: true } });
+    const map = await prisma.map.findUniqueOrThrow({
+      where: { id: mapId },
+      select: { lights: true },
+    });
     expect((map.lights as any[]).some((l) => l.id === light.id)).toBe(true);
 
     dm.disconnect();
     player.disconnect();
   });
 
-  it('rejects a light with dimRadius < brightRadius', async () => {
+  it("rejects a light with dimRadius < brightRadius", async () => {
     const dm = await server.connectAndAuth(dmCookie, campaignId);
-    const denial = waitForEvent<{ message: string }>(dm, 'error');
-    dm.emit('light:add', { mapId, light: { ...validLight(), brightRadius: 10, dimRadius: 5 } });
-    expect((await denial).message).toContain('dimRadius');
+    const denial = waitForEvent<{ message: string }>(dm, "error");
+    dm.emit("light:add", {
+      mapId,
+      light: { ...validLight(), brightRadius: 10, dimRadius: 5 },
+    });
+    expect((await denial).message).toContain("dimRadius");
     dm.disconnect();
   });
 
-  it('denies light:add from a PLAYER', async () => {
+  it("denies light:add from a PLAYER", async () => {
     const player = await server.connectAndAuth(player1Cookie, campaignId);
-    const denial = waitForEvent<{ message: string }>(player, 'error');
-    player.emit('light:add', { mapId, light: validLight() });
-    expect((await denial).message).toBe('Only DMs can add light sources');
+    const denial = waitForEvent<{ message: string }>(player, "error");
+    player.emit("light:add", { mapId, light: validLight() });
+    expect((await denial).message).toBe("Only DMs can add light sources");
     player.disconnect();
   });
 });
 
 // ── 6. Initiative ────────────────────────────────────────────────────────────
 
-describe('initiative', () => {
-  it('denies initiative mutations from a PLAYER', async () => {
+describe("initiative", () => {
+  it("denies initiative mutations from a PLAYER", async () => {
     const player = await server.connectAndAuth(player1Cookie, campaignId);
-    const denial = waitForEvent<{ message: string }>(player, 'error');
-    player.emit('initiative.add', { tokenId: PLAYER_TOKEN_ID, mapId });
-    expect((await denial).message).toBe('Only the DM can modify initiative');
+    const denial = waitForEvent<{ message: string }>(player, "error");
+    player.emit("initiative.add", { tokenId: PLAYER_TOKEN_ID, mapId });
+    expect((await denial).message).toBe("Only the DM can modify initiative");
     player.disconnect();
   });
 
-  it('DM adds a combatant and sets initiative: state broadcast + token persisted', async () => {
+  it("DM adds a combatant and sets initiative: state broadcast + token persisted", async () => {
     const dm = await server.connectAndAuth(dmCookie, campaignId);
     const player = await server.connectAndAuth(player1Cookie, campaignId);
 
-    const playerSeesAdd = waitForEvent<{ combatants: any[] }>(player, 'initiative.state');
-    dm.emit('initiative.add', { tokenId: PLAYER_TOKEN_ID, mapId });
+    const playerSeesAdd = waitForEvent<{ combatants: any[] }>(
+      player,
+      "initiative.state",
+    );
+    dm.emit("initiative.add", { tokenId: PLAYER_TOKEN_ID, mapId });
     const stateAfterAdd = await playerSeesAdd;
     expect(stateAfterAdd.combatants).toHaveLength(1);
     expect(stateAfterAdd.combatants[0].tokenId).toBe(PLAYER_TOKEN_ID);
 
-    const playerSeesSet = waitForEvent<{ combatants: any[] }>(player, 'initiative.state');
-    dm.emit('initiative.set', { tokenId: PLAYER_TOKEN_ID, mapId, value: 17 });
+    const playerSeesSet = waitForEvent<{ combatants: any[] }>(
+      player,
+      "initiative.state",
+    );
+    dm.emit("initiative.set", { tokenId: PLAYER_TOKEN_ID, mapId, value: 17 });
     const stateAfterSet = await playerSeesSet;
     expect(stateAfterSet.combatants[0].initiative).toBe(17);
 
-    const map = await prisma.map.findUniqueOrThrow({ where: { id: mapId }, select: { tokens: true } });
+    const map = await prisma.map.findUniqueOrThrow({
+      where: { id: mapId },
+      select: { tokens: true },
+    });
     const token = (map.tokens as any[]).find((t) => t.id === PLAYER_TOKEN_ID);
     expect(token.initiative).toBe(17);
 
@@ -443,37 +641,92 @@ describe('initiative', () => {
     player.disconnect();
   });
 
-  it('preserves the initiative roll and combat-control wire contracts', async () => {
+  it("preserves the initiative roll and combat-control wire contracts", async () => {
     const dm = await server.connectAndAuth(dmCookie, campaignId);
     const player = await server.connectAndAuth(player1Cookie, campaignId);
 
-    let stateEvent: Promise<any> = waitForEvent<{ combatants: any[] }>(player, 'initiative.state');
-    dm.emit('initiative.add', { tokenId: PLAYER_TOKEN_ID, mapId });
+    let stateEvent: Promise<any> = waitForEvent<{ combatants: any[] }>(
+      player,
+      "initiative.state",
+    );
+    dm.emit("initiative.add", { tokenId: PLAYER_TOKEN_ID, mapId });
     await stateEvent;
-    stateEvent = waitForEvent<{ combatants: any[] }>(player, 'initiative.state');
-    dm.emit('initiative.add', { tokenId: DM_TOKEN_ID, mapId });
+    stateEvent = waitForEvent<{ combatants: any[] }>(
+      player,
+      "initiative.state",
+    );
+    dm.emit("initiative.add", { tokenId: DM_TOKEN_ID, mapId });
     await stateEvent;
 
-    const rolled = waitForEvent<{ purpose: string; secret: boolean; result: number }>(player, 'dice.rolled');
-    stateEvent = waitForEvent<{ combatants: any[] }>(player, 'initiative.state');
-    dm.emit('initiative.roll', { tokenId: DM_TOKEN_ID, mapId, expression: '1d20', characterName: 'Goblin' });
-    expect((await rolled)).toMatchObject({ purpose: 'Goblin Initiative', secret: false });
-    expect((await stateEvent).combatants).toEqual(expect.arrayContaining([expect.objectContaining({ tokenId: DM_TOKEN_ID })]));
+    const rolled = waitForEvent<{
+      purpose: string;
+      secret: boolean;
+      result: number;
+    }>(player, "dice.rolled");
+    stateEvent = waitForEvent<{ combatants: any[] }>(
+      player,
+      "initiative.state",
+    );
+    dm.emit("initiative.roll", {
+      tokenId: DM_TOKEN_ID,
+      mapId,
+      expression: "1d20",
+      characterName: "Goblin",
+    });
+    expect(await rolled).toMatchObject({
+      purpose: "Goblin Initiative",
+      secret: false,
+    });
+    expect((await stateEvent).combatants).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ tokenId: DM_TOKEN_ID }),
+      ]),
+    );
 
-    stateEvent = waitForEvent<{ combatants: any[] }>(player, 'initiative.state');
-    dm.emit('initiative.reorder', { orderedTokenIds: [DM_TOKEN_ID, PLAYER_TOKEN_ID] });
-    expect((await stateEvent).combatants.map((combatant: { tokenId: string }) => combatant.tokenId)).toEqual([DM_TOKEN_ID, PLAYER_TOKEN_ID]);
+    stateEvent = waitForEvent<{ combatants: any[] }>(
+      player,
+      "initiative.state",
+    );
+    dm.emit("initiative.reorder", {
+      orderedTokenIds: [DM_TOKEN_ID, PLAYER_TOKEN_ID],
+    });
+    expect(
+      (await stateEvent).combatants.map(
+        (combatant: { tokenId: string }) => combatant.tokenId,
+      ),
+    ).toEqual([DM_TOKEN_ID, PLAYER_TOKEN_ID]);
 
-    stateEvent = waitForEvent<{ active: boolean; round: number; currentTokenId: string }>(player, 'initiative.state');
-    dm.emit('initiative.start');
-    expect(await stateEvent).toMatchObject({ active: true, round: 1, currentTokenId: DM_TOKEN_ID });
-    stateEvent = waitForEvent<{ currentTokenId: string }>(player, 'initiative.state');
-    dm.emit('initiative.next');
+    stateEvent = waitForEvent<{
+      active: boolean;
+      round: number;
+      currentTokenId: string;
+    }>(player, "initiative.state");
+    dm.emit("initiative.start");
+    expect(await stateEvent).toMatchObject({
+      active: true,
+      round: 1,
+      currentTokenId: DM_TOKEN_ID,
+    });
+    stateEvent = waitForEvent<{ currentTokenId: string }>(
+      player,
+      "initiative.state",
+    );
+    dm.emit("initiative.next");
     expect((await stateEvent).currentTokenId).toBe(PLAYER_TOKEN_ID);
 
-    stateEvent = waitForEvent<{ combatants: any[]; active: boolean; round: number; currentTokenId: string | null }>(player, 'initiative.state');
-    dm.emit('initiative.end');
-    expect(await stateEvent).toEqual({ active: false, round: 0, currentTokenId: null, combatants: [] });
+    stateEvent = waitForEvent<{
+      combatants: any[];
+      active: boolean;
+      round: number;
+      currentTokenId: string | null;
+    }>(player, "initiative.state");
+    dm.emit("initiative.end");
+    expect(await stateEvent).toEqual({
+      active: false,
+      round: 0,
+      currentTokenId: null,
+      combatants: [],
+    });
 
     dm.disconnect();
     player.disconnect();
@@ -482,95 +735,117 @@ describe('initiative', () => {
 
 // ── 7. Chat ──────────────────────────────────────────────────────────────────
 
-describe('chat', () => {
-  it('broadcasts and persists a chat message', async () => {
+describe("chat", () => {
+  it("broadcasts and persists a chat message", async () => {
     const player = await server.connectAndAuth(player1Cookie, campaignId);
     const dm = await server.connectAndAuth(dmCookie, campaignId);
 
-    const dmSees = waitForEvent<{ id: string; userId: string; userName: string; content: string; type: string }>(dm, 'chat.message');
-    player.emit('chat.message', { content: 'Hello from the integration test', type: 'PLAYER' });
+    const dmSees = waitForEvent<{
+      id: string;
+      userId: string;
+      userName: string;
+      content: string;
+      type: string;
+    }>(dm, "chat.message");
+    player.emit("chat.message", {
+      content: "Hello from the integration test",
+      type: "PLAYER",
+    });
 
     const msg = await dmSees;
     expect(msg.userId).toBe(player1Id);
-    expect(msg.content).toBe('Hello from the integration test');
-    expect(msg.type).toBe('PLAYER');
+    expect(msg.content).toBe("Hello from the integration test");
+    expect(msg.type).toBe("PLAYER");
 
     const row = await prisma.message.findUnique({ where: { id: msg.id } });
-    expect(row?.content).toBe('Hello from the integration test');
+    expect(row?.content).toBe("Hello from the integration test");
 
     player.disconnect();
     dm.disconnect();
   });
 
-  it('rejects an invalid message type', async () => {
+  it("rejects an invalid message type", async () => {
     const player = await server.connectAndAuth(player1Cookie, campaignId);
-    const denial = waitForEvent<{ message: string }>(player, 'error');
-    player.emit('chat.message', { content: 'hi', type: 'SYSTEM' });
-    expect((await denial).message).toBe('Invalid message type. Must be PLAYER or DM.');
+    const denial = waitForEvent<{ message: string }>(player, "error");
+    player.emit("chat.message", { content: "hi", type: "SYSTEM" });
+    expect((await denial).message).toBe(
+      "Invalid message type. Must be PLAYER or DM.",
+    );
     player.disconnect();
   });
 
-  it('enforces the campaign chat cooldown', async () => {
+  it("enforces the campaign chat cooldown", async () => {
     await prisma.campaign.update({
       where: { id: campaignId },
       data: { chatCooldownEnabled: true, chatCooldownSeconds: 30 },
     });
 
     const player = await server.connectAndAuth(player2Cookie, campaignId);
-    const first = waitForEvent(player, 'chat.message');
-    player.emit('chat.message', { content: 'first', type: 'PLAYER' });
+    const first = waitForEvent(player, "chat.message");
+    player.emit("chat.message", { content: "first", type: "PLAYER" });
     await first;
 
-    const denial = waitForEvent<{ message: string }>(player, 'error');
-    player.emit('chat.message', { content: 'second too fast', type: 'PLAYER' });
-    expect((await denial).message).toContain('Rate limit');
+    const denial = waitForEvent<{ message: string }>(player, "error");
+    player.emit("chat.message", { content: "second too fast", type: "PLAYER" });
+    expect((await denial).message).toContain("Rate limit");
     player.disconnect();
   });
 });
 
 // ── 8. Dice ──────────────────────────────────────────────────────────────────
 
-describe('dice', () => {
-  it('broadcasts and persists a dice roll', async () => {
+describe("dice", () => {
+  it("broadcasts and persists a dice roll", async () => {
     const player = await server.connectAndAuth(player1Cookie, campaignId);
     const dm = await server.connectAndAuth(dmCookie, campaignId);
 
-    const dmSees = waitForEvent<{ userId: string; expression: string; result: number }>(dm, 'dice.rolled');
-    player.emit('dice.roll', { expression: '1d20' });
+    const dmSees = waitForEvent<{
+      userId: string;
+      expression: string;
+      result: number;
+    }>(dm, "dice.rolled");
+    player.emit("dice.roll", { expression: "1d20" });
 
     const roll = await dmSees;
     expect(roll.userId).toBe(player1Id);
-    expect(roll.expression).toBe('1d20');
+    expect(roll.expression).toBe("1d20");
     expect(roll.result).toBeGreaterThanOrEqual(1);
     expect(roll.result).toBeLessThanOrEqual(20);
 
-    const rows = await prisma.diceRoll.findMany({ where: { campaignId, userId: player1Id, expression: '1d20' } });
+    const rows = await prisma.diceRoll.findMany({
+      where: { campaignId, userId: player1Id, expression: "1d20" },
+    });
     expect(rows.length).toBeGreaterThanOrEqual(1);
 
     player.disconnect();
     dm.disconnect();
   });
 
-  it('rejects an invalid dice expression', async () => {
+  it("rejects an invalid dice expression", async () => {
     const player = await server.connectAndAuth(player1Cookie, campaignId);
-    const denial = waitForEvent<{ message: string }>(player, 'error');
-    player.emit('dice.roll', { expression: 'not-dice' });
-    expect((await denial).message).toContain('Invalid dice expression');
+    const denial = waitForEvent<{ message: string }>(player, "error");
+    player.emit("dice.roll", { expression: "not-dice" });
+    expect((await denial).message).toContain("Invalid dice expression");
     player.disconnect();
   });
 });
 
 // ── 9. Spirit layer filtering ────────────────────────────────────────────────
 
-describe('spirit layer filtering', () => {
-  it('spirit token movement is hidden from players without spirit visibility', async () => {
+describe("spirit layer filtering", () => {
+  it("spirit token movement is hidden from players without spirit visibility", async () => {
     const dm = await server.connectAndAuth(dmCookie, campaignId);
     const player = await server.connectAndAuth(player1Cookie, campaignId);
 
     // DM (sender) receives the spirit-branch broadcast; the player must not.
-    const dmSees = waitForEvent<{ tokenId: string }>(dm, 'token.moved');
-    const playerBlind = expectNoEvent(player, 'token.moved');
-    dm.emit('token.move.end', { tokenId: SPIRIT_TOKEN_ID, mapId, x: 16, y: 16 });
+    const dmSees = waitForEvent<{ tokenId: string }>(dm, "token.moved");
+    const playerBlind = expectNoEvent(player, "token.moved");
+    dm.emit("token.move.end", {
+      tokenId: SPIRIT_TOKEN_ID,
+      mapId,
+      x: 16,
+      y: 16,
+    });
 
     expect((await dmSees).tokenId).toBe(SPIRIT_TOKEN_ID);
     await playerBlind;
@@ -579,14 +854,25 @@ describe('spirit layer filtering', () => {
     player.disconnect();
   });
 
-  it('spirit token movement reaches players once the spirit layer is enabled', async () => {
-    await prisma.campaign.update({ where: { id: campaignId }, data: { spiritLayerEnabled: true } });
+  it("spirit token movement reaches players once the spirit layer is enabled", async () => {
+    await prisma.campaign.update({
+      where: { id: campaignId },
+      data: { spiritLayerEnabled: true },
+    });
 
     const dm = await server.connectAndAuth(dmCookie, campaignId);
     const player = await server.connectAndAuth(player1Cookie, campaignId);
 
-    const playerSees = waitForEvent<{ tokenId: string; x: number }>(player, 'token.moved');
-    dm.emit('token.move.end', { tokenId: SPIRIT_TOKEN_ID, mapId, x: 17, y: 17 });
+    const playerSees = waitForEvent<{ tokenId: string; x: number }>(
+      player,
+      "token.moved",
+    );
+    dm.emit("token.move.end", {
+      tokenId: SPIRIT_TOKEN_ID,
+      mapId,
+      x: 17,
+      y: 17,
+    });
 
     const moved = await playerSees;
     expect(moved.tokenId).toBe(SPIRIT_TOKEN_ID);
@@ -596,25 +882,39 @@ describe('spirit layer filtering', () => {
     player.disconnect();
   });
 
-  it('a player controlling a spirit token has crossed over and can move it', async () => {
+  it("a player controlling a spirit token has crossed over and can move it", async () => {
     // A player whose own token sits on the spirit layer of the
     // current map has personally crossed over — spirit visibility is granted
     // even while the campaign-wide toggle is off.
     const tokens = seedTokens();
     tokens[2].controlledBy = player1Id;
-    await prisma.map.update({ where: { id: mapId }, data: { tokens: tokens as any } });
+    await prisma.map.update({
+      where: { id: mapId },
+      data: { tokens: tokens as any },
+    });
 
     const player = await server.connectAndAuth(player1Cookie, campaignId);
     const dm = await server.connectAndAuth(dmCookie, campaignId);
 
-    const dmSees = waitForEvent<{ tokenId: string; x: number }>(dm, 'token.moved');
-    player.emit('token.move.end', { tokenId: SPIRIT_TOKEN_ID, mapId, x: 18, y: 18 });
+    const dmSees = waitForEvent<{ tokenId: string; x: number }>(
+      dm,
+      "token.moved",
+    );
+    player.emit("token.move.end", {
+      tokenId: SPIRIT_TOKEN_ID,
+      mapId,
+      x: 18,
+      y: 18,
+    });
 
     const moved = await dmSees;
     expect(moved.tokenId).toBe(SPIRIT_TOKEN_ID);
     expect(moved.x).toBe(18);
 
-    const map = await prisma.map.findUniqueOrThrow({ where: { id: mapId }, select: { tokens: true } });
+    const map = await prisma.map.findUniqueOrThrow({
+      where: { id: mapId },
+      select: { tokens: true },
+    });
     const token = (map.tokens as any[]).find((t) => t.id === SPIRIT_TOKEN_ID);
     expect(token.position).toEqual({ x: 18, y: 18 });
 
@@ -622,15 +922,25 @@ describe('spirit layer filtering', () => {
     dm.disconnect();
   });
 
-  it('a player without control cannot move a spirit token', async () => {
+  it("a player without control cannot move a spirit token", async () => {
     // Spirit layer globally enabled (so the player can SEE it), but the token
     // is not theirs — the controlledBy permission check still applies.
-    await prisma.campaign.update({ where: { id: campaignId }, data: { spiritLayerEnabled: true } });
+    await prisma.campaign.update({
+      where: { id: campaignId },
+      data: { spiritLayerEnabled: true },
+    });
 
     const player = await server.connectAndAuth(player1Cookie, campaignId);
-    const denial = waitForEvent<{ message: string }>(player, 'error');
-    player.emit('token.move.end', { tokenId: SPIRIT_TOKEN_ID, mapId, x: 19, y: 19 });
-    expect((await denial).message).toBe('You do not have permission to move this token');
+    const denial = waitForEvent<{ message: string }>(player, "error");
+    player.emit("token.move.end", {
+      tokenId: SPIRIT_TOKEN_ID,
+      mapId,
+      x: 19,
+      y: 19,
+    });
+    expect((await denial).message).toBe(
+      "You do not have permission to move this token",
+    );
     player.disconnect();
   });
 });
