@@ -1,9 +1,10 @@
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import express from "express";
+import session from "express-session";
 import request from "supertest";
 import { prisma } from "../config/database";
 import { sha256Digest } from "../application/agents/AgentPrincipalAuthenticator";
-import { CORE_AGENT_EXTENSION_ID } from "../application/agents/CoreAgentCatalog";
+import { productionMcpOAuthRouter } from "../composition/productionMcpOAuth";
 import mcpRoutes from "./mcp";
 
 const describeDatabase =
@@ -47,26 +48,29 @@ describeDatabase("MCP Streamable HTTP adapter", () => {
       },
     });
     credentialId = credential.id;
-    await prisma.extensionGrant.create({
-      data: {
-        principalType: "AGENT",
-        principalId: credential.id,
-        scopeCampaignId: campaignId,
-        extensionId: CORE_AGENT_EXTENSION_ID,
-        permission: "READ",
-        grantedById: owner.id,
-      },
-    });
   });
 
   afterAll(async () => {
+    const oauthCredentials = await prisma.mcpOAuthRefreshToken.findMany({
+      where: { delegatedUserId: ownerId },
+      select: { credentialId: true },
+    });
+    const allCredentialIds = [
+      credentialId,
+      ...oauthCredentials.map(({ credentialId: id }) => id),
+    ];
     await prisma.agentAuditRecord.deleteMany({
-      where: { principalId: credentialId },
+      where: { principalId: { in: allCredentialIds } },
     });
-    await prisma.extensionGrant.deleteMany({
-      where: { principalId: credentialId },
+    await prisma.mcpOAuthRefreshToken.deleteMany({
+      where: { delegatedUserId: ownerId },
     });
-    await prisma.agentCredential.deleteMany({ where: { id: credentialId } });
+    await prisma.mcpOAuthAuthorization.deleteMany({
+      where: { delegatedUserId: ownerId },
+    });
+    await prisma.agentCredential.deleteMany({
+      where: { id: { in: allCredentialIds } },
+    });
     await prisma.campaign.deleteMany({ where: { id: campaignId } });
     await prisma.user.deleteMany({ where: { id: ownerId } });
     await prisma.$disconnect();
@@ -78,7 +82,7 @@ describeDatabase("MCP Streamable HTTP adapter", () => {
     app.use("/api/mcp", mcpRoutes);
     const post = (body: Record<string, unknown>) =>
       request(app)
-        .post(`/api/mcp/campaigns/${campaignId}`)
+        .post("/api/mcp")
         .set("Authorization", `Bearer ${credentialToken}`)
         .set("Accept", "application/json, text/event-stream")
         .set("MCP-Protocol-Version", "2025-03-26")
@@ -124,9 +128,157 @@ describeDatabase("MCP Streamable HTTP adapter", () => {
     app.use(express.json());
     app.use("/api/mcp", mcpRoutes);
     await request(app)
-      .post(`/api/mcp/campaigns/${campaignId}`)
+      .post("/api/mcp")
       .set("Accept", "application/json, text/event-stream")
       .send({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} })
       .expect(401);
+  });
+
+  it("connects through OAuth discovery, one browser approval, and no explicit grants", async () => {
+    const app = express();
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: false }));
+    app.use(
+      session({
+        secret: "mcp-oauth-test-session-secret",
+        resave: false,
+        saveUninitialized: false,
+      }),
+    );
+    app.get("/__test/login", (req, res) => {
+      req.session.userId = ownerId;
+      res.status(204).send();
+    });
+    app.use(productionMcpOAuthRouter());
+    app.use("/api/mcp", mcpRoutes);
+
+    const redirectUri = "http://127.0.0.1:49152/callback";
+    const registered = await request(app)
+      .post("/register")
+      .send({
+        redirect_uris: [redirectUri],
+        token_endpoint_auth_method: "none",
+        grant_types: ["authorization_code", "refresh_token"],
+        response_types: ["code"],
+        client_name: "Table helper",
+      })
+      .expect(201);
+    const clientId = registered.body.client_id as string;
+    const verifier = "cozyvtt-oauth-pkce-verifier-that-is-long-enough";
+    const challenge = createHash("sha256").update(verifier).digest("base64url");
+    const authorization = await request(app)
+      .get("/authorize")
+      .query({
+        response_type: "code",
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+        state: "client-state",
+        resource: "http://localhost:4000/api/mcp",
+        scope: "mcp",
+      })
+      .expect(302);
+    const requestId = new URL(authorization.headers.location).searchParams.get(
+      "request",
+    );
+    expect(requestId).toEqual(expect.any(String));
+
+    const browser = request.agent(app);
+    await browser.get("/__test/login").expect(204);
+    const view = await browser
+      .get(`/api/mcp/oauth/requests/${requestId}`)
+      .expect(200);
+    expect(view.body).toMatchObject({
+      clientName: "Table helper",
+      campaigns: [expect.objectContaining({ id: campaignId, role: "DM" })],
+    });
+    const approved = await browser
+      .post(`/api/mcp/oauth/requests/${requestId}/approve`)
+      .send({ campaignId })
+      .expect(200);
+    const callback = new URL(approved.body.redirectUrl);
+    expect(callback.searchParams.get("state")).toBe("client-state");
+    const code = callback.searchParams.get("code");
+    expect(code).toEqual(expect.any(String));
+
+    const exchanged = await request(app)
+      .post("/token")
+      .type("form")
+      .send({
+        grant_type: "authorization_code",
+        client_id: clientId,
+        code,
+        code_verifier: verifier,
+        redirect_uri: redirectUri,
+        resource: "http://localhost:4000/api/mcp",
+      })
+      .expect(200);
+    expect(exchanged.body).toMatchObject({
+      token_type: "Bearer",
+      scope: "mcp",
+    });
+    expect(exchanged.body.access_token).toEqual(expect.any(String));
+    expect(exchanged.body.refresh_token).toEqual(expect.any(String));
+
+    const refreshed = await request(app)
+      .post("/token")
+      .type("form")
+      .send({
+        grant_type: "refresh_token",
+        client_id: clientId,
+        refresh_token: exchanged.body.refresh_token,
+        resource: "http://localhost:4000/api/mcp",
+      })
+      .expect(200);
+    expect(refreshed.body.access_token).not.toBe(exchanged.body.access_token);
+    expect(refreshed.body.refresh_token).not.toBe(exchanged.body.refresh_token);
+    await request(app)
+      .post("/token")
+      .type("form")
+      .send({
+        grant_type: "refresh_token",
+        client_id: clientId,
+        refresh_token: exchanged.body.refresh_token,
+      })
+      .expect(400);
+
+    const listed = await request(app)
+      .post("/api/mcp")
+      .set("Authorization", `Bearer ${refreshed.body.access_token}`)
+      .set("Accept", "application/json, text/event-stream")
+      .send({ jsonrpc: "2.0", id: 7, method: "tools/list", params: {} })
+      .expect(200);
+    expect(listed.body.result.tools).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "query_campaign_summary_get" }),
+      ]),
+    );
+    expect(
+      await prisma.extensionGrant.count({
+        where: {
+          principalType: "AGENT",
+          scopeCampaignId: campaignId,
+        },
+      }),
+    ).toBe(0);
+
+    await request(app)
+      .post("/revoke")
+      .type("form")
+      .send({
+        client_id: clientId,
+        token: refreshed.body.refresh_token,
+        token_type_hint: "refresh_token",
+      })
+      .expect(200);
+    await request(app)
+      .post("/api/mcp")
+      .set("Authorization", `Bearer ${refreshed.body.access_token}`)
+      .set("Accept", "application/json, text/event-stream")
+      .send({ jsonrpc: "2.0", id: 8, method: "tools/list", params: {} })
+      .expect(401);
+
+    await prisma.mcpOAuthClient.deleteMany({ where: { clientId } });
   });
 });

@@ -2,19 +2,20 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Check,
   Copy,
-  KeyRound,
+  Download,
+  Link2,
   Loader2,
   RefreshCw,
   ShieldCheck,
   Trash2,
 } from "lucide-react";
+import Button from "@/components/ui/Button";
 import { api } from "@/services/api";
 import type { Campaign } from "@/types";
 import type {
   AgentCredential,
   PendingAgentConfirmation,
 } from "@/types/extensions";
-import Button from "@/components/ui/Button";
 
 function formatDate(value: string | null): string {
   if (!value) return "No expiry";
@@ -24,20 +25,15 @@ function formatDate(value: string | null): string {
   });
 }
 
-/** Human-owned controls for issuing and supervising campaign-scoped agent access. */
+/** One-URL MCP setup plus human review for genuinely sensitive actions. */
 export default function AgentAccessPanel() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [credentials, setCredentials] = useState<AgentCredential[]>([]);
   const [confirmations, setConfirmations] = useState<
     PendingAgentConfirmation[]
   >([]);
-  const [campaignId, setCampaignId] = useState("");
-  const [label, setLabel] = useState("");
-  const [expiresAt, setExpiresAt] = useState("");
-  const [revealedToken, setRevealedToken] = useState<string | null>(null);
-  const [revealedReceipt, setRevealedReceipt] = useState<string | null>(null);
+  const [setupUrl, setSetupUrl] = useState("");
   const [loading, setLoading] = useState(true);
-  const [issuing, setIssuing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -46,20 +42,21 @@ export default function AgentAccessPanel() {
     setLoading(true);
     setError("");
     try {
-      const [campaignResult, credentialResult, confirmationResult] =
+      const [campaignResult, credentialResult, confirmationResult, setup] =
         await Promise.all([
           api.listCampaigns(),
           api.listAgentCredentials(),
           api.listPendingAgentConfirmations(),
+          api.getMcpSetup(),
         ]);
       setCampaigns(campaignResult.campaigns);
       setCredentials(credentialResult);
       setConfirmations(confirmationResult);
-      setCampaignId(
-        (current) => current || campaignResult.campaigns[0]?.id || "",
-      );
+      setSetupUrl(setup.url);
     } catch {
-      setError("Agent access could not be loaded. Try refreshing this panel.");
+      setError(
+        "MCP connections could not be loaded. Try refreshing this panel.",
+      );
     } finally {
       setLoading(false);
     }
@@ -74,40 +71,32 @@ export default function AgentAccessPanel() {
     [campaigns],
   );
 
-  const copySecret = async (value: string) => {
+  const copySetupUrl = async () => {
     try {
-      await navigator.clipboard.writeText(value);
+      await navigator.clipboard.writeText(setupUrl);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1_800);
     } catch {
       setError(
-        "Clipboard access was unavailable. Select and copy the value manually.",
+        "Clipboard access was unavailable. Select and copy the URL manually.",
       );
     }
   };
 
-  const issue = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!campaignId || !label.trim()) return;
-    setIssuing(true);
-    setError("");
-    try {
-      const result = await api.issueAgentCredential({
-        campaignId,
-        label: label.trim(),
-        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
-      });
-      setCredentials((current) => [result.credential, ...current]);
-      setRevealedToken(result.token);
-      setLabel("");
-      setExpiresAt("");
-    } catch {
-      setError(
-        "The credential could not be issued. Check the campaign and expiry, then try again.",
-      );
-    } finally {
-      setIssuing(false);
-    }
+  const downloadSetup = () => {
+    const config = JSON.stringify(
+      { mcpServers: { cozyvtt: { type: "http", url: setupUrl } } },
+      null,
+      2,
+    );
+    const href = URL.createObjectURL(
+      new Blob([config], { type: "application/json" }),
+    );
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = "cozyvtt.mcp.json";
+    link.click();
+    URL.revokeObjectURL(href);
   };
 
   const revoke = async (credentialId: string) => {
@@ -122,7 +111,7 @@ export default function AgentAccessPanel() {
         ),
       );
     } catch {
-      setError("The credential could not be revoked. Try again.");
+      setError("The connection could not be revoked. Try again.");
     } finally {
       setBusyId(null);
     }
@@ -134,12 +123,8 @@ export default function AgentAccessPanel() {
   ) => {
     setBusyId(confirmation.id);
     try {
-      if (approved) {
-        const result = await api.approveAgentConfirmation(confirmation.id);
-        setRevealedReceipt(result.receipt);
-      } else {
-        await api.denyAgentConfirmation(confirmation.id);
-      }
+      if (approved) await api.approveAgentConfirmation(confirmation.id);
+      else await api.denyAgentConfirmation(confirmation.id);
       setConfirmations((current) =>
         current.filter((item) => item.id !== confirmation.id),
       );
@@ -163,11 +148,11 @@ export default function AgentAccessPanel() {
             id="agent-access-heading"
             className="text-xl font-semibold text-moss-green"
           >
-            Agent Access
+            MCP connections
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-warm-gray">
-            Create narrowly scoped campaign credentials and review actions that
-            need your approval.
+            Add one URL to your MCP client. CozyVTT opens a normal sign-in and
+            one-click campaign approval—no API keys or administrator grants.
           </p>
         </div>
         <Button
@@ -193,132 +178,54 @@ export default function AgentAccessPanel() {
         </p>
       )}
 
-      {revealedToken && (
-        <div
-          className="rounded-lg border border-warm-amber/40 bg-warm-amber/10 p-4"
-          role="status"
-        >
-          <p className="text-sm font-medium text-stone-gray">
-            Copy this credential now. It will not be shown again.
-          </p>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-            <code className="min-w-0 flex-1 break-all rounded bg-paper px-3 py-2 text-xs text-stone-gray">
-              {revealedToken}
-            </code>
-            <Button
-              onClick={() => void copySecret(revealedToken)}
-              variant="secondary"
-              className="shrink-0 flex items-center gap-2 text-sm"
-            >
-              {copied ? (
-                <Check className="h-4 w-4" aria-hidden="true" />
-              ) : (
-                <Copy className="h-4 w-4" aria-hidden="true" />
-              )}
-              {copied ? "Copied" : "Copy"}
-            </Button>
-            <Button
-              onClick={() => setRevealedToken(null)}
-              variant="secondary"
-              className="shrink-0 text-sm"
-            >
-              Dismiss
-            </Button>
+      <div className="rounded-xl border border-moss-green/20 bg-paper p-5 space-y-4">
+        <div className="flex items-start gap-3">
+          <Link2
+            className="mt-0.5 h-5 w-5 text-moss-green"
+            aria-hidden="true"
+          />
+          <div>
+            <h3 className="font-semibold text-moss-green">Connect CozyVTT</h3>
+            <p className="mt-1 text-sm text-warm-gray">
+              Your MCP client will open CozyVTT so you can choose a campaign and
+              click Allow. It then stores and refreshes its own connection.
+            </p>
           </div>
         </div>
-      )}
-
-      {revealedReceipt && (
-        <div
-          className="rounded-lg border border-moss-green/30 bg-moss-green/10 p-4"
-          role="status"
-        >
-          <p className="text-sm font-medium text-stone-gray">
-            Approval receipt, share it only with the waiting agent.
-          </p>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-            <code className="min-w-0 flex-1 break-all rounded bg-paper px-3 py-2 text-xs text-stone-gray">
-              {revealedReceipt}
-            </code>
-            <Button
-              onClick={() => void copySecret(revealedReceipt)}
-              variant="secondary"
-              className="shrink-0 flex items-center gap-2 text-sm"
-            >
-              <Copy className="h-4 w-4" aria-hidden="true" />
-              Copy
-            </Button>
-            <Button
-              onClick={() => setRevealedReceipt(null)}
-              variant="secondary"
-              className="shrink-0 text-sm"
-            >
-              Dismiss
-            </Button>
-          </div>
-        </div>
-      )}
-
-      <form
-        onSubmit={issue}
-        className="grid gap-3 border-y border-moss-green/10 py-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] md:items-end"
-      >
-        <label className="block text-sm font-medium text-stone-gray">
-          Campaign
-          <select
-            value={campaignId}
-            onChange={(event) => setCampaignId(event.target.value)}
-            className="input-cozy mt-1 w-full"
-            required
+        <code className="block break-all rounded-lg bg-soft-cream px-3 py-2 text-xs text-stone-gray">
+          {setupUrl || "Loading MCP URL…"}
+        </code>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={() => void copySetupUrl()}
+            disabled={!setupUrl}
+            className="flex items-center gap-2 text-sm"
           >
-            {campaigns.length === 0 && (
-              <option value="">No available campaigns</option>
+            {copied ? (
+              <Check className="h-4 w-4" />
+            ) : (
+              <Copy className="h-4 w-4" />
             )}
-            {campaigns.map((campaign) => (
-              <option key={campaign.id} value={campaign.id}>
-                {campaign.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-sm font-medium text-stone-gray">
-          Label
-          <input
-            value={label}
-            onChange={(event) => setLabel(event.target.value)}
-            className="input-cozy mt-1 w-full"
-            maxLength={120}
-            placeholder="Session helper"
-            required
-          />
-        </label>
-        <label className="block text-sm font-medium text-stone-gray">
-          Expires
-          <input
-            type="datetime-local"
-            value={expiresAt}
-            onChange={(event) => setExpiresAt(event.target.value)}
-            className="input-cozy mt-1 w-full"
-          />
-        </label>
-        <Button
-          type="submit"
-          disabled={issuing || !campaignId || !label.trim()}
-          className="flex items-center justify-center gap-2 text-sm"
-        >
-          {issuing ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <KeyRound className="h-4 w-4" aria-hidden="true" />
-          )}
-          Issue credential
-        </Button>
-      </form>
+            {copied ? "Copied" : "Copy MCP URL"}
+          </Button>
+          <Button
+            onClick={downloadSetup}
+            disabled={!setupUrl}
+            variant="secondary"
+            className="flex items-center gap-2 text-sm"
+          >
+            <Download className="h-4 w-4" aria-hidden="true" />
+            Download setup
+          </Button>
+        </div>
+      </div>
 
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-moss-green" aria-hidden="true" />
-          <h3 className="font-semibold text-moss-green">Pending approvals</h3>
+          <h3 className="font-semibold text-moss-green">
+            Pending sensitive actions
+          </h3>
         </div>
         {loading ? (
           <p className="text-sm text-warm-gray">Loading requests…</p>
@@ -340,8 +247,7 @@ export default function AgentAccessPanel() {
                   <p className="mt-1 text-xs text-warm-gray">
                     {campaignNames.get(confirmation.campaignId) ??
                       confirmation.campaignId}{" "}
-                    · requested {formatDate(confirmation.createdAt)} · expires{" "}
-                    {formatDate(confirmation.expiresAt)}
+                    · expires {formatDate(confirmation.expiresAt)}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -372,12 +278,12 @@ export default function AgentAccessPanel() {
       </div>
 
       <div className="space-y-3">
-        <h3 className="font-semibold text-moss-green">Issued credentials</h3>
+        <h3 className="font-semibold text-moss-green">Connected clients</h3>
         {loading ? (
-          <p className="text-sm text-warm-gray">Loading credentials…</p>
+          <p className="text-sm text-warm-gray">Loading connections…</p>
         ) : credentials.length === 0 ? (
           <p className="text-sm text-warm-gray">
-            No credentials have been issued.
+            No MCP clients are connected.
           </p>
         ) : (
           <ul className="divide-y divide-moss-green/10 rounded-lg border border-moss-green/15 bg-paper">
@@ -407,7 +313,7 @@ export default function AgentAccessPanel() {
                     className="flex items-center gap-2 text-sm"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    Revoke
+                    Disconnect
                   </Button>
                 )}
               </li>

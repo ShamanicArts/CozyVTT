@@ -133,4 +133,39 @@ describe("ApplicationHost", () => {
     await host.dispatch({ id: "agent.transactional-write", input: {} });
     expect(execute).toHaveBeenCalledTimes(1);
   });
+
+  it("uses the delegated user's campaign membership instead of a duplicate MCP grant", async () => {
+    const dependencies = ports();
+    (dependencies.grants.hasGrant as jest.Mock).mockResolvedValue(false);
+    dependencies.delegatedAgentAccess = {
+      activeCredentialDelegates: jest.fn(async () => true),
+    };
+    const host = new ApplicationHost();
+    host.use(durableExecutionMiddleware(dependencies));
+    host.register({
+      metadata: {
+        id: "agent.member-write",
+        version: "1",
+        risk: "MEDIUM",
+        permissions: ["WRITE"],
+      },
+      execute: async () => "ok",
+    });
+
+    await expect(
+      host.dispatch({
+        id: "agent.member-write",
+        input: {},
+        context: {
+          principalType: "AGENT",
+          principalId: "credential-1",
+          delegatedIdentity: "user-1",
+          campaignId: "campaign-1",
+          extensionId: "cozyvtt.core-agent",
+          origin: "AGENT",
+        },
+      }),
+    ).resolves.toBe("ok");
+    expect(dependencies.grants.hasGrant).not.toHaveBeenCalled();
+  });
 });

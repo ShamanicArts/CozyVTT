@@ -4,10 +4,10 @@
 // Supports role-based access control (RBAC)
 // ============================================
 
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { PlatformRole } from '@/types/user.types';
-import Button from '@/components/ui/Button';
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { PlatformRole } from "@/types/user.types";
+import Button from "@/components/ui/Button";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -19,6 +19,7 @@ export default function ProtectedRoute({
   requireRole,
 }: ProtectedRouteProps) {
   const { user, loading, authenticated } = useAuth();
+  const location = useLocation();
 
   // Show loading state while checking authentication
   if (loading) {
@@ -34,7 +35,13 @@ export default function ProtectedRoute({
 
   // Redirect to login if not authenticated
   if (!authenticated || !user) {
-    return <Navigate to="/auth/login" replace />;
+    const returnTo = `${location.pathname}${location.search}`;
+    return (
+      <Navigate
+        to={`/auth/login?returnTo=${encodeURIComponent(returnTo)}`}
+        replace
+      />
+    );
   }
 
   // Check role-based access if required
@@ -72,7 +79,8 @@ export default function ProtectedRoute({
           </p>
           <Button
             onClick={() => window.history.back()}
-            variant="secondary" className="w-full"
+            variant="secondary"
+            className="w-full"
           >
             Go Back
           </Button>

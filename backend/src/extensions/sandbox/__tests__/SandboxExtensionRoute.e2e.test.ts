@@ -266,15 +266,12 @@ function createRuntime(root: string, installations: MemoryInstallations) {
   const registry = new ExtensionRegistry();
   const bus = new CommandBus();
   const policy: ExtensionPolicyPort = {
-    check: async ({ principal, scope, extensionId: requestedExtensionId }) => ({
-      allowed: mockState.grants.some(
-        (grant) =>
-          grant.principalType === "AGENT" &&
-          grant.principalId === principal.id &&
-          grant.scopeCampaignId === scope.campaignId &&
-          grant.extensionId === requestedExtensionId &&
-          grant.permission === "EXECUTE" &&
-          grant.revokedAt === null,
+    check: async ({ principal, scope }) => ({
+      allowed: mockState.credentials.some(
+        (credential) =>
+          credential.id === principal.id &&
+          credential.campaignId === scope.campaignId &&
+          credential.revokedAt === null,
       ),
       missing: [],
     }),
@@ -368,7 +365,7 @@ describe("sandboxed extension agent route reachability", () => {
     );
   });
 
-  it("reaches a real bubblewrap sandbox only after durable grant and separate human approval, then survives lifecycle changes", async () => {
+  it("reaches a real bubblewrap sandbox as the delegated member after human approval, then survives lifecycle changes", async () => {
     const root = await writeSandboxPackage();
     const installations = new MemoryInstallations();
     mockRuntime.current = createRuntime(root, installations);
@@ -393,20 +390,7 @@ describe("sandboxed extension agent route reachability", () => {
       .post("/api/agent/credentials")
       .send({ campaignId: "campaign-1", label: "Sandbox test agent" });
     expect(issued.status).toBe(201);
-    const credentialId = issued.body.credential.id as string;
     const bearer = { Authorization: `Bearer ${issued.body.token as string}` };
-
-    expect(
-      (
-        await request(application).post("/api/admin/extensions/grants").send({
-          principalType: "AGENT",
-          principalId: credentialId,
-          scopeCampaignId: "campaign-1",
-          extensionId,
-          permission: "EXECUTE",
-        })
-      ).status,
-    ).toBe(201);
 
     const catalog = await request(application)
       .get("/api/agent/campaigns/campaign-1/catalog")
@@ -453,7 +437,7 @@ describe("sandboxed extension agent route reachability", () => {
       .post(`/api/agent/campaigns/campaign-1/tools/${toolId}`)
       .set(bearer)
       .set("Idempotency-Key", "sandbox-e2e-request-1")
-      .set("X-Agent-Confirmation", approval.body.receipt as string)
+      .set("X-Agent-Confirmation", pending.body.confirmationId as string)
       .send({ input: { message: "hello from agent" } });
     expect(invoked.status).toBe(200);
     expect(invoked.body).toMatchObject({
@@ -484,13 +468,13 @@ describe("sandboxed extension agent route reachability", () => {
       }),
     ]);
 
-    const receiptReplay = await request(application)
+    const confirmationReplay = await request(application)
       .post(`/api/agent/campaigns/campaign-1/tools/${toolId}`)
       .set(bearer)
       .set("Idempotency-Key", "sandbox-e2e-request-2")
-      .set("X-Agent-Confirmation", approval.body.receipt as string)
+      .set("X-Agent-Confirmation", pending.body.confirmationId as string)
       .send({ input: { message: "hello from agent" } });
-    expect(receiptReplay.status).toBe(409);
+    expect(confirmationReplay.status).toBe(409);
 
     expect(
       (

@@ -89,7 +89,7 @@ describe("agent HTTP adapter", () => {
     outboxCreate.mockResolvedValue({ id: "outbox-1" });
   });
 
-  it("requires a bearer credential and default-denies without a durable agent grant", async () => {
+  it("requires a bearer credential and exposes the campaign catalog from delegated membership", async () => {
     credentialFindFirst.mockResolvedValue(null);
     expect(
       (await request(app()).get("/api/agent/campaigns/campaign-1/catalog"))
@@ -106,19 +106,17 @@ describe("agent HTTP adapter", () => {
       .get("/api/agent/campaigns/campaign-1/catalog")
       .set(bearer);
     expect(catalog.status).toBe(200);
-    expect(catalog.body.commands).toEqual([]);
-    expect(grantFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          principalType: "AGENT",
-          principalId: "credential-1",
-          scopeCampaignId: "campaign-1",
+    expect(catalog.body.commands).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "campaign.atmosphere.effect.set",
+          extensionId: "cozyvtt.core-agent",
         }),
-      }),
+      ]),
     );
   });
 
-  it("separates agent request from human approval and consumes the approved receipt once", async () => {
+  it("separates agent request from human approval and consumes the approved confirmation ID once", async () => {
     grantFindFirst.mockResolvedValue({ id: "grant-1" });
     confirmationCreate.mockResolvedValue({
       id: "confirmation-1",
@@ -139,7 +137,8 @@ describe("agent HTTP adapter", () => {
       "/api/agent/confirmations/confirmation-1/approve",
     );
     expect(approval.status).toBe(200);
-    expect(approval.body.receipt).toEqual(expect.any(String));
+    expect(approval.body).toEqual({ approved: true });
+    expect(approval.body.receipt).toBeUndefined();
 
     confirmationUpdateMany.mockResolvedValueOnce({ count: 0 });
     const changedInput = await request(app())
@@ -148,7 +147,7 @@ describe("agent HTTP adapter", () => {
       )
       .set(bearer)
       .set("Idempotency-Key", "idem-key-1")
-      .set("X-Agent-Confirmation", approval.body.receipt)
+      .set("X-Agent-Confirmation", "confirmation-1")
       .send({ input: { effect: "mist" } });
     expect(changedInput.status).toBe(409);
 
@@ -159,7 +158,7 @@ describe("agent HTTP adapter", () => {
       )
       .set(bearer)
       .set("Idempotency-Key", "idem-key-1")
-      .set("X-Agent-Confirmation", approval.body.receipt)
+      .set("X-Agent-Confirmation", "confirmation-1")
       .send({ input: { effect: "rain" } });
     expect(accepted.status).toBe(200);
     expect(accepted.body).toEqual({
@@ -189,12 +188,12 @@ describe("agent HTTP adapter", () => {
       )
       .set(bearer)
       .set("Idempotency-Key", "idem-key-2")
-      .set("X-Agent-Confirmation", approval.body.receipt)
+      .set("X-Agent-Confirmation", "confirmation-1")
       .send({ input: { effect: "rain" } });
     expect(replay.status).toBe(409);
   });
 
-  it("lists and executes a READ-granted campaign query without confirmation or idempotency", async () => {
+  it("lists and executes a membership-authorized campaign query without confirmation or idempotency", async () => {
     membershipFindUnique.mockResolvedValue({ userId: "user-1", role: "DM" });
     grantFindFirst.mockImplementation(
       async ({ where }: { where: { permission: string } }) =>
@@ -211,7 +210,11 @@ describe("agent HTTP adapter", () => {
     const catalog = await request(app())
       .get("/api/agent/campaigns/campaign-1/catalog")
       .set(bearer);
-    expect(catalog.body.commands).toEqual([]);
+    expect(catalog.body.commands).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "campaign.atmosphere.effect.set" }),
+      ]),
+    );
     expect(catalog.body.queries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: "campaign.summary.get", risk: "READ" }),

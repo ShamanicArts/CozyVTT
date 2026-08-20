@@ -36,6 +36,7 @@ import {
   outboxHealth,
 } from "./composition/productionOutboxRuntime";
 import { rehydrateConfiguredExtensions } from "./composition/ExtensionRuntimeStartup";
+import { productionMcpOAuthRouter } from "./composition/productionMcpOAuth";
 
 const app = express();
 const httpServer = createServer(app);
@@ -114,6 +115,10 @@ app.use(session(sessionConfig));
 // Blocks all routes until the one-time setup wizard has been completed.
 // Exceptions: /health and /api/setup/* are always accessible.
 app.use(requireSetupComplete);
+
+// Standard OAuth discovery/authorization for one-click MCP connections.
+// This must be mounted at the origin root for RFC 8414/9728 discovery.
+app.use(productionMcpOAuthRouter());
 
 // ============================================
 // ROUTES

@@ -1,4 +1,3 @@
-import { createHash, randomBytes } from "crypto";
 import { Request, Response, Router } from "express";
 import {
   CORE_AGENT_COMMANDS,
@@ -8,6 +7,7 @@ import {
 } from "../application/agents/CoreAgentCatalog";
 import {
   AgentPrincipalAuthenticator,
+  sha256Digest,
   type AgentIdentity,
 } from "../application/agents/AgentPrincipalAuthenticator";
 import { productionApplicationHost } from "../composition/productionApplicationHost";
@@ -18,7 +18,6 @@ import {
 } from "../composition/ApplicationHost";
 import {
   PrismaAgentAuditPort,
-  PrismaExtensionGrantPort,
   PrismaIdempotencyPort,
 } from "../adapters/persistence/PrismaDurableFoundations";
 import { PrismaAgentAccessRepository } from "../adapters/persistence/PrismaAgentAccessRepository";
@@ -35,15 +34,19 @@ import {
 import type { JsonSchema } from "../extensions/contracts";
 import { productionExtensionRuntime } from "../composition/productionExtensionRuntime";
 import { productionQueryHost } from "../composition/productionQueryHost";
+import { mcpPublicUrl } from "../composition/productionMcpOAuth";
 
 const router = Router();
 const CONFIRMATION_TTL_MS = 5 * 60_000;
-const grants = new PrismaExtensionGrantPort(prisma);
 const agentAudit = new PrismaAgentAuditPort(prisma);
 const idempotency = new PrismaIdempotencyPort(prisma);
 const access = new PrismaAgentAccessRepository(prisma);
-const credentials = new AgentCredentialService(access, digest);
+const credentials = new AgentCredentialService(access, sha256Digest);
 const principalAuthenticator = new AgentPrincipalAuthenticator(access);
+
+router.get("/mcp-setup", requireAuth, (_req, res) =>
+  res.json({ url: mcpPublicUrl().href }),
+);
 
 router.post("/credentials", requireAuth, async (req, res) => {
   const campaignId =
@@ -114,11 +117,6 @@ router.post(
 router.get("/campaigns/:campaignId/catalog", async (req, res) => {
   const identity = await agentIdentity(req, res);
   if (!identity) return;
-  const executeAuthorized = await hasExecuteGrant(
-    identity,
-    CORE_AGENT_EXTENSION_ID,
-  );
-  const readAuthorized = await hasReadGrant(identity);
   let sandboxTools: unknown[] = [];
   try {
     sandboxTools = await productionExtensionRuntime().bridge.listCatalog({
@@ -130,31 +128,25 @@ router.get("/campaigns/:campaignId/catalog", async (req, res) => {
   }
   return res.json({
     commands: [
-      ...(executeAuthorized
-        ? [
-            ...CORE_AGENT_COMMANDS.map((command) => ({
-              id: command.id,
-              extensionId: CORE_AGENT_EXTENSION_ID,
-              title: command.title,
-              description: command.description,
-              inputSchema: command.inputSchema,
-              risk: command.risk,
-              confirmationRequired: command.requiresConfirmation,
-              idempotencyRequired: command.write,
-            })),
-          ]
-        : []),
+      ...CORE_AGENT_COMMANDS.map((command) => ({
+        id: command.id,
+        extensionId: CORE_AGENT_EXTENSION_ID,
+        title: command.title,
+        description: command.description,
+        inputSchema: command.inputSchema,
+        risk: command.risk,
+        confirmationRequired: command.requiresConfirmation,
+        idempotencyRequired: command.write,
+      })),
       ...sandboxTools,
     ],
-    queries: readAuthorized
-      ? productionQueryHost.list().map((query) => ({
-          ...query,
-          extensionId: CORE_AGENT_EXTENSION_ID,
-          title: queryTitle(query.id),
-          confirmationRequired: false,
-          idempotencyRequired: false,
-        }))
-      : [],
+    queries: productionQueryHost.list().map((query) => ({
+      ...query,
+      extensionId: CORE_AGENT_EXTENSION_ID,
+      title: queryTitle(query.id),
+      confirmationRequired: false,
+      idempotencyRequired: false,
+    })),
   });
 });
 
@@ -168,7 +160,6 @@ router.post("/campaigns/:campaignId/queries/:queryId", async (req, res) => {
     return res
       .status(404)
       .json({ error: "Not Found", message: "Agent query is not available" });
-  if (!(await hasReadGrant(identity))) return deny(res);
   const input = req.body?.input ?? {};
   if (!isPlainObject(input))
     return res.status(400).json({
@@ -223,8 +214,6 @@ router.post("/campaigns/:campaignId/confirmations", async (req, res) => {
   if (!identity) return;
   const dynamicTool = findDynamicTool(req.body?.toolId);
   if (dynamicTool) {
-    if (!(await hasExecuteGrant(identity, dynamicTool.extensionId)))
-      return deny(res);
     const input = scopedInput(req.body?.input, identity.campaignId, res);
     if (!input || !validateInput(dynamicTool.command.inputSchema, input, res))
       return;
@@ -243,12 +232,11 @@ router.post("/campaigns/:campaignId/confirmations", async (req, res) => {
     });
   }
   const command = findCommand(req.body?.commandId);
-  if (
-    !command ||
-    !command.requiresConfirmation ||
-    !(await hasExecuteGrant(identity))
-  )
-    return deny(res);
+  if (!command || !command.requiresConfirmation)
+    return res.status(404).json({
+      error: "Not Found",
+      message: "Agent command is not available",
+    });
   const input = scopedInput(req.body?.input, identity.campaignId, res);
   if (!input || !validateInput(command.inputSchema, input, res)) return;
   const pending = await access.createConfirmation({
@@ -270,11 +258,11 @@ router.post("/campaigns/:campaignId/tools/:toolId", async (req, res) => {
   const identity = await agentIdentity(req, res);
   if (!identity) return;
   const dynamicTool = findDynamicTool(req.params.toolId);
-  if (
-    !dynamicTool ||
-    !(await hasExecuteGrant(identity, dynamicTool.extensionId))
-  )
-    return deny(res);
+  if (!dynamicTool)
+    return res.status(404).json({
+      error: "Not Found",
+      message: "Agent tool is not available",
+    });
   const input = scopedInput(req.body?.input, identity.campaignId, res);
   if (!input || !validateInput(dynamicTool.command.inputSchema, input, res))
     return;
@@ -288,11 +276,11 @@ router.post("/campaigns/:campaignId/tools/:toolId", async (req, res) => {
       error: "Validation Error",
       message: "A valid Idempotency-Key header is required",
     });
-  const receipt = readHeader(req, "x-agent-confirmation");
+  const confirmationId = readHeader(req, "x-agent-confirmation");
   if (
-    !receipt ||
-    !(await access.consumeApprovedConfirmation({
-      receiptHash: digest(receipt),
+    !confirmationId ||
+    !(await access.consumeApprovedConfirmationById({
+      confirmationId,
       credentialId: identity.credentialId,
       delegatedUserId: identity.delegatedUserId,
       campaignId: identity.campaignId,
@@ -304,7 +292,7 @@ router.post("/campaigns/:campaignId/tools/:toolId", async (req, res) => {
   )
     return res.status(409).json({
       error: "Confirmation Required",
-      message: "A current human-approved confirmation receipt is required",
+      message: "An approved confirmation ID is required",
     });
   const idempotencyState = await idempotency.register({
     principalType: "AGENT",
@@ -358,11 +346,9 @@ router.post(
   "/confirmations/:confirmationId/approve",
   requireAuth,
   async (req, res) => {
-    const receipt = randomBytes(32).toString("base64url");
     const approved = await access.approveConfirmation({
       confirmationId: req.params.confirmationId,
       delegatedUserId: req.session.userId!,
-      receiptHash: digest(receipt),
       now: new Date(),
     });
     if (!approved)
@@ -370,7 +356,7 @@ router.post(
         error: "Not Found",
         message: "Pending confirmation not found",
       });
-    return res.json({ receipt, expiresInSeconds: CONFIRMATION_TTL_MS / 1_000 });
+    return res.json({ approved: true });
   },
 );
 
@@ -378,16 +364,20 @@ router.post("/campaigns/:campaignId/commands/:commandId", async (req, res) => {
   const identity = await agentIdentity(req, res);
   if (!identity) return;
   const command = findCommand(req.params.commandId);
-  if (!command || !(await hasExecuteGrant(identity))) return deny(res);
+  if (!command)
+    return res.status(404).json({
+      error: "Not Found",
+      message: "Agent command is not available",
+    });
   const input = scopedInput(req.body?.input, identity.campaignId, res);
   if (!input || !validateInput(command.inputSchema, input, res)) return;
   const inputDigest = digestCanonical(input);
   if (command.requiresConfirmation) {
-    const receipt = readHeader(req, "x-agent-confirmation");
+    const confirmationId = readHeader(req, "x-agent-confirmation");
     if (
-      !receipt ||
-      !(await access.consumeApprovedConfirmation({
-        receiptHash: digest(receipt),
+      !confirmationId ||
+      !(await access.consumeApprovedConfirmationById({
+        confirmationId,
         credentialId: identity.credentialId,
         delegatedUserId: identity.delegatedUserId,
         campaignId: identity.campaignId,
@@ -399,8 +389,7 @@ router.post("/campaigns/:campaignId/commands/:commandId", async (req, res) => {
     )
       return res.status(409).json({
         error: "Confirmation Required",
-        message:
-          "A current human-approved confirmation receipt is required for this command",
+        message: "An approved confirmation ID is required for this command",
       });
   }
   const idempotencyKey = readHeader(req, "idempotency-key");
@@ -525,41 +514,11 @@ function validateInput(
     throw error;
   }
 }
-async function hasExecuteGrant(
-  identity: AgentIdentity,
-  extensionId = CORE_AGENT_EXTENSION_ID,
-): Promise<boolean> {
-  return grants.hasGrant({
-    principalType: "AGENT",
-    principalId: identity.credentialId,
-    campaignId: identity.campaignId,
-    extensionId,
-    permission: "EXECUTE",
-  });
-}
-async function hasReadGrant(identity: AgentIdentity): Promise<boolean> {
-  return grants.hasGrant({
-    principalType: "AGENT",
-    principalId: identity.credentialId,
-    campaignId: identity.campaignId,
-    extensionId: CORE_AGENT_EXTENSION_ID,
-    permission: "READ",
-  });
-}
 function queryTitle(id: string): string {
   return id
     .split(".")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-function deny(res: Response): Response {
-  return res.status(403).json({
-    error: "Forbidden",
-    message: "No explicit agent grant authorizes this command",
-  });
-}
-function digest(value: string): string {
-  return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
 function parseExpiresAt(value: unknown): Date | null | undefined {
   if (value === undefined || value === null) return null;

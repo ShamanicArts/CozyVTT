@@ -3,6 +3,7 @@ import {
   DurablePermission,
   DurablePrincipalType,
   AgentAuditPort,
+  DelegatedAgentAccessPort,
   ExtensionGrantPort,
   IdempotencyPort,
   OutboxPort,
@@ -105,6 +106,7 @@ export interface DurableExecutionPorts {
   audit: AgentAuditPort;
   idempotency: IdempotencyPort;
   outbox: OutboxPort;
+  delegatedAgentAccess?: DelegatedAgentAccessPort;
   /** Used for agent/extension command persistence, completion, and outbox. */
   unitOfWork?: UnitOfWorkPort;
   now?: () => Date;
@@ -135,7 +137,21 @@ export function durableExecutionMiddleware(
       });
     const protectedOrigin =
       context.origin === "AGENT" || context.origin === "EXTENSION";
-    if (protectedOrigin) {
+    const selfDelegatedAgent =
+      context.origin === "AGENT" &&
+      context.principalType === "AGENT" &&
+      Boolean(context.delegatedIdentity) &&
+      Boolean(context.campaignId) &&
+      Boolean(
+        ports.delegatedAgentAccess &&
+          (await ports.delegatedAgentAccess.activeCredentialDelegates({
+            credentialId: context.principalId,
+            delegatedUserId: context.delegatedIdentity!,
+            campaignId: context.campaignId!,
+            now: now(),
+          })),
+      );
+    if (protectedOrigin && !selfDelegatedAgent) {
       if (!context.extensionId) {
         await audit("DENIED", "MISSING_EXTENSION_ID");
         throw new HostCommandError("Extension identity is required");

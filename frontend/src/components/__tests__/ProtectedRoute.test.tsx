@@ -1,23 +1,25 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import ProtectedRoute from '../ProtectedRoute';
-import { PlatformRole } from '@/types/user.types';
-import type { AuthContextType, User } from '@/types/user.types';
+import { describe, it, expect, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import ProtectedRoute from "../ProtectedRoute";
+import { PlatformRole } from "@/types/user.types";
+import type { AuthContextType, User } from "@/types/user.types";
 
 // ============================================
 // Mock AuthContext
 // ============================================
 
-vi.mock('@/contexts/AuthContext', () => ({
+vi.mock("@/contexts/AuthContext", () => ({
   useAuth: vi.fn(),
 }));
 
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from "@/contexts/AuthContext";
 
 const mockUseAuth = useAuth as ReturnType<typeof vi.fn>;
 
-function makeAuthState(overrides: Partial<AuthContextType> = {}): AuthContextType {
+function makeAuthState(
+  overrides: Partial<AuthContextType> = {},
+): AuthContextType {
   return {
     user: null,
     loading: false,
@@ -39,9 +41,9 @@ function makeAuthState(overrides: Partial<AuthContextType> = {}): AuthContextTyp
 }
 
 const mockUser: User = {
-  id: 'user-1',
-  email: 'alice@example.com',
-  displayName: 'Alice',
+  id: "user-1",
+  email: "alice@example.com",
+  displayName: "Alice",
   platformRole: PlatformRole.USER,
   globalAssetManager: false,
   mfaEnabled: false,
@@ -54,11 +56,32 @@ const mockUser: User = {
 
 const adminUser: User = { ...mockUser, platformRole: PlatformRole.ADMIN };
 
-function renderRoute(children: React.ReactNode, requireRole?: PlatformRole) {
+function LocationProbe() {
+  const location = useLocation();
+  return (
+    <div data-testid="login-location">{`${location.pathname}${location.search}`}</div>
+  );
+}
+
+function renderRoute(
+  children: React.ReactNode,
+  requireRole?: PlatformRole,
+  initialEntry = "/protected",
+) {
   return render(
-    <MemoryRouter>
-      <ProtectedRoute requireRole={requireRole}>{children}</ProtectedRoute>
-    </MemoryRouter>
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <Routes>
+        <Route path="/auth/login" element={<LocationProbe />} />
+        <Route
+          path="*"
+          element={
+            <ProtectedRoute requireRole={requireRole}>
+              {children}
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </MemoryRouter>,
   );
 }
 
@@ -66,58 +89,76 @@ function renderRoute(children: React.ReactNode, requireRole?: PlatformRole) {
 // Tests
 // ============================================
 
-describe('ProtectedRoute', () => {
-  it('shows loading spinner while auth is loading', () => {
+describe("ProtectedRoute", () => {
+  it("shows loading spinner while auth is loading", () => {
     mockUseAuth.mockReturnValue(makeAuthState({ loading: true }));
     renderRoute(<div>Protected Content</div>);
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
-    expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
+    expect(screen.queryByText("Protected Content")).not.toBeInTheDocument();
   });
 
-  it('redirects to /auth/login when not authenticated', () => {
-    mockUseAuth.mockReturnValue(makeAuthState({ loading: false, authenticated: false, user: null }));
-    renderRoute(<div>Protected Content</div>);
-    // Navigate replaces the route — content should not render
-    expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
-  });
-
-  it('renders children when authenticated', () => {
+  it("redirects to /auth/login when not authenticated", () => {
     mockUseAuth.mockReturnValue(
-      makeAuthState({ loading: false, authenticated: true, user: mockUser })
+      makeAuthState({ loading: false, authenticated: false, user: null }),
     );
     renderRoute(<div>Protected Content</div>);
-    expect(screen.getByText('Protected Content')).toBeInTheDocument();
+    expect(screen.getByTestId("login-location")).toHaveTextContent(
+      "/auth/login?returnTo=%2Fprotected",
+    );
+    expect(screen.queryByText("Protected Content")).not.toBeInTheDocument();
   });
 
-  it('renders children when authenticated and no role required', () => {
+  it("preserves an MCP authorization request through login", () => {
     mockUseAuth.mockReturnValue(
-      makeAuthState({ loading: false, authenticated: true, user: mockUser })
+      makeAuthState({ loading: false, authenticated: false, user: null }),
+    );
+    renderRoute(
+      <div>Authorize MCP</div>,
+      undefined,
+      "/mcp/authorize?request=request-1",
+    );
+    expect(screen.getByTestId("login-location")).toHaveTextContent(
+      "/auth/login?returnTo=%2Fmcp%2Fauthorize%3Frequest%3Drequest-1",
+    );
+  });
+
+  it("renders children when authenticated", () => {
+    mockUseAuth.mockReturnValue(
+      makeAuthState({ loading: false, authenticated: true, user: mockUser }),
+    );
+    renderRoute(<div>Protected Content</div>);
+    expect(screen.getByText("Protected Content")).toBeInTheDocument();
+  });
+
+  it("renders children when authenticated and no role required", () => {
+    mockUseAuth.mockReturnValue(
+      makeAuthState({ loading: false, authenticated: true, user: mockUser }),
     );
     renderRoute(<div>Any User Content</div>);
-    expect(screen.getByText('Any User Content')).toBeInTheDocument();
+    expect(screen.getByText("Any User Content")).toBeInTheDocument();
   });
 
-  it('shows Access Denied when user role does not match requireRole', () => {
+  it("shows Access Denied when user role does not match requireRole", () => {
     mockUseAuth.mockReturnValue(
-      makeAuthState({ loading: false, authenticated: true, user: mockUser })
+      makeAuthState({ loading: false, authenticated: true, user: mockUser }),
     );
     renderRoute(<div>Admin Only</div>, PlatformRole.ADMIN);
-    expect(screen.getByText('Access Denied')).toBeInTheDocument();
-    expect(screen.queryByText('Admin Only')).not.toBeInTheDocument();
+    expect(screen.getByText("Access Denied")).toBeInTheDocument();
+    expect(screen.queryByText("Admin Only")).not.toBeInTheDocument();
   });
 
-  it('renders children when user role matches requireRole', () => {
+  it("renders children when user role matches requireRole", () => {
     mockUseAuth.mockReturnValue(
-      makeAuthState({ loading: false, authenticated: true, user: adminUser })
+      makeAuthState({ loading: false, authenticated: true, user: adminUser }),
     );
     renderRoute(<div>Admin Only</div>, PlatformRole.ADMIN);
-    expect(screen.getByText('Admin Only')).toBeInTheDocument();
-    expect(screen.queryByText('Access Denied')).not.toBeInTheDocument();
+    expect(screen.getByText("Admin Only")).toBeInTheDocument();
+    expect(screen.queryByText("Access Denied")).not.toBeInTheDocument();
   });
 
-  it('shows required and current roles in Access Denied message', () => {
+  it("shows required and current roles in Access Denied message", () => {
     mockUseAuth.mockReturnValue(
-      makeAuthState({ loading: false, authenticated: true, user: mockUser })
+      makeAuthState({ loading: false, authenticated: true, user: mockUser }),
     );
     renderRoute(<div>Admin Content</div>, PlatformRole.ADMIN);
     expect(screen.getByText(/Required role:/)).toBeInTheDocument();

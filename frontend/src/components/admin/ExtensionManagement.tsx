@@ -27,11 +27,7 @@ const grantPermissions: ExtensionGrantPermission[] = [
   "EXECUTE",
   "ADMIN",
 ];
-const grantPrincipals: ExtensionGrantPrincipal[] = [
-  "USER",
-  "AGENT",
-  "SYSTEM",
-];
+const grantPrincipals: ExtensionGrantPrincipal[] = ["USER", "AGENT", "SYSTEM"];
 
 function date(value: string | null): string {
   return value
@@ -226,8 +222,8 @@ export default function ExtensionManagement() {
         <div>
           <h2 className="text-xl font-semibold text-moss-green">Extensions</h2>
           <p className="mt-1 max-w-2xl text-sm text-warm-gray">
-            Review packages, choose their execution boundary, then grant the
-            smallest campaign scope that works.
+            Review local packages and choose their execution boundary. MCP users
+            authorize themselves through their existing campaign role.
           </p>
         </div>
         <Button
@@ -420,11 +416,11 @@ export default function ExtensionManagement() {
               id="extension-grants-heading"
               className="font-semibold text-moss-green"
             >
-              Campaign grants
+              Advanced service grants
             </h3>
             <p className="mt-1 text-sm text-warm-gray">
-              A grant lets one principal use one extension in one campaign.
-              EXECUTE can cause actions, so use it sparingly.
+              Optional grants for unattended system or service principals.
+              Normal user MCP connections do not require anything here.
             </p>
           </div>
         </div>

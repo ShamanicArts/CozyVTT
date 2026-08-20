@@ -44,7 +44,9 @@ describe("ExtensionManagement", () => {
     const user = userEvent.setup();
     render(<ExtensionManagement />);
     await screen.findByRole("button", { name: "Install sandboxed" });
-    expect(screen.getByText(/EXECUTE can cause actions/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/normal user MCP connections do not require/i),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Install sandboxed" }));
     await waitFor(() =>
       expect(api.installExtension).toHaveBeenCalledWith(

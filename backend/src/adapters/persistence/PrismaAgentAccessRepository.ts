@@ -76,6 +76,26 @@ export class PrismaAgentAccessRepository implements AgentAccessRepository {
       },
     });
   }
+  async findCredentialById(
+    id: string,
+    now: Date,
+  ): Promise<AgentCredentialRecord | null> {
+    return this.client.agentCredential.findFirst({
+      where: {
+        id,
+        revokedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      select: {
+        id: true,
+        delegatedUserId: true,
+        campaignId: true,
+        label: true,
+        expiresAt: true,
+        revokedAt: true,
+      },
+    });
+  }
   async markCredentialUsed(id: string, now: Date): Promise<void> {
     await this.client.agentCredential.update({
       where: { id },
@@ -92,6 +112,35 @@ export class PrismaAgentAccessRepository implements AgentAccessRepository {
         select: { userId: true },
       }),
     );
+  }
+  async activeCredentialDelegates(input: {
+    credentialId: string;
+    delegatedUserId: string;
+    campaignId: string;
+    now: Date;
+  }): Promise<boolean> {
+    const [credential, membership] = await Promise.all([
+      this.client.agentCredential.findFirst({
+        where: {
+          id: input.credentialId,
+          delegatedUserId: input.delegatedUserId,
+          campaignId: input.campaignId,
+          revokedAt: null,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: input.now } }],
+        },
+        select: { id: true },
+      }),
+      this.client.campaignMembership.findUnique({
+        where: {
+          userId_campaignId: {
+            userId: input.delegatedUserId,
+            campaignId: input.campaignId,
+          },
+        },
+        select: { userId: true },
+      }),
+    ]);
+    return Boolean(credential && membership);
   }
   async createConfirmation(
     input: Parameters<AgentAccessRepository["createConfirmation"]>[0],
@@ -113,19 +162,20 @@ export class PrismaAgentAccessRepository implements AgentAccessRepository {
       },
       data: {
         state: "APPROVED",
-        receiptHash: input.receiptHash,
         approvedById: input.delegatedUserId,
         approvedAt: input.now,
       },
     });
     return result.count === 1;
   }
-  async consumeApprovedConfirmation(
-    input: Parameters<AgentAccessRepository["consumeApprovedConfirmation"]>[0],
+  async consumeApprovedConfirmationById(
+    input: Parameters<
+      AgentAccessRepository["consumeApprovedConfirmationById"]
+    >[0],
   ): Promise<boolean> {
     const result = await this.client.agentConfirmation.updateMany({
       where: {
-        receiptHash: input.receiptHash,
+        id: input.confirmationId,
         credentialId: input.credentialId,
         delegatedUserId: input.delegatedUserId,
         campaignId: input.campaignId,
