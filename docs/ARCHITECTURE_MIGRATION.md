@@ -55,6 +55,20 @@ flowchart LR
   persistence, dice parsing, and creation of the dice audit message. Socket.IO
   remains responsible for campaign fan-out and the existing secret-roll
   visibility rules, preserving current event names and payloads.
+* Scene editing writes—`wall:add`, `wall:remove`, `wall:update`,
+  `walls:replace`, `fog:operation`, `light:add`, `light:remove`,
+  `light:update`, and `lights:replace`—now dispatch scene commands through a
+  `SceneMutationRepository`. Commands own map scope, role/door rules, fog
+  mutation, limits, and JSON-field persistence. The WebSocket adapters retain
+  legacy schema validation, rate limits, request/reconnect reads, and the
+  DM-versus-player fog broadcast filter.
+* Initiative mutations—add, remove, set, roll, reorder, start, advance, and
+  end—now dispatch application commands. The commands own DM authorization,
+  map/token lookup, combat-state transitions, initiative-value persistence,
+  and initiative-roll calculation. The socket adapter preserves the full
+  `initiative.state` payload and the legacy `dice.rolled` then
+  `initiative.state` ordering for a rolled initiative. `initiative.request_state`
+  remains a read-only adapter query.
 * `BlobStorage` and its filesystem adapter establish the storage boundary; no
   upload flow has been migrated to it yet.
 * The extension package validates versioned manifests, compatibility,
@@ -206,18 +220,19 @@ to more than one canvas.
 
 ### Phase 0 — foundation (complete first slices)
 
-Define ports, domain models, command bus, a migrated token-template REST write
-path, token movement plus chat/dice Socket.IO command flows, manifest
-validation/lifecycle contracts, a guarded in-process agent bridge, BlobStorage,
-and a per-canvas renderer host. Keep all existing API behaviour and test the
-seams.
+Define ports, domain models, command bus, migrated token-template REST and
+token-movement, chat, dice, scene-editing, and initiative Socket.IO write
+paths; manifest validation/lifecycle contracts; a guarded in-process agent
+bridge; BlobStorage; and a per-canvas renderer host. Keep all existing API
+behaviour and test the seams.
 
 ### Phase 1 — application spine (in progress)
 
 Migrate every mutation, prioritised by shared use:
 
-1. complete the remaining maps/tokens mutations, then walls/fog/lights and
-   initiative;
+1. complete remaining map/token mutations and migrate the read/query paths
+   needed by other transports while preserving scene request/reconnect
+   semantics;
 2. campaigns/membership/characters/assets/sessions;
 3. import/export and admin configuration.
 
