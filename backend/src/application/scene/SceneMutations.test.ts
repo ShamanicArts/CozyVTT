@@ -5,6 +5,8 @@ import {
   AddLightSource,
   AddWallSegment,
   ApplyFogOperation,
+  SetSceneLightingEnabled,
+  SET_SCENE_LIGHTING_ENABLED,
   UpdateWallSegment,
   UPDATE_WALL_SEGMENT,
 } from './SceneMutations';
@@ -21,7 +23,7 @@ const light = (id = 'light-1'): LightSource => ({
 function mapWith(overrides: Partial<SceneMap> = {}): SceneMap {
   return {
     id: 'map-1', campaignId: 'campaign-1', width: 10, height: 8, gridSize: 50,
-    wallSegments: [wall()], fogData: null, lights: [light()], ...overrides,
+    wallSegments: [wall()], fogData: null, lights: [light()], lightingEnabled: false, ...overrides,
   };
 }
 
@@ -31,6 +33,7 @@ function repositoryFor(map: SceneMap | null = mapWith()): jest.Mocked<SceneMutat
     updateWallSegments: jest.fn(async (_mapId: string, _wallSegments: WallSegment[]) => undefined),
     updateFog: jest.fn(async (_mapId: string, _fog: FogState) => undefined),
     updateLights: jest.fn(async (_mapId: string, _lights: LightSource[]) => undefined),
+    updateLightingEnabled: jest.fn(async (_mapId: string, _enabled: boolean) => undefined),
   };
 }
 
@@ -98,5 +101,14 @@ describe('scene mutation commands', () => {
       type: ADD_LIGHT_SOURCE, actor: dm, mapId: 'map-1', light: light('light-201'),
     })).rejects.toEqual(new SceneMutationError('MAX_LIGHT_SOURCES', 'Maximum 200 light sources per map'));
     expect(repository.updateLights).not.toHaveBeenCalled();
+  });
+
+  it('persists a campaign-scoped DM lighting toggle', async () => {
+    const repository = repositoryFor();
+
+    await expect(new SetSceneLightingEnabled(repository).execute({
+      type: SET_SCENE_LIGHTING_ENABLED, actor: dm, mapId: 'map-1', enabled: true,
+    })).resolves.toBe(true);
+    expect(repository.updateLightingEnabled).toHaveBeenCalledWith('map-1', true);
   });
 });

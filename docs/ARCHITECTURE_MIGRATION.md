@@ -50,6 +50,12 @@ flowchart LR
   commands own map scope, bounds checks, token control, spectator/spirit-layer
   rules, and the final persistence write; the socket handler remains the
   recipient-filtering and wire-compatibility adapter.
+* Core map lifecycle REST writes—create, update, delete, and set-current—and
+  `map.change` now dispatch map-lifecycle commands through their ports. Map
+  token REST create, update, and delete operations similarly dispatch scoped
+  token commands. The route and Socket.IO adapters retain their existing
+  response/event shapes, filtered recipient broadcasts, and not-found/privacy
+  behavior.
 * `chat.message` and `dice.roll` now dispatch application commands as well.
   The commands own validation, cooldown/rate enforcement, user lookup,
   persistence, dice parsing, and creation of the dice audit message. Socket.IO
@@ -61,7 +67,10 @@ flowchart LR
   `SceneMutationRepository`. Commands own map scope, role/door rules, fog
   mutation, limits, and JSON-field persistence. The WebSocket adapters retain
   legacy schema validation, rate limits, request/reconnect reads, and the
-  DM-versus-player fog broadcast filter.
+  DM-versus-player fog broadcast filter. The REST wall, light, fog-operation,
+  and dedicated dynamic-lighting-toggle endpoints dispatch these same commands
+  after preserving their existing HTTP validation, status/error bodies,
+  campaign checks, and broadcasts.
 * Initiative mutations—add, remove, set, roll, reorder, start, advance, and
   end—now dispatch application commands. The commands own DM authorization,
   map/token lookup, combat-state transitions, initiative-value persistence,

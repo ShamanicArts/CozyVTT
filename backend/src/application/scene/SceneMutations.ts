@@ -21,6 +21,7 @@ export const ADD_LIGHT_SOURCE = 'scene.light.add' as const;
 export const REMOVE_LIGHT_SOURCE = 'scene.light.remove' as const;
 export const UPDATE_LIGHT_SOURCE = 'scene.light.update' as const;
 export const REPLACE_LIGHT_SOURCES = 'scene.lights.replace' as const;
+export const SET_SCENE_LIGHTING_ENABLED = 'scene.lighting.set-enabled' as const;
 
 interface SceneCommand<TResult> extends Command<TResult> {
   readonly actor: SceneActor;
@@ -70,6 +71,11 @@ export interface UpdateLightSourceCommand extends SceneCommand<LightSource[]> {
 export interface ReplaceLightSourcesCommand extends SceneCommand<LightSource[]> {
   readonly type: typeof REPLACE_LIGHT_SOURCES;
   readonly lights: LightSource[];
+}
+
+export interface SetSceneLightingEnabledCommand extends SceneCommand<boolean> {
+  readonly type: typeof SET_SCENE_LIGHTING_ENABLED;
+  readonly enabled: boolean;
 }
 
 abstract class SceneCommandBase {
@@ -201,5 +207,14 @@ export class ReplaceLightSources extends SceneCommandBase implements CommandHand
     await this.loadMap(command.actor, command.mapId);
     await this.repository.updateLights(command.mapId, command.lights);
     return command.lights;
+  }
+}
+
+export class SetSceneLightingEnabled extends SceneCommandBase implements CommandHandler<SetSceneLightingEnabledCommand, boolean> {
+  async execute(command: SetSceneLightingEnabledCommand): Promise<boolean> {
+    this.requireDm(command.actor, 'Only DMs can change dynamic lighting');
+    await this.loadMap(command.actor, command.mapId);
+    await this.repository.updateLightingEnabled(command.mapId, command.enabled);
+    return command.enabled;
   }
 }

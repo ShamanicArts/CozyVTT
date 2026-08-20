@@ -7,6 +7,13 @@ import { AuthenticatedSocket } from '../auth';
 import { prisma } from '../../config/database';
 import { getSpiritVisibilityBatch, filterMapData } from '../../utils/spirit-layer';
 import logger from '../../utils/logger';
+import { CommandBus } from '../../application/commands/CommandBus';
+import { CHANGE_MAP, ChangeMap, ChangeMapCommand } from '../../application/maps/MapLifecycleCommands';
+import { PrismaMapCoreRepository } from '../../adapters/persistence/PrismaMapCoreRepository';
+import { MapLifecycleError } from '../../domain/maps/MapLifecycle';
+
+const mapChangeCommands = new CommandBus();
+mapChangeCommands.register(CHANGE_MAP, new ChangeMap(new PrismaMapCoreRepository(prisma)));
 
 export function registerMapHandlers(io: Server, socket: AuthenticatedSocket): void {
   /**
@@ -29,12 +36,11 @@ export function registerMapHandlers(io: Server, socket: AuthenticatedSocket): vo
         return;
       }
 
-      // Verify map belongs to this campaign
-      const map = await prisma.map.findUnique({ where: { id: mapId } });
-      if (!map || map.campaignId !== socket.campaignId) {
-        socket.emit('error', { message: 'Map not found' });
-        return;
-      }
+      const map = await mapChangeCommands.dispatch<ChangeMapCommand, Awaited<ReturnType<ChangeMap['execute']>>>({
+        type: CHANGE_MAP,
+        campaignId: socket.campaignId,
+        mapId,
+      });
 
       // Broadcast role-filtered map data to each connected campaign member.
       // spiritVisible is included in the payload so the client knows whether
@@ -67,6 +73,12 @@ export function registerMapHandlers(io: Server, socket: AuthenticatedSocket): vo
 
       logger.info('map.change', { mapId, userId: socket.userId, campaignId: socket.campaignId });
     } catch (error) {
+      if (error instanceof MapLifecycleError) {
+        // map.change intentionally does not reveal whether an ID belongs to
+        // another campaign; retain its established single not-found payload.
+        socket.emit('error', { message: 'Map not found' });
+        return;
+      }
       logger.error('map.change failed', { err: error });
       socket.emit('error', { message: 'Failed to broadcast map change' });
     }

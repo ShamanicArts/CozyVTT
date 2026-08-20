@@ -11,11 +11,78 @@ import { broadcastToCampaign } from '../websocket/utils';
 import { normalizeAssetUrl } from '../utils/asset-urls';
 import { WallSegmentSchema, WallSegmentsArraySchema, FogOperationSchema, LightSourceSchema, LightSourcesArraySchema, LightSourceUpdateSchema } from '../validators/walls';
 import type { WallSegment, FogState, LightSource } from '../types/walls';
+import { CommandBus } from '../application/commands/CommandBus';
+import {
+  ADD_LIGHT_SOURCE,
+  AddLightSource,
+  AddLightSourceCommand,
+  ADD_WALL_SEGMENT,
+  AddWallSegment,
+  AddWallSegmentCommand,
+  APPLY_FOG_OPERATION,
+  ApplyFogOperation,
+  ApplyFogOperationCommand,
+  REMOVE_LIGHT_SOURCE,
+  RemoveLightSource,
+  RemoveLightSourceCommand,
+  REMOVE_WALL_SEGMENT,
+  RemoveWallSegment,
+  RemoveWallSegmentCommand,
+  REPLACE_LIGHT_SOURCES,
+  ReplaceLightSources,
+  ReplaceLightSourcesCommand,
+  REPLACE_WALL_SEGMENTS,
+  ReplaceWallSegments,
+  ReplaceWallSegmentsCommand,
+  SET_SCENE_LIGHTING_ENABLED,
+  SetSceneLightingEnabled,
+  SetSceneLightingEnabledCommand,
+  UPDATE_LIGHT_SOURCE,
+  UpdateLightSource,
+  UpdateLightSourceCommand,
+  UPDATE_WALL_SEGMENT,
+  UpdateWallSegment,
+  UpdateWallSegmentCommand,
+} from '../application/scene/SceneMutations';
+import { PrismaSceneMutationRepository } from '../adapters/persistence/PrismaSceneMutationRepository';
+import { loadFogState, SceneRole } from '../domain/scene/Scene';
 import { parseUVTT } from '../services/uvttParser';
 import { buildUVTT } from '../services/uvttExporter';
 import { getFilePath, ensureDirectory } from '../utils/fileUtils';
 import sharp from 'sharp';
 import logger from '../utils/logger';
+import {
+  CREATE_MAP,
+  DELETE_MAP,
+  SET_CURRENT_MAP,
+  UPDATE_MAP,
+  CreateMap,
+  CreateMapCommand,
+  DeleteMap,
+  DeleteMapCommand,
+  SetCurrentMap,
+  SetCurrentMapCommand,
+  UpdateMap,
+  UpdateMapCommand,
+} from '../application/maps/MapLifecycleCommands';
+import { MapLifecycleError } from '../domain/maps/MapLifecycle';
+import { PrismaMapCoreRepository } from '../adapters/persistence/PrismaMapCoreRepository';
+import { AssetUrlMapNormalizer } from '../adapters/assets/AssetUrlMapNormalizer';
+import {
+  CREATE_MAP_TOKEN,
+  CreateMapToken,
+  CreateMapTokenCommand,
+  DELETE_MAP_TOKEN,
+  DeleteMapToken,
+  DeleteMapTokenCommand,
+  MapTokenMutationResult,
+  UPDATE_MAP_TOKEN,
+  UpdateMapToken,
+  UpdateMapTokenCommand,
+} from '../application/mapTokens/MapTokenMutations';
+import { MapTokenError } from '../domain/mapTokens/MapToken';
+import { PrismaMapTokenRepository } from '../adapters/persistence/PrismaMapTokenRepository';
+import { LegacyMapTokenAssetUrlNormalizer } from '../adapters/assets/LegacyMapTokenAssetUrlNormalizer';
 
 /** Multer configured for UVTT file uploads (memory storage — files are small JSON). */
 const uvttUpload = multer({
@@ -33,35 +100,48 @@ const uvttUpload = multer({
 
 const router = Router({ mergeParams: true }); // Important: Merge params from parent router
 
-// Token type definition
-interface Token {
-  id: string;
-  characterId?: string | null;
-  name: string;
-  imageUrl: string;
-  position: { x: number; y: number };
-  size: { width: number; height: number };
-  layer: 'token' | 'spirit';
-  visible: boolean;
-  controlledBy?: string | null;
-  rotation: number;
-  conditions: string[];
-  metadata: Record<string, any>;
-  type?: 'player' | 'npc' | 'object';
-  disposition?: 'friendly' | 'neutral' | 'hostile' | null;
-  hp?: { current: number; max: number; temp: number } | null;
-  showHpBar?: boolean;
-  notes?: string;
-  initiative?: number | null;
-  sightRadius?: number;
-  displayMode?: 'pog' | 'top-down' | 'full-art';
-  statBlock?: Record<string, any> | null;
-  creatureTemplateId?: string | null;
+// HTTP remains a transport adapter. Core map lifecycle behaviour is shared
+// with Socket.IO commands instead of coupling those surfaces to Prisma.
+const mapCoreCommands = new CommandBus();
+const mapCoreRepository = new PrismaMapCoreRepository(prisma);
+const mapAssetUrls = new AssetUrlMapNormalizer();
+mapCoreCommands.register(CREATE_MAP, new CreateMap(mapCoreRepository, mapAssetUrls));
+mapCoreCommands.register(UPDATE_MAP, new UpdateMap(mapCoreRepository, mapAssetUrls));
+mapCoreCommands.register(DELETE_MAP, new DeleteMap(mapCoreRepository));
+mapCoreCommands.register(SET_CURRENT_MAP, new SetCurrentMap(mapCoreRepository));
+
+function sendMapLifecycleError(res: Response, error: unknown): boolean {
+  if (!(error instanceof MapLifecycleError)) return false;
+  res.status(error.status).json({ error: error.error, message: error.message });
+  return true;
 }
 
-const VALID_TOKEN_TYPES = ['player', 'npc', 'object'];
-const VALID_TOKEN_DISPOSITIONS = ['friendly', 'neutral', 'hostile'];
-const VALID_DISPLAY_MODES = ['pog', 'top-down', 'full-art'];
+// REST is a transport adapter. These bindings share the same scene use cases
+// as the Socket.IO map-edit handlers while preserving this route's established
+// HTTP validation, status codes, payloads, and broadcasts.
+const sceneCommands = new CommandBus();
+const sceneRepository = new PrismaSceneMutationRepository(prisma);
+sceneCommands.register(ADD_WALL_SEGMENT, new AddWallSegment(sceneRepository));
+sceneCommands.register(REMOVE_WALL_SEGMENT, new RemoveWallSegment(sceneRepository));
+sceneCommands.register(UPDATE_WALL_SEGMENT, new UpdateWallSegment(sceneRepository));
+sceneCommands.register(REPLACE_WALL_SEGMENTS, new ReplaceWallSegments(sceneRepository));
+sceneCommands.register(APPLY_FOG_OPERATION, new ApplyFogOperation(sceneRepository));
+sceneCommands.register(ADD_LIGHT_SOURCE, new AddLightSource(sceneRepository));
+sceneCommands.register(REMOVE_LIGHT_SOURCE, new RemoveLightSource(sceneRepository));
+sceneCommands.register(UPDATE_LIGHT_SOURCE, new UpdateLightSource(sceneRepository));
+sceneCommands.register(REPLACE_LIGHT_SOURCES, new ReplaceLightSources(sceneRepository));
+sceneCommands.register(SET_SCENE_LIGHTING_ENABLED, new SetSceneLightingEnabled(sceneRepository));
+
+function sceneActor(campaignId: string) {
+  return { campaignId, role: 'DM' as SceneRole };
+}
+
+const mapTokenCommands = new CommandBus();
+const mapTokenRepository = new PrismaMapTokenRepository(prisma);
+const mapTokenAssetUrls = new LegacyMapTokenAssetUrlNormalizer();
+mapTokenCommands.register(CREATE_MAP_TOKEN, new CreateMapToken(mapTokenRepository, mapTokenAssetUrls));
+mapTokenCommands.register(UPDATE_MAP_TOKEN, new UpdateMapToken(mapTokenRepository, mapTokenAssetUrls));
+mapTokenCommands.register(DELETE_MAP_TOKEN, new DeleteMapToken(mapTokenRepository));
 
 /**
  * Map CRUD Routes
@@ -78,79 +158,14 @@ const VALID_DISPLAY_MODES = ['pog', 'top-down', 'full-art'];
 router.post('/', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { campaignId } = req.params;
-    const { name, imageUrl, width, height, gridSize, spiritLayerUrl, feetPerSquare, diagonalRule } = req.body;
-
-    // Validation
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'Map name is required',
-      });
-    }
-
-    if (!imageUrl || typeof imageUrl !== 'string') {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'Map imageUrl (asset ID) is required',
-      });
-    }
-
-    if (!width || typeof width !== 'number' || width <= 0) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'Map width must be a positive number',
-      });
-    }
-
-    if (!height || typeof height !== 'number' || height <= 0) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'Map height must be a positive number',
-      });
-    }
-
-    // gridSize is optional, defaults to 50 in schema
-    const mapGridSize = gridSize && typeof gridSize === 'number' && gridSize > 0 ? gridSize : 50;
-
-    // feetPerSquare: positive integer, defaults to 5
-    const mapFeetPerSquare = feetPerSquare && Number.isInteger(feetPerSquare) && feetPerSquare > 0 && feetPerSquare <= 100
-      ? feetPerSquare : 5;
-
-    // diagonalRule: must be "flat" or "alternating", defaults to "flat"
-    const mapDiagonalRule = diagonalRule === 'flat' || diagonalRule === 'alternating' ? diagonalRule : 'flat';
-
-    // Normalize asset URLs to full paths
-    const normalizedImageUrl = normalizeAssetUrl(imageUrl, 'maps');
-    const normalizedSpiritLayerUrl = spiritLayerUrl ? normalizeAssetUrl(spiritLayerUrl, 'maps') : null;
-
-    // imageUrl is required, should never be null at this point
-    if (!normalizedImageUrl) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'Invalid map imageUrl',
-      });
-    }
-
-    // Create the map
-    const map = await prisma.map.create({
-      data: {
-        campaignId,
-        name: name.trim(),
-        imageUrl: normalizedImageUrl, // Full path: /api/assets/maps/{uuid}
-        baseLayerUrl: normalizedImageUrl, // Store same value in baseLayerUrl for now
-        width,
-        height,
-        gridSize: mapGridSize,
-        feetPerSquare: mapFeetPerSquare,
-        diagonalRule: mapDiagonalRule,
-        spiritLayerUrl: normalizedSpiritLayerUrl,
-        tokens: [], // Initialize empty tokens array
-        annotations: [], // Initialize empty annotations array
-      },
+    const map = await mapCoreCommands.dispatch<CreateMapCommand, Awaited<ReturnType<CreateMap['execute']>>>({
+      type: CREATE_MAP,
+      campaignId,
+      input: req.body as Record<string, unknown>,
     });
-
     return res.status(201).json({ map });
   } catch (error) {
+    if (sendMapLifecycleError(res, error)) return;
     logger.error('Error creating map', { err: error });
     return res.status(500).json({
       error: 'Internal Server Error',
@@ -455,146 +470,35 @@ router.get('/:id', campaignMember, async (req: AuthenticatedRequest, res: Respon
 router.put('/:id', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { campaignId, id } = req.params;
-    const { name, width, height, gridSize, imageUrl, spiritLayerUrl, feetPerSquare, diagonalRule, lightingEnabled } = req.body;
-
-    // Fetch the map to verify it exists and belongs to campaign
-    const existingMap = await prisma.map.findUnique({
-      where: { id },
+    const updateResult = await mapCoreCommands.dispatch<UpdateMapCommand, Awaited<ReturnType<UpdateMap['execute']>>>({
+      type: UPDATE_MAP,
+      campaignId,
+      mapId: id,
+      input: req.body as Record<string, unknown>,
     });
+    let updatedMap = updateResult.map;
 
-    if (!existingMap) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Map not found',
+    // The generic map editor delegates this field to the same scene command
+    // used by the dedicated /lighting endpoint. Persist before broadcasting.
+    if (updateResult.lightingEnabled !== undefined) {
+      const lightingEnabled = await sceneCommands.dispatch<SetSceneLightingEnabledCommand, boolean>({
+        type: SET_SCENE_LIGHTING_ENABLED,
+        actor: sceneActor(campaignId),
+        mapId: id,
+        enabled: updateResult.lightingEnabled,
       });
-    }
-
-    if (existingMap.campaignId !== campaignId) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Map not found in this campaign',
-      });
-    }
-
-    // Build update data object
-    const updateData: any = {};
-
-    if (name !== undefined) {
-      if (typeof name !== 'string' || name.trim().length === 0) {
-        return res.status(400).json({
-          error: 'Validation Error',
-          message: 'Map name must be a non-empty string',
-        });
-      }
-      updateData.name = name.trim();
-    }
-
-    if (width !== undefined) {
-      if (typeof width !== 'number' || width <= 0) {
-        return res.status(400).json({
-          error: 'Validation Error',
-          message: 'Map width must be a positive number',
-        });
-      }
-      updateData.width = width;
-    }
-
-    if (height !== undefined) {
-      if (typeof height !== 'number' || height <= 0) {
-        return res.status(400).json({
-          error: 'Validation Error',
-          message: 'Map height must be a positive number',
-        });
-      }
-      updateData.height = height;
-    }
-
-    if (gridSize !== undefined) {
-      if (typeof gridSize !== 'number' || gridSize <= 0) {
-        return res.status(400).json({
-          error: 'Validation Error',
-          message: 'Grid size must be a positive number',
-        });
-      }
-      updateData.gridSize = gridSize;
-    }
-
-    if (feetPerSquare !== undefined) {
-      if (!Number.isInteger(feetPerSquare) || feetPerSquare < 1 || feetPerSquare > 100) {
-        return res.status(400).json({
-          error: 'Validation Error',
-          message: 'feetPerSquare must be a positive integer between 1 and 100',
-        });
-      }
-      updateData.feetPerSquare = feetPerSquare;
-    }
-
-    if (diagonalRule !== undefined) {
-      if (diagonalRule !== 'flat' && diagonalRule !== 'alternating') {
-        return res.status(400).json({
-          error: 'Validation Error',
-          message: 'diagonalRule must be "flat" or "alternating"',
-        });
-      }
-      updateData.diagonalRule = diagonalRule;
-    }
-
-    if (imageUrl !== undefined) {
-      if (typeof imageUrl !== 'string') {
-        return res.status(400).json({
-          error: 'Validation Error',
-          message: 'Image URL must be a string',
-        });
-      }
-      // Normalize to full path
-      const normalizedImageUrl = normalizeAssetUrl(imageUrl, 'maps');
-      if (!normalizedImageUrl) {
-        return res.status(400).json({
-          error: 'Validation Error',
-          message: 'Invalid map imageUrl',
-        });
-      }
-      updateData.imageUrl = normalizedImageUrl;
-      updateData.baseLayerUrl = normalizedImageUrl; // Keep both in sync
-    }
-
-    if (spiritLayerUrl !== undefined) {
-      // Allow null to clear spirit layer
-      if (spiritLayerUrl !== null && typeof spiritLayerUrl !== 'string') {
-        return res.status(400).json({
-          error: 'Validation Error',
-          message: 'Spirit layer URL must be a string or null',
-        });
-      }
-      // Normalize to full path (or null)
-      updateData.spiritLayerUrl = spiritLayerUrl ? normalizeAssetUrl(spiritLayerUrl, 'maps') : null;
-    }
-
-    if (lightingEnabled !== undefined) {
-      if (typeof lightingEnabled !== 'boolean') {
-        return res.status(400).json({ error: 'Validation Error', message: 'lightingEnabled must be a boolean' });
-      }
-      updateData.lightingEnabled = lightingEnabled;
-    }
-
-    // Update the map
-    const updatedMap = await prisma.map.update({
-      where: { id },
-      data: updateData,
-    });
-
-    // Broadcast lighting change so all connected clients update immediately
-    if (updateData.lightingEnabled !== undefined) {
+      updatedMap = { ...updatedMap, lightingEnabled };
       try {
         broadcastToCampaign(campaignId, 'map:lighting:updated', {
           mapId: id,
-          lightingEnabled: updatedMap.lightingEnabled,
+          lightingEnabled,
         });
       } catch { /* non-fatal */ }
     }
 
     return res.status(200).json({ map: updatedMap });
   } catch (error) {
+    if (sendMapLifecycleError(res, error)) return;
     logger.error('Error updating map', { err: error });
     return res.status(500).json({
       error: 'Internal Server Error',
@@ -612,48 +516,16 @@ router.put('/:id', campaignDM, async (req: AuthenticatedRequest, res: Response) 
 router.delete('/:id', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { campaignId, id } = req.params;
-
-    // Fetch the map to verify it exists and belongs to campaign
-    const map = await prisma.map.findUnique({
-      where: { id },
+    await mapCoreCommands.dispatch<DeleteMapCommand, void>({
+      type: DELETE_MAP,
+      campaignId,
+      mapId: id,
     });
-
-    if (!map) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Map not found',
-      });
-    }
-
-    if (map.campaignId !== campaignId) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Map not found in this campaign',
-      });
-    }
-
-    // Check if this is the current map
-    const campaign = await prisma.campaign.findUnique({
-      where: { id: campaignId },
-      select: { currentMapId: true },
-    });
-
-    if (campaign?.currentMapId === id) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'Cannot delete the current map. Set a different map as current first.',
-      });
-    }
-
-    // Delete the map
-    await prisma.map.delete({
-      where: { id },
-    });
-
     return res.status(200).json({
       message: 'Map deleted successfully',
     });
   } catch (error) {
+    if (sendMapLifecycleError(res, error)) return;
     logger.error('Error deleting map', { err: error });
     return res.status(500).json({
       error: 'Internal Server Error',
@@ -670,46 +542,17 @@ router.delete('/:id', campaignDM, async (req: AuthenticatedRequest, res: Respons
 router.put('/:id/set-current', campaignDM, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { campaignId, id } = req.params;
-
-    // Verify the map exists and belongs to this campaign
-    const map = await prisma.map.findUnique({
-      where: { id },
+    const updatedCampaign = await mapCoreCommands.dispatch<SetCurrentMapCommand, Awaited<ReturnType<SetCurrentMap['execute']>>>({
+      type: SET_CURRENT_MAP,
+      campaignId,
+      mapId: id,
     });
-
-    if (!map) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Map not found',
-      });
-    }
-
-    if (map.campaignId !== campaignId) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Map not found in this campaign',
-      });
-    }
-
-    // Update the campaign's currentMapId
-    const updatedCampaign = await prisma.campaign.update({
-      where: { id: campaignId },
-      data: { currentMapId: id },
-      include: {
-        currentMap: {
-          select: {
-            id: true,
-            name: true,
-            imageUrl: true,
-          },
-        },
-      },
-    });
-
     return res.status(200).json({
       message: 'Current map updated successfully',
       campaign: updatedCampaign,
     });
   } catch (error) {
+    if (sendMapLifecycleError(res, error)) return;
     logger.error('Error setting current map', { err: error });
     return res.status(500).json({
       error: 'Internal Server Error',
@@ -748,133 +591,21 @@ router.post('/:id/tokens', campaignDM, async (req: AuthenticatedRequest, res: Re
     const { campaignId, id: mapId } = req.params;
     const tokenData = req.body;
 
-    // Fetch the map
-    const map = await prisma.map.findUnique({
-      where: { id: mapId },
+    const result = await mapTokenCommands.dispatch<CreateMapTokenCommand, MapTokenMutationResult>({
+      type: CREATE_MAP_TOKEN,
+      campaignId,
+      mapId,
+      data: tokenData,
     });
-
-    if (!map) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Map not found',
-      });
-    }
-
-    if (map.campaignId !== campaignId) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Map not found in this campaign',
-      });
-    }
-
-    // Validate required token fields
-    if (!tokenData.name || typeof tokenData.name !== 'string') {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'Token name is required',
-      });
-    }
-
-    // imageUrl is optional — tokens without an image get colored-letter placeholders
-    if (tokenData.imageUrl && typeof tokenData.imageUrl !== 'string') {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'Token imageUrl must be a string if provided',
-      });
-    }
-
-    if (!tokenData.position || typeof tokenData.position.x !== 'number' || typeof tokenData.position.y !== 'number') {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'Token position {x, y} is required',
-      });
-    }
-
-    // Validate position is within map bounds
-    if (tokenData.position.x < 0 || tokenData.position.x >= map.width ||
-        tokenData.position.y < 0 || tokenData.position.y >= map.height) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: `Token position must be within map bounds (0-${map.width-1}, 0-${map.height-1})`,
-      });
-    }
-
-    // Validate layer
-    const layer = tokenData.layer || 'token';
-    if (layer !== 'token' && layer !== 'spirit') {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'Token layer must be "token" or "spirit"',
-      });
-    }
-
-    // Validate type and disposition
-    const tokenType = tokenData.type || 'npc';
-    if (!VALID_TOKEN_TYPES.includes(tokenType)) {
-      return res.status(400).json({ error: 'Validation Error', message: 'Invalid token type' });
-    }
-    const disposition = tokenData.disposition !== undefined ? tokenData.disposition : null;
-    if (disposition !== null && !VALID_TOKEN_DISPOSITIONS.includes(disposition)) {
-      return res.status(400).json({ error: 'Validation Error', message: 'Invalid token disposition' });
-    }
-
-    // Validate display mode
-    const displayMode = tokenData.displayMode || 'pog';
-    if (!VALID_DISPLAY_MODES.includes(displayMode)) {
-      return res.status(400).json({ error: 'Validation Error', message: 'Invalid display mode' });
-    }
-
-    // Normalize token imageUrl to full path (optional for placeholder tokens)
-    const normalizedTokenImageUrl = tokenData.imageUrl
-      ? normalizeAssetUrl(tokenData.imageUrl, 'tokens')
-      : null;
-
-    // Build the new token with defaults
-    const newToken = {
-      id: randomUUID(),
-      characterId: tokenData.characterId || null,
-      name: tokenData.name,
-      imageUrl: normalizedTokenImageUrl || '',
-      position: {
-        x: tokenData.position.x,
-        y: tokenData.position.y,
-      },
-      size: tokenData.size || { width: 1, height: 1 },
-      layer,
-      visible: tokenData.visible !== undefined ? tokenData.visible : true,
-      controlledBy: tokenData.controlledBy || null,
-      rotation: tokenData.rotation || 0,
-      conditions: tokenData.conditions || [],
-      metadata: tokenData.metadata || {},
-      type: tokenType,
-      disposition: disposition,
-      hp: tokenData.hp || null,
-      showHpBar: tokenData.showHpBar !== undefined ? tokenData.showHpBar : false,
-      notes: typeof tokenData.notes === 'string' ? tokenData.notes : '',
-      initiative: tokenData.initiative !== undefined ? tokenData.initiative : null,
-      displayMode: displayMode,
-      statBlock: tokenData.statBlock || null,
-      creatureTemplateId: tokenData.creatureTemplateId || null,
-    };
-
-    // Get existing tokens array
-    const tokensArray = (Array.isArray(map.tokens) ? map.tokens : []) as unknown as Token[];
-
-    // Add new token to array
-    const updatedTokens = [...tokensArray, newToken];
-
-    // Update the map with new tokens array
-    const updatedMap = await prisma.map.update({
-      where: { id: mapId },
-      data: { tokens: updatedTokens as any },
-    });
-
     return res.status(201).json({
       message: 'Token added successfully',
-      token: newToken,
-      map: updatedMap,
+      token: result.token,
+      map: result.map,
     });
   } catch (error) {
+    if (error instanceof MapTokenError) {
+      return res.status(error.status).json({ error: error.error, message: error.message });
+    }
     logger.error('Error adding token', { err: error });
     return res.status(500).json({
       error: 'Internal Server Error',
@@ -897,165 +628,23 @@ router.put('/:id/tokens/:tokenId', campaignMember, async (req: AuthenticatedRequ
     const userId = req.session.userId!;
     const updates = req.body;
 
-    // Fetch the map
-    const map = await prisma.map.findUnique({
-      where: { id: mapId },
+    const result = await mapTokenCommands.dispatch<UpdateMapTokenCommand, MapTokenMutationResult>({
+      type: UPDATE_MAP_TOKEN,
+      campaignId,
+      mapId,
+      tokenId,
+      userId,
+      updates,
     });
-
-    if (!map) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Map not found',
-      });
-    }
-
-    if (map.campaignId !== campaignId) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Map not found in this campaign',
-      });
-    }
-
-    // Check user's role in campaign
-    const membership = await prisma.campaignMembership.findUnique({
-      where: {
-        userId_campaignId: {
-          userId,
-          campaignId,
-        },
-      },
-    });
-
-    if (!membership) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'You are not a member of this campaign',
-      });
-    }
-
-    // Get existing tokens array
-    const tokensArray = (Array.isArray(map.tokens) ? map.tokens : []) as unknown as Token[];
-
-    // Find the token
-    const tokenIndex = tokensArray.findIndex((t) => t.id === tokenId);
-
-    if (tokenIndex === -1) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Token not found on this map',
-      });
-    }
-
-    const existingToken = tokensArray[tokenIndex];
-
-    // Permission check: DM can update any token, players can only update their own tokens
-    const isDM = membership.role === 'DM';
-    const controlsToken = existingToken.controlledBy === userId;
-
-    if (!isDM && !controlsToken) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'You can only update tokens you control',
-      });
-    }
-
-    // Validate position if being updated
-    if (updates.position) {
-      if (typeof updates.position.x !== 'number' || typeof updates.position.y !== 'number') {
-        return res.status(400).json({
-          error: 'Validation Error',
-          message: 'Position must have numeric x and y values',
-        });
-      }
-
-      if (updates.position.x < 0 || updates.position.x >= map.width ||
-          updates.position.y < 0 || updates.position.y >= map.height) {
-        return res.status(400).json({
-          error: 'Validation Error',
-          message: `Position must be within map bounds (0-${map.width-1}, 0-${map.height-1})`,
-        });
-      }
-    }
-
-    // Validate layer if being updated (DM only)
-    if (updates.layer !== undefined) {
-      if (!isDM) {
-        return res.status(403).json({
-          error: 'Forbidden',
-          message: 'Only DM can change token layer',
-        });
-      }
-
-      if (updates.layer !== 'token' && updates.layer !== 'spirit') {
-        return res.status(400).json({
-          error: 'Validation Error',
-          message: 'Layer must be "token" or "spirit"',
-        });
-      }
-    }
-
-    // Validate type/disposition/displayMode updates
-    if (updates.type !== undefined && !VALID_TOKEN_TYPES.includes(updates.type)) {
-      return res.status(400).json({ error: 'Validation Error', message: 'Invalid token type' });
-    }
-    if (updates.disposition !== undefined && updates.disposition !== null && !VALID_TOKEN_DISPOSITIONS.includes(updates.disposition)) {
-      return res.status(400).json({ error: 'Validation Error', message: 'Invalid token disposition' });
-    }
-    if (updates.displayMode !== undefined && !VALID_DISPLAY_MODES.includes(updates.displayMode)) {
-      return res.status(400).json({ error: 'Validation Error', message: 'Invalid display mode' });
-    }
-
-    // Players may only update position, rotation, and conditions on tokens they control
-    // All stat fields (hp, notes, showHpBar, type, disposition, initiative) require DM role
-    if (!isDM) {
-      const restrictedFields = ['hp', 'notes', 'showHpBar', 'type', 'disposition', 'initiative', 'visible', 'name', 'imageUrl', 'layer', 'controlledBy', 'displayMode', 'statBlock', 'creatureTemplateId'];
-      for (const field of restrictedFields) {
-        if (updates[field] !== undefined) {
-          return res.status(403).json({ error: 'Forbidden', message: `Only DM can update token field: ${field}` });
-        }
-      }
-    }
-
-    // Build updated token (merge updates with existing)
-    const updatedToken: Token = {
-      ...existingToken,
-      ...(updates.name && { name: updates.name }),
-      ...(updates.imageUrl !== undefined && { imageUrl: updates.imageUrl ? (normalizeAssetUrl(updates.imageUrl, 'tokens') || existingToken.imageUrl) : '' }),
-      ...(updates.position && { position: updates.position }),
-      ...(updates.size && { size: updates.size }),
-      ...(updates.layer && { layer: updates.layer }),
-      ...(updates.visible !== undefined && { visible: updates.visible }),
-      ...(updates.controlledBy !== undefined && { controlledBy: updates.controlledBy }),
-      ...(updates.rotation !== undefined && { rotation: updates.rotation }),
-      ...(updates.conditions && { conditions: updates.conditions }),
-      ...(updates.metadata && { metadata: { ...existingToken.metadata, ...updates.metadata } }),
-      ...(updates.type !== undefined && { type: updates.type }),
-      ...(updates.disposition !== undefined && { disposition: updates.disposition }),
-      ...(updates.hp !== undefined && { hp: updates.hp }),
-      ...(updates.showHpBar !== undefined && { showHpBar: updates.showHpBar }),
-      ...(updates.notes !== undefined && { notes: updates.notes }),
-      ...(updates.initiative !== undefined && { initiative: updates.initiative }),
-      ...(updates.displayMode !== undefined && { displayMode: updates.displayMode }),
-      ...(updates.statBlock !== undefined && { statBlock: updates.statBlock }),
-      ...(updates.creatureTemplateId !== undefined && { creatureTemplateId: updates.creatureTemplateId }),
-    };
-
-    // Update the tokens array
-    const updatedTokens = [...tokensArray];
-    updatedTokens[tokenIndex] = updatedToken;
-
-    // Update the map
-    const updatedMap = await prisma.map.update({
-      where: { id: mapId },
-      data: { tokens: updatedTokens as any },
-    });
-
     return res.status(200).json({
       message: 'Token updated successfully',
-      token: updatedToken,
-      map: updatedMap,
+      token: result.token,
+      map: result.map,
     });
   } catch (error) {
+    if (error instanceof MapTokenError) {
+      return res.status(error.status).json({ error: error.error, message: error.message });
+    }
     logger.error('Error updating token', { err: error });
     return res.status(500).json({
       error: 'Internal Server Error',
@@ -1073,51 +662,17 @@ router.delete('/:id/tokens/:tokenId', campaignDM, async (req: AuthenticatedReque
   try {
     const { campaignId, id: mapId, tokenId } = req.params;
 
-    // Fetch the map
-    const map = await prisma.map.findUnique({
-      where: { id: mapId },
+    await mapTokenCommands.dispatch<DeleteMapTokenCommand, void>({
+      type: DELETE_MAP_TOKEN,
+      campaignId,
+      mapId,
+      tokenId,
     });
-
-    if (!map) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Map not found',
-      });
-    }
-
-    if (map.campaignId !== campaignId) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Map not found in this campaign',
-      });
-    }
-
-    // Get existing tokens array
-    const tokensArray = (Array.isArray(map.tokens) ? map.tokens : []) as unknown as Token[];
-
-    // Find the token
-    const tokenIndex = tokensArray.findIndex((t) => t.id === tokenId);
-
-    if (tokenIndex === -1) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Token not found on this map',
-      });
-    }
-
-    // Remove the token
-    const updatedTokens = tokensArray.filter((t) => t.id !== tokenId);
-
-    // Update the map
-    await prisma.map.update({
-      where: { id: mapId },
-      data: { tokens: updatedTokens as any },
-    });
-
-    return res.status(200).json({
-      message: 'Token removed successfully',
-    });
+    return res.status(200).json({ message: 'Token removed successfully' });
   } catch (error) {
+    if (error instanceof MapTokenError) {
+      return res.status(error.status).json({ error: error.error, message: error.message });
+    }
     logger.error('Error removing token', { err: error });
     return res.status(500).json({
       error: 'Internal Server Error',
@@ -1149,59 +704,6 @@ async function findMapInCampaign(
     return null;
   }
   return map;
-}
-
-/**
- * Helper: build a default all-hidden FogState from map dimensions.
- * One cell per grid square so fog aligns with the visible grid.
- */
-function buildDefaultFogState(map: { width: number; height: number; gridSize: number }): FogState {
-  const cellPx = map.gridSize; // one fog cell = one grid square
-  const fogCols = map.width;   // grid columns
-  const fogRows = map.height;  // grid rows
-  return {
-    fogCols,
-    fogRows,
-    cellPx,
-    revealed: new Array(fogCols * fogRows).fill(false),
-  };
-}
-
-/**
- * Load fog from DB, rebuilding if the stored cell size doesn't match the current grid.
- */
-function loadFogState(map: { width: number; height: number; gridSize: number }, stored: FogState | null): FogState {
-  const expected = buildDefaultFogState(map);
-  if (!stored || stored.cellPx !== expected.cellPx || stored.fogCols !== expected.fogCols || stored.fogRows !== expected.fogRows) {
-    return expected;
-  }
-  return stored;
-}
-
-/**
- * Helper: apply a FogOperation to an existing FogState, mutating revealed in-place.
- * Out-of-bounds indices are silently ignored.
- */
-function applyFogOperation(fog: FogState, operation: { op: string; cells?: number[] }): void {
-  const total = fog.fogCols * fog.fogRows;
-  switch (operation.op) {
-    case 'reveal_all':
-      fog.revealed.fill(true);
-      break;
-    case 'hide_all':
-      fog.revealed.fill(false);
-      break;
-    case 'reveal':
-      for (const idx of (operation.cells ?? [])) {
-        if (idx >= 0 && idx < total) fog.revealed[idx] = true;
-      }
-      break;
-    case 'hide':
-      for (const idx of (operation.cells ?? [])) {
-        if (idx >= 0 && idx < total) fog.revealed[idx] = false;
-      }
-      break;
-  }
 }
 
 /**
@@ -1237,12 +739,14 @@ router.put('/:id/walls', campaignDM, async (req: AuthenticatedRequest, res: Resp
       return res.status(400).json({ error: 'Validation Error', message: parsed.error.issues[0]?.message ?? 'Invalid segments' });
     }
 
-    const updated = await prisma.map.update({
-      where: { id },
-      data: { wallSegments: parsed.data as any },
+    const segments = await sceneCommands.dispatch<ReplaceWallSegmentsCommand, WallSegment[]>({
+      type: REPLACE_WALL_SEGMENTS,
+      actor: sceneActor(campaignId),
+      mapId: id,
+      segments: parsed.data,
     });
 
-    return res.status(200).json({ segments: updated.wallSegments });
+    return res.status(200).json({ segments });
   } catch (error) {
     logger.error('Error replacing wall segments', { err: error });
     return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to update wall segments' });
@@ -1271,12 +775,14 @@ router.post('/:id/walls', campaignDM, async (req: AuthenticatedRequest, res: Res
       return res.status(400).json({ error: 'Limit Exceeded', message: 'Maximum 5000 wall segments per map' });
     }
 
-    const updated = await prisma.map.update({
-      where: { id },
-      data: { wallSegments: [...existing, parsed.data] as any },
+    const segments = await sceneCommands.dispatch<AddWallSegmentCommand, WallSegment[]>({
+      type: ADD_WALL_SEGMENT,
+      actor: sceneActor(campaignId),
+      mapId: id,
+      segment: parsed.data,
     });
 
-    return res.status(201).json({ segment: parsed.data, total: (updated.wallSegments as unknown as WallSegment[]).length });
+    return res.status(201).json({ segment: parsed.data, total: segments.length });
   } catch (error) {
     logger.error('Error adding wall segment', { err: error });
     return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to add wall segment' });
@@ -1300,7 +806,12 @@ router.delete('/:id/walls/:sid', campaignDM, async (req: AuthenticatedRequest, r
       return res.status(404).json({ error: 'Not Found', message: 'Wall segment not found' });
     }
 
-    await prisma.map.update({ where: { id }, data: { wallSegments: filtered as any } });
+    await sceneCommands.dispatch<RemoveWallSegmentCommand, WallSegment[]>({
+      type: REMOVE_WALL_SEGMENT,
+      actor: sceneActor(campaignId),
+      mapId: id,
+      segmentId: sid,
+    });
     return res.status(200).json({ message: 'Wall segment deleted' });
   } catch (error) {
     logger.error('Error deleting wall segment', { err: error });
@@ -1331,10 +842,15 @@ router.patch('/:id/walls/:sid', campaignDM, async (req: AuthenticatedRequest, re
       return res.status(404).json({ error: 'Not Found', message: 'Wall segment not found' });
     }
 
-    existing[segIndex] = { ...existing[segIndex], type: req.body.type };
-    await prisma.map.update({ where: { id }, data: { wallSegments: existing as any } });
+    const segment = { ...existing[segIndex], type: req.body.type } as WallSegment;
+    await sceneCommands.dispatch<UpdateWallSegmentCommand, WallSegment[]>({
+      type: UPDATE_WALL_SEGMENT,
+      actor: sceneActor(campaignId),
+      mapId: id,
+      segment,
+    });
 
-    return res.status(200).json({ segment: existing[segIndex] });
+    return res.status(200).json({ segment });
   } catch (error) {
     logger.error('Error updating wall segment', { err: error });
     return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to update wall segment' });
@@ -1378,13 +894,15 @@ router.put('/:id/lights', campaignDM, async (req: AuthenticatedRequest, res: Res
       return res.status(400).json({ error: 'Validation Error', message: parsed.error.issues[0]?.message ?? 'Invalid lights array' });
     }
 
-    const updated = await prisma.map.update({
-      where: { id },
-      data: { lights: parsed.data as any },
+    const lights = await sceneCommands.dispatch<ReplaceLightSourcesCommand, LightSource[]>({
+      type: REPLACE_LIGHT_SOURCES,
+      actor: sceneActor(campaignId),
+      mapId: id,
+      lights: parsed.data,
     });
 
-    broadcastToCampaign(campaignId, 'lights:replaced', { mapId: id, lights: updated.lights });
-    return res.status(200).json({ lights: updated.lights });
+    broadcastToCampaign(campaignId, 'lights:replaced', { mapId: id, lights });
+    return res.status(200).json({ lights });
   } catch (error) {
     logger.error('Error replacing light sources:', error);
     return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to update light sources' });
@@ -1413,13 +931,15 @@ router.post('/:id/lights', campaignDM, async (req: AuthenticatedRequest, res: Re
       return res.status(400).json({ error: 'Limit Exceeded', message: 'Maximum 200 light sources per map' });
     }
 
-    const updated = await prisma.map.update({
-      where: { id },
-      data: { lights: [...existing, parsed.data] as any },
+    const lights = await sceneCommands.dispatch<AddLightSourceCommand, LightSource[]>({
+      type: ADD_LIGHT_SOURCE,
+      actor: sceneActor(campaignId),
+      mapId: id,
+      light: parsed.data,
     });
 
     broadcastToCampaign(campaignId, 'light:added', { mapId: id, light: parsed.data });
-    return res.status(201).json({ light: parsed.data, total: (updated.lights as unknown as LightSource[]).length });
+    return res.status(201).json({ light: parsed.data, total: lights.length });
   } catch (error) {
     logger.error('Error adding light source:', error);
     return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to add light source' });
@@ -1448,11 +968,16 @@ router.patch('/:id/lights/:lightId', campaignDM, async (req: AuthenticatedReques
       return res.status(404).json({ error: 'Not Found', message: 'Light source not found' });
     }
 
-    existing[idx] = { ...existing[idx], ...parsed.data };
-    await prisma.map.update({ where: { id }, data: { lights: existing as any } });
+    const light = { ...existing[idx], ...parsed.data } as LightSource;
+    await sceneCommands.dispatch<UpdateLightSourceCommand, LightSource[]>({
+      type: UPDATE_LIGHT_SOURCE,
+      actor: sceneActor(campaignId),
+      mapId: id,
+      light,
+    });
 
-    broadcastToCampaign(campaignId, 'light:updated', { mapId: id, light: existing[idx] });
-    return res.status(200).json({ light: existing[idx] });
+    broadcastToCampaign(campaignId, 'light:updated', { mapId: id, light });
+    return res.status(200).json({ light });
   } catch (error) {
     logger.error('Error updating light source:', error);
     return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to update light source' });
@@ -1476,7 +1001,12 @@ router.delete('/:id/lights/:lightId', campaignDM, async (req: AuthenticatedReque
       return res.status(404).json({ error: 'Not Found', message: 'Light source not found' });
     }
 
-    await prisma.map.update({ where: { id }, data: { lights: filtered as any } });
+    await sceneCommands.dispatch<RemoveLightSourceCommand, LightSource[]>({
+      type: REMOVE_LIGHT_SOURCE,
+      actor: sceneActor(campaignId),
+      mapId: id,
+      lightId,
+    });
 
     broadcastToCampaign(campaignId, 'light:removed', { mapId: id, lightId });
     return res.status(200).json({ message: 'Light source deleted' });
@@ -1524,16 +1054,14 @@ router.post('/:id/fog/operation', campaignDM, async (req: AuthenticatedRequest, 
       return res.status(400).json({ error: 'Validation Error', message: parsed.error.issues[0]?.message ?? 'Invalid fog operation' });
     }
 
-    const fog: FogState = loadFogState(map, map.fogData as FogState | null);
-
-    applyFogOperation(fog, parsed.data);
-
-    const updated = await prisma.map.update({
-      where: { id },
-      data: { fogData: fog as any },
+    const fog = await sceneCommands.dispatch<ApplyFogOperationCommand, FogState>({
+      type: APPLY_FOG_OPERATION,
+      actor: sceneActor(campaignId),
+      mapId: id,
+      operation: parsed.data,
     });
 
-    return res.status(200).json({ fogState: updated.fogData });
+    return res.status(200).json({ fogState: fog });
   } catch (error) {
     logger.error('Error applying fog operation', { err: error });
     return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to apply fog operation' });
@@ -1555,22 +1083,24 @@ router.put('/:id/lighting', campaignDM, async (req: AuthenticatedRequest, res: R
       return res.status(400).json({ error: 'Validation Error', message: 'enabled must be a boolean' });
     }
 
-    const updated = await prisma.map.update({
-      where: { id },
-      data: { lightingEnabled: req.body.enabled },
+    const lightingEnabled = await sceneCommands.dispatch<SetSceneLightingEnabledCommand, boolean>({
+      type: SET_SCENE_LIGHTING_ENABLED,
+      actor: sceneActor(campaignId),
+      mapId: id,
+      enabled: req.body.enabled,
     });
 
     // Broadcast to all clients in this campaign so they don't need to reload
     try {
       broadcastToCampaign(campaignId, 'map:lighting:updated', {
         mapId: id,
-        lightingEnabled: updated.lightingEnabled,
+        lightingEnabled,
       });
     } catch {
       // Socket may not be initialized in tests — log and continue
     }
 
-    return res.status(200).json({ lightingEnabled: updated.lightingEnabled });
+    return res.status(200).json({ lightingEnabled });
   } catch (error) {
     logger.error('Error updating lighting setting', { err: error });
     return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to update lighting setting' });
@@ -1578,4 +1108,3 @@ router.put('/:id/lighting', campaignDM, async (req: AuthenticatedRequest, res: R
 });
 
 export default router;
-

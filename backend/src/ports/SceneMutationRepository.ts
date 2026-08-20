@@ -6,4 +6,5 @@ export interface SceneMutationRepository {
   updateWallSegments(mapId: string, wallSegments: WallSegment[]): Promise<void>;
   updateFog(mapId: string, fog: FogState): Promise<void>;
   updateLights(mapId: string, lights: LightSource[]): Promise<void>;
+  updateLightingEnabled(mapId: string, enabled: boolean): Promise<void>;
 }

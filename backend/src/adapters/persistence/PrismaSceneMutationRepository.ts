@@ -18,6 +18,7 @@ export class PrismaSceneMutationRepository implements SceneMutationRepository {
         wallSegments: true,
         fogData: true,
         lights: true,
+        lightingEnabled: true,
       },
     });
     if (!map) return null;
@@ -48,6 +49,13 @@ export class PrismaSceneMutationRepository implements SceneMutationRepository {
     await this.client.map.update({
       where: { id: mapId },
       data: { lights: lights as unknown as Prisma.InputJsonValue },
+    });
+  }
+
+  async updateLightingEnabled(mapId: string, enabled: boolean): Promise<void> {
+    await this.client.map.update({
+      where: { id: mapId },
+      data: { lightingEnabled: enabled },
     });
   }
 }
