@@ -7,10 +7,50 @@ import { Server } from 'socket.io';
 import { throttle } from 'lodash';
 import { AuthenticatedSocket } from '../auth';
 import { prisma } from '../../config/database';
-import { getSpiritVisibility, getSpiritVisibilityBatch, filterTokensByLighting } from '../../utils/spirit-layer';
+import { getSpiritVisibilityBatch, filterTokensByLighting } from '../../utils/spirit-layer';
 import type { WallSegment } from '../../types/walls';
 import logger from '../../utils/logger';
-import { Token, tokenMoveLimiter } from '../shared';
+import { tokenMoveLimiter } from '../shared';
+import { CommandBus } from '../../application/commands/CommandBus';
+import {
+  FINALIZE_TOKEN_MOVE,
+  FinalizeTokenMove,
+  FinalizeTokenMoveCommand,
+  FinalizeTokenMoveResult,
+  PREVIEW_TOKEN_MOVE,
+  PreviewTokenMove,
+  PreviewTokenMoveCommand,
+  PreviewTokenMoveResult,
+  START_TOKEN_MOVE,
+  StartTokenMove,
+  StartTokenMoveCommand,
+  StartTokenMoveResult,
+} from '../../application/tokens/TokenMovement';
+import { PrismaTokenMovementRepository } from '../../adapters/persistence/PrismaTokenMovementRepository';
+import { PrismaSpiritVisibilityPolicy } from '../../adapters/authorization/PrismaSpiritVisibilityPolicy';
+import { TokenMovementError, TokenMovementRole } from '../../domain/tokens/TokenMovement';
+
+// Socket.IO remains a transport and recipient-filtering adapter. The mutation
+// and its authorization now run through the same command bus future HTTP,
+// import and agent adapters will use.
+const tokenMovementCommands = new CommandBus();
+const tokenMovementRepository = new PrismaTokenMovementRepository(prisma);
+const spiritVisibilityPolicy = new PrismaSpiritVisibilityPolicy();
+tokenMovementCommands.register(START_TOKEN_MOVE, new StartTokenMove(tokenMovementRepository, spiritVisibilityPolicy));
+tokenMovementCommands.register(PREVIEW_TOKEN_MOVE, new PreviewTokenMove(tokenMovementRepository));
+tokenMovementCommands.register(FINALIZE_TOKEN_MOVE, new FinalizeTokenMove(tokenMovementRepository, spiritVisibilityPolicy));
+
+function actorFor(socket: AuthenticatedSocket, campaignId: string) {
+  return {
+    campaignId,
+    userId: socket.userId!,
+    role: socket.role as TokenMovementRole,
+  };
+}
+
+function isTokenMovementError(error: unknown): error is TokenMovementError {
+  return error instanceof TokenMovementError;
+}
 
 export function registerTokenHandlers(io: Server, socket: AuthenticatedSocket): void {
   /**
@@ -31,45 +71,12 @@ export function registerTokenHandlers(io: Server, socket: AuthenticatedSocket): 
         return;
       }
 
-      // Fetch the map
-      const map = await prisma.map.findUnique({
-        where: { id: mapId },
+      const { token } = await tokenMovementCommands.dispatch<StartTokenMoveCommand, StartTokenMoveResult>({
+        type: START_TOKEN_MOVE,
+        actor: actorFor(socket, socket.campaignId),
+        tokenId,
+        mapId,
       });
-
-      if (!map || map.campaignId !== socket.campaignId) {
-        socket.emit('error', { message: 'Map not found' });
-        return;
-      }
-
-      // Get tokens array
-      const tokensArray = (Array.isArray(map.tokens) ? map.tokens : []) as unknown as Token[];
-      const token = tokensArray.find((t) => t.id === tokenId);
-
-      if (!token) {
-        socket.emit('error', { message: 'Token not found' });
-        return;
-      }
-
-      // Permission check: DM can move any token, players can only move their own
-      if (socket.role !== 'DM' && token.controlledBy !== socket.userId) {
-        socket.emit('error', { message: 'You do not have permission to move this token' });
-        return;
-      }
-
-      // Spectators cannot move tokens (already handled by controlledBy check, but explicit)
-      if (socket.role === 'SPECTATOR') {
-        socket.emit('error', { message: 'Spectators cannot move tokens' });
-        return;
-      }
-
-      // Spirit layer check: non-DMs cannot interact with spirit tokens when spirit layer is disabled
-      if (token.layer === 'spirit' && socket.role !== 'DM') {
-        const spiritVisible = await getSpiritVisibility(socket.campaignId, socket.userId!);
-        if (!spiritVisible) {
-          socket.emit('error', { message: 'You cannot interact with spirit layer tokens' });
-          return;
-        }
-      }
 
       // Role-filtered broadcast for spirit tokens
       if (token.layer === 'spirit') {
@@ -98,6 +105,10 @@ export function registerTokenHandlers(io: Server, socket: AuthenticatedSocket): 
 
       logger.debug('token.move.start', { tokenId, userId: socket.userId, mapId });
     } catch (error) {
+      if (isTokenMovementError(error)) {
+        socket.emit('error', { message: error.message });
+        return;
+      }
       logger.error('token.move.start failed', { err: error });
       socket.emit('error', { message: 'Failed to start token movement' });
     }
@@ -125,27 +136,20 @@ export function registerTokenHandlers(io: Server, socket: AuthenticatedSocket): 
         return; // Silently ignore invalid data during rapid updates
       }
 
-      // Single fetch covers bounds validation AND the spirit-layer check below
-      // (this handler fires up to ~60×/s during a drag, so one query per frame
-      // instead of two is the meaningful per-frame win).
-      const map = await prisma.map.findUnique({
-        where: { id: mapId },
-        select: { width: true, height: true, campaignId: true, tokens: true },
+      // The application command performs the one map read and preserves the
+      // legacy silent discard for a wrong-map drag frame.
+      const preview = await tokenMovementCommands.dispatch<PreviewTokenMoveCommand, PreviewTokenMoveResult | null>({
+        type: PREVIEW_TOKEN_MOVE,
+        campaignId: socket.campaignId,
+        tokenId,
+        mapId,
+        position: { x, y },
       });
 
-      if (!map || map.campaignId !== socket.campaignId) {
+      if (!preview) {
         return; // Silently ignore invalid map during rapid updates
       }
-
-      // Validate coordinates are within map bounds
-      if (x < 0 || x >= map.width || y < 0 || y >= map.height) {
-        socket.emit('error', { message: 'Token position out of bounds' });
-        return;
-      }
-
-      // Get the token to check if it's a spirit layer token
-      const movingTokens = (Array.isArray(map.tokens) ? map.tokens : []) as unknown as Token[];
-      const movingToken = movingTokens.find((t) => t.id === tokenId);
+      const { token: movingToken } = preview;
 
       // Role-filtered broadcast for spirit tokens
       if (movingToken && movingToken.layer === 'spirit') {
@@ -175,6 +179,14 @@ export function registerTokenHandlers(io: Server, socket: AuthenticatedSocket): 
         });
       }
     } catch (error) {
+      if (isTokenMovementError(error)) {
+        // As before, only an out-of-bounds transient frame is surfaced; other
+        // malformed frames are silently ignored above.
+        if (error.code === 'POSITION_OUT_OF_BOUNDS') {
+          socket.emit('error', { message: error.message });
+        }
+        return;
+      }
       logger.error('token.move failed', { err: error });
     }
   }, 16); // 16ms = ~60fps (1000ms / 60fps = 16.67ms)
@@ -207,58 +219,12 @@ export function registerTokenHandlers(io: Server, socket: AuthenticatedSocket): 
         return;
       }
 
-      // Fetch the map
-      const map = await prisma.map.findUnique({
-        where: { id: mapId },
-      });
-
-      if (!map || map.campaignId !== socket.campaignId) {
-        socket.emit('error', { message: 'Map not found' });
-        return;
-      }
-
-      // Validate coordinates are within map bounds
-      if (x < 0 || x >= map.width || y < 0 || y >= map.height) {
-        socket.emit('error', { message: 'Token position out of bounds' });
-        return;
-      }
-
-      // Get tokens array
-      const tokensArray = (Array.isArray(map.tokens) ? map.tokens : []) as unknown as Token[];
-      const tokenIndex = tokensArray.findIndex((t) => t.id === tokenId);
-
-      if (tokenIndex === -1) {
-        socket.emit('error', { message: 'Token not found' });
-        return;
-      }
-
-      const token = tokensArray[tokenIndex];
-
-      // Permission check: DM can move any token, players can only move their own
-      if (socket.role !== 'DM' && token.controlledBy !== socket.userId) {
-        socket.emit('error', { message: 'You do not have permission to move this token' });
-        return;
-      }
-
-      // Spirit layer check: non-DMs cannot interact with spirit tokens when spirit layer is disabled
-      if (token.layer === 'spirit' && socket.role !== 'DM') {
-        const spiritVisible = await getSpiritVisibility(socket.campaignId, socket.userId!);
-        if (!spiritVisible) {
-          socket.emit('error', { message: 'You cannot interact with spirit layer tokens' });
-          return;
-        }
-      }
-
-      // Update token position
-      token.position = { x, y };
-
-      // Update the tokens array in database
-      const updatedTokens = [...tokensArray];
-      updatedTokens[tokenIndex] = token;
-
-      await prisma.map.update({
-        where: { id: mapId },
-        data: { tokens: updatedTokens as any },
+      const { map, token, tokens: updatedTokens } = await tokenMovementCommands.dispatch<FinalizeTokenMoveCommand, FinalizeTokenMoveResult>({
+        type: FINALIZE_TOKEN_MOVE,
+        actor: actorFor(socket, socket.campaignId),
+        tokenId,
+        mapId,
+        position: { x, y },
       });
 
       // Role-filtered broadcast for spirit tokens
@@ -315,7 +281,7 @@ export function registerTokenHandlers(io: Server, socket: AuthenticatedSocket): 
             for (const otherToken of updatedTokens) {
               if (otherToken.id === tokenId) continue; // already handled above
               // Skip own tokens — always included by filterTokensByLighting
-              if ((otherToken as Token).controlledBy === authedSocket.userId) continue;
+              if (otherToken.controlledBy === authedSocket.userId) continue;
               if (visibleIds.has(otherToken.id)) {
                 s.emit('token:appeared', { token: otherToken, mapId });
               } else {
@@ -337,6 +303,10 @@ export function registerTokenHandlers(io: Server, socket: AuthenticatedSocket): 
 
       logger.debug('token.move.end', { tokenId, x, y, userId: socket.userId });
     } catch (error) {
+      if (isTokenMovementError(error)) {
+        socket.emit('error', { message: error.message });
+        return;
+      }
       logger.error('token.move.end failed', { err: error });
       socket.emit('error', { message: 'Failed to finalize token movement' });
     }

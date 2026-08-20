@@ -47,6 +47,11 @@ import {
 import { createVisionCache, type VisionSource } from './map/vision';
 import { useTokenAnimation, useFogRevealAnimation } from './map/useMapAnimations';
 import { useRenderLoop, type MapLayer } from './map/useRenderLoop';
+import {
+  createMapCanvasRendererHost,
+  RENDERER_CONTRACT_VERSION,
+  type MapCanvasRendererHost,
+} from '@/rendering';
 import api from '@/services/api';
 import CharacterSheetViewerModal from '@/components/character/CharacterSheetViewerModal';
 import CharacterRollPicker from '@/components/campaign/CharacterRollPicker';
@@ -85,9 +90,11 @@ interface AoEConfig {
 
 interface MapCanvasProps {
   onEditToken?: (token: Token) => void;
+  /** A per-canvas extension host; create one with `createMapCanvasRendererHost`. */
+  rendererHost?: MapCanvasRendererHost;
 }
 
-export default function MapCanvas({ onEditToken }: MapCanvasProps) {
+export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps) {
   const { currentMap, setCurrentMap, userRole, campaign, updateCampaignSpiritLayer, dmViewBothPlanes, playerSpiritVisible, setPlayerSpiritVisible, activeVibeEffect, updateVibe, activeAtmosphereEffect, characterHpCache } = useCampaign();
   // Live token state comes from the game store, not the campaign context —
   // socket handlers write there directly (outside React), and this
@@ -173,7 +180,20 @@ export default function MapCanvas({ onEditToken }: MapCanvasProps) {
   // draw callbacks are defined below. The render loop and the animation hooks
   // call the newest closure through it.
   const drawLayerRef = useRef<(layer: MapLayer) => void>(() => {});
+  // The registry is created once for the map canvas lifetime. Its layers call
+  // through the fresh context supplied by `drawLayer`, avoiding stale React
+  // closures while allowing a host/plugin to register or swap layers at
+  // runtime.
+  const ownedRendererHostRef = useRef<MapCanvasRendererHost | null>(null);
+  if (ownedRendererHostRef.current === null) {
+    ownedRendererHostRef.current = createMapCanvasRendererHost();
+  }
+  const activeRendererHost = rendererHost ?? ownedRendererHostRef.current;
   const { markDirty } = useRenderLoop(drawLayerRef);
+  // External registrations can invalidate a layer while this exact canvas is
+  // mounted. A supplied host is never process-global and cannot be attached to
+  // two map canvases concurrently.
+  useEffect(() => activeRendererHost.attach(markDirty), [activeRendererHost, markDirty]);
 
   // Walls & Fog of War state — wall segments use undo/redo history hook
   const { walls: wallSegments, push: pushWallHistory, replace: replaceWallHistory, undo: undoWalls, redo: redoWalls, canUndo: canUndoWalls, canRedo: canRedoWalls } = useWallHistory([]);
@@ -1494,10 +1514,44 @@ export default function MapCanvas({ onEditToken }: MapCanvasProps) {
   // redraw, at most once each per frame. Replaces the old
   // `useEffect(() => render())` + ~25 imperative `render()` calls.
   const drawLayer = useCallback((layer: MapLayer) => {
-    if (layer === 'terrain') drawTerrain();
-    else if (layer === 'tokens') drawTokensLayer();
-    else drawOverlay();
-  }, [drawTerrain, drawTokensLayer, drawOverlay]);
+    const canvas = layer === 'terrain'
+      ? terrainCanvasRef.current
+      : layer === 'tokens'
+        ? tokenCanvasRef.current
+        : canvasRef.current;
+    const context = canvas?.getContext('2d') ?? null;
+    const viewport: Viewport | null = currentMap ? {
+      zoom: mapControls.zoom,
+      panOffset: mapControls.panOffset,
+      gridSize: currentMap.gridSize,
+      mapWidth: currentMap.width,
+      mapHeight: currentMap.height,
+    } : null;
+
+    activeRendererHost.render(layer, {
+      contractVersion: RENDERER_CONTRACT_VERSION,
+      surface: layer,
+      canvas,
+      context,
+      map: currentMap,
+      viewport,
+      isDM: userRole === 'DM',
+      withWorldTransform: (draw) => {
+        if (!context || !viewport) return;
+        context.save();
+        context.translate(mapControls.panOffset.x, mapControls.panOffset.y);
+        context.scale(mapControls.zoom, mapControls.zoom);
+        try {
+          draw();
+        } finally {
+          context.restore();
+        }
+      },
+      drawTerrain,
+      drawTokens: drawTokensLayer,
+      drawOverlay,
+    });
+  }, [activeRendererHost, currentMap, drawTerrain, drawTokensLayer, drawOverlay, mapControls.panOffset, mapControls.zoom, userRole]);
   drawLayerRef.current = drawLayer;
 
   // Structural changes (world transform, canvas size, map identity) repaint

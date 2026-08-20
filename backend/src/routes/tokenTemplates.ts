@@ -12,10 +12,21 @@ import { campaignMember, campaignDM } from '../middleware/compose';
 import { prisma } from '../config/database';
 import {
   CreateTokenTemplateSchema,
+  CreateTokenTemplateInput,
   UpdateTokenTemplateSchema,
   SaveTokenAsTemplateSchema,
 } from '../validators/tokenTemplates';
 import logger from '../utils/logger';
+import { CommandBus } from '../application/commands/CommandBus';
+import {
+  CREATE_TOKEN_TEMPLATE,
+  CreateTokenTemplate,
+  CreateTokenTemplateCommand,
+  CreateTokenTemplateData,
+} from '../application/tokenTemplates/CreateTokenTemplate';
+import { PrismaTokenTemplateRepository } from '../adapters/persistence/PrismaTokenTemplateRepository';
+import { NoopDomainEventPublisher } from '../adapters/events/NoopDomainEventPublisher';
+import { JsonValue } from '../domain/tokenTemplates/TokenTemplate';
 
 /** Convert a nullable value to a Prisma-compatible JSON input. */
 function jsonOrNull(val: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {
@@ -23,6 +34,30 @@ function jsonOrNull(val: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNul
 }
 
 const router = Router({ mergeParams: true });
+
+// HTTP is an adapter: validated request data is dispatched to an application
+// command rather than coupling this endpoint directly to Prisma.
+const tokenTemplateCommands = new CommandBus();
+tokenTemplateCommands.register(
+  CREATE_TOKEN_TEMPLATE,
+  new CreateTokenTemplate(new PrismaTokenTemplateRepository(prisma), new NoopDomainEventPublisher())
+);
+
+function toCreateTokenTemplateData(data: CreateTokenTemplateInput): CreateTokenTemplateData {
+  return {
+    name: data.name,
+    imageUrl: data.imageUrl,
+    type: data.type,
+    disposition: data.disposition,
+    displayMode: data.displayMode,
+    size: data.size,
+    notes: data.notes,
+    hp: data.hp,
+    showHpBar: data.showHpBar,
+    statBlock: data.statBlock as JsonValue | null | undefined,
+    sightRadius: data.sightRadius,
+  };
+}
 
 // ============================================
 // LIST — GET /
@@ -106,24 +141,11 @@ router.post('/', campaignDM, async (req: AuthenticatedRequest, res: Response) =>
       });
     }
 
-    const data = parsed.data;
-    const template = await prisma.tokenTemplate.create({
-      data: {
-        id: randomUUID(),
-        name: data.name,
-        imageUrl: data.imageUrl ?? null,
-        type: data.type,
-        disposition: data.disposition ?? null,
-        displayMode: data.displayMode,
-        size: data.size,
-        notes: data.notes ?? null,
-        hp: jsonOrNull(data.hp),
-        showHpBar: data.showHpBar,
-        statBlock: jsonOrNull(data.statBlock),
-        sightRadius: data.sightRadius ?? null,
-        createdById: userId,
-        campaignId,
-      },
+    const template = await tokenTemplateCommands.dispatch<CreateTokenTemplateCommand, Awaited<ReturnType<CreateTokenTemplate['execute']>>>({
+      type: CREATE_TOKEN_TEMPLATE,
+      campaignId,
+      createdById: userId,
+      data: toCreateTokenTemplateData(parsed.data),
     });
 
     return res.status(201).json(template);

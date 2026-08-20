@@ -68,11 +68,16 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: cozyvtt-frontend
+    # Initialize the anonymous dependency volume for the host-mapped dev user,
+    # then drop privileges before starting Vite.
+    user: "0:0"
     restart: unless-stopped
     depends_on:
       - backend
     environment:
-      VITE_API_URL: http://localhost:4000
+      # Keep browser requests same-origin; Vite proxies /api and /socket.io to
+      # the backend service below, which preserves session cookies.
+      VITE_API_URL: ""
       VITE_PROXY_TARGET: http://backend:4000
       VITE_ALLOWED_HOSTS: ${VITE_ALLOWED_HOSTS}
     ports:
@@ -80,7 +85,12 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: npm run dev
+    command:
+      - sh
+      - -c
+      - |
+        chown -R ${LOCAL_UID:-1000}:${LOCAL_GID:-1000} /app/node_modules
+        exec su node -s /bin/sh -c "npm run dev"
 
 volumes:
   postgres_data:
