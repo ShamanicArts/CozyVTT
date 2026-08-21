@@ -8,6 +8,13 @@ export interface ExtensionThemeContribution {
   name: string;
   contractVersion: "1.0";
   tokens: Record<string, string>;
+  treatments?: {
+    pageBackground?: {
+      kind: "linear-gradient";
+      angle: number;
+      stops: Array<{ token: string; position: number }>;
+    };
+  };
 }
 
 export interface ActiveExtensionThemeContribution {

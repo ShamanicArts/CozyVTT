@@ -6,37 +6,44 @@
 //   Step 2: Save backup codes (shown once)
 // ============================================
 
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Shield, Copy, CheckCircle, AlertTriangle, Loader2, ChevronRight } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Shield,
+  Copy,
+  CheckCircle,
+  AlertTriangle,
+  Loader2,
+  ChevronRight,
+} from "lucide-react";
+import Button from "@/components/ui/Button";
 
-type Step = 'loading' | 'scan' | 'backup-codes' | 'error';
+type Step = "loading" | "scan" | "backup-codes" | "error";
 
 export default function MFASetupPage() {
   const navigate = useNavigate();
   const { authenticated, setupMFA, completeMFASetup } = useAuth();
 
   // Setup data
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
-  const [secret, setSecret] = useState('');
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
+  const [secret, setSecret] = useState("");
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
 
   // UI state
-  const [step, setStep] = useState<Step>('loading');
-  const [token, setToken] = useState('');
+  const [step, setStep] = useState<Step>("loading");
+  const [token, setToken] = useState("");
   const [verifying, setVerifying] = useState(false);
-  const [tokenError, setTokenError] = useState('');
+  const [tokenError, setTokenError] = useState("");
   const [secretCopied, setSecretCopied] = useState(false);
   const [codesCopied, setCodesCopied] = useState(false);
   const [codesAcknowledged, setCodesAcknowledged] = useState(false);
-  const [initError, setInitError] = useState('');
+  const [initError, setInitError] = useState("");
 
   // Redirect if not authenticated
   useEffect(() => {
     if (!authenticated) {
-      navigate('/auth/login', { replace: true });
+      navigate("/auth/login", { replace: true });
     }
   }, [authenticated, navigate]);
 
@@ -49,15 +56,17 @@ export default function MFASetupPage() {
         const data = await setupMFA();
         setQrCodeUrl(data.qrCodeUrl);
         setSecret(data.secret);
-        setStep('scan');
+        setStep("scan");
       } catch (err: any) {
-        setInitError(err.response?.data?.message || 'Failed to initiate MFA setup');
-        setStep('error');
+        setInitError(
+          err.response?.data?.message || "Failed to initiate MFA setup",
+        );
+        setStep("error");
       }
     };
 
     initSetup();
-  }, [authenticated]);  
+  }, [authenticated]);
 
   // ============================================
   // Handlers
@@ -65,10 +74,10 @@ export default function MFASetupPage() {
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    setTokenError('');
+    setTokenError("");
 
     if (token.length !== 6) {
-      setTokenError('Code must be 6 digits');
+      setTokenError("Code must be 6 digits");
       return;
     }
 
@@ -76,9 +85,11 @@ export default function MFASetupPage() {
       setVerifying(true);
       const result = await completeMFASetup(token);
       setBackupCodes(result.backupCodes);
-      setStep('backup-codes');
+      setStep("backup-codes");
     } catch (err: any) {
-      setTokenError(err.response?.data?.message || 'Invalid code. Please try again.');
+      setTokenError(
+        err.response?.data?.message || "Invalid code. Please try again.",
+      );
     } finally {
       setVerifying(false);
     }
@@ -91,13 +102,13 @@ export default function MFASetupPage() {
   };
 
   const copyBackupCodes = () => {
-    navigator.clipboard.writeText(backupCodes.join('\n'));
+    navigator.clipboard.writeText(backupCodes.join("\n"));
     setCodesCopied(true);
     setTimeout(() => setCodesCopied(false), 2000);
   };
 
   const handleDone = () => {
-    navigate('/profile');
+    navigate("/profile");
   };
 
   // ============================================
@@ -105,7 +116,7 @@ export default function MFASetupPage() {
   // ============================================
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-soft-cream via-parchment to-warm-amber/20 px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-canvas px-4 py-8">
       <div className="glass-panel max-w-lg w-full p-8 space-y-6">
         {/* Header */}
         <div className="text-center">
@@ -118,38 +129,44 @@ export default function MFASetupPage() {
             Set Up Two-Factor Authentication
           </h1>
           <p className="mt-1 text-sm text-warm-gray">
-            {step === 'backup-codes'
-              ? 'MFA enabled! Save your backup codes.'
-              : 'Add an extra layer of security to your account.'}
+            {step === "backup-codes"
+              ? "MFA enabled! Save your backup codes."
+              : "Add an extra layer of security to your account."}
           </p>
         </div>
 
         {/* ── Loading ── */}
-        {step === 'loading' && (
+        {step === "loading" && (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 text-moss-green animate-spin" />
           </div>
         )}
 
         {/* ── Error ── */}
-        {step === 'error' && (
+        {step === "error" && (
           <div className="space-y-4">
             <div className="p-4 rounded-lg bg-red-50 border border-red-200 flex gap-3">
               <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-red-700">{initError}</p>
             </div>
-            <Button onClick={() => navigate('/profile')} variant="secondary" className="w-full">
+            <Button
+              onClick={() => navigate("/profile")}
+              variant="secondary"
+              className="w-full"
+            >
               Back to Profile
             </Button>
           </div>
         )}
 
         {/* ── Step 1: Scan QR code ── */}
-        {step === 'scan' && (
+        {step === "scan" && (
           <div className="space-y-6">
             {/* Instructions */}
             <ol className="text-sm text-warm-gray space-y-2 list-decimal list-inside">
-              <li>Install an authenticator app (Google Authenticator, Authy, etc.)</li>
+              <li>
+                Install an authenticator app (Google Authenticator, Authy, etc.)
+              </li>
               <li>Scan the QR code below, or enter the secret key manually</li>
               <li>Enter the 6-digit code from your app to verify</li>
             </ol>
@@ -163,9 +180,13 @@ export default function MFASetupPage() {
 
             {/* Manual Secret Key */}
             <div>
-              <p className="text-xs font-medium text-stone-gray mb-1.5">Manual entry key</p>
+              <p className="text-xs font-medium text-stone-gray mb-1.5">
+                Manual entry key
+              </p>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-parchment/60 border border-moss-green/15">
-                <code className="flex-1 text-sm font-mono text-moss-green break-all">{secret}</code>
+                <code className="flex-1 text-sm font-mono text-moss-green break-all">
+                  {secret}
+                </code>
                 <button
                   onClick={copySecret}
                   className="flex-shrink-0 p-1.5 rounded hover:bg-moss-green/10 transition-colors"
@@ -193,12 +214,12 @@ export default function MFASetupPage() {
                   maxLength={6}
                   value={token}
                   onChange={(e) => {
-                    setToken(e.target.value.replace(/[^0-9]/g, ''));
-                    setTokenError('');
+                    setToken(e.target.value.replace(/[^0-9]/g, ""));
+                    setTokenError("");
                   }}
                   placeholder="000000"
                   className={`input-cozy w-full text-center text-2xl tracking-widest font-mono ${
-                    tokenError ? 'border-red-400 focus:ring-red-400' : ''
+                    tokenError ? "border-red-400 focus:ring-red-400" : ""
                   }`}
                   autoFocus
                   autoComplete="one-time-code"
@@ -211,9 +232,10 @@ export default function MFASetupPage() {
               <div className="flex gap-3">
                 <Button
                   type="button"
-                  onClick={() => navigate('/profile')}
+                  onClick={() => navigate("/profile")}
                   disabled={verifying}
-                  variant="secondary" className="flex-1"
+                  variant="secondary"
+                  className="flex-1"
                 >
                   Cancel
                 </Button>
@@ -240,13 +262,15 @@ export default function MFASetupPage() {
         )}
 
         {/* ── Step 2: Backup codes ── */}
-        {step === 'backup-codes' && (
+        {step === "backup-codes" && (
           <div className="space-y-5">
             {/* Success banner */}
             <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 border border-green-200">
               <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-green-800">MFA Enabled Successfully</p>
+                <p className="text-sm font-semibold text-green-800">
+                  MFA Enabled Successfully
+                </p>
                 <p className="text-xs text-green-700 mt-0.5">
                   Your account is now protected with two-factor authentication.
                 </p>
@@ -257,9 +281,11 @@ export default function MFASetupPage() {
             <div className="flex items-start gap-3 p-4 rounded-lg bg-warm-amber/10 border border-warm-amber/30">
               <AlertTriangle className="w-5 h-5 text-warm-amber flex-shrink-0 mt-0.5" />
               <p className="text-sm text-stone-gray">
-                <span className="font-semibold">Save these backup codes now.</span> They will not
-                be shown again. Each code can only be used once to access your account if you lose
-                your authenticator device.
+                <span className="font-semibold">
+                  Save these backup codes now.
+                </span>{" "}
+                They will not be shown again. Each code can only be used once to
+                access your account if you lose your authenticator device.
               </p>
             </div>
 

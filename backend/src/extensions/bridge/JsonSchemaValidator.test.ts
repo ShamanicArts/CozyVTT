@@ -24,3 +24,14 @@ describe("validateJsonSchema object cardinality", () => {
     );
   });
 });
+
+describe("validateJsonSchema string patterns", () => {
+  const schema = { type: "string", pattern: "^[0-9]+$" };
+
+  it("accepts matching cursor strings and rejects malformed values", () => {
+    expect(() => validateJsonSchema(schema, "42")).not.toThrow();
+    expect(() => validateJsonSchema(schema, "4x")).toThrow(
+      JsonSchemaValidationError,
+    );
+  });
+});

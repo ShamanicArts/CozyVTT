@@ -73,7 +73,9 @@ export default function ThemePicker({
 
   const handlePreset = (id: string) => {
     const theme = selectableThemes.find((t) => t.id === id);
-    if (theme && livePreview) applyThemeColors(theme.colors);
+    if (theme && livePreview) {
+      applyThemeColors(theme.colors, theme.treatments);
+    }
     onChange({ themeId: id, fontId, customColors });
   };
 

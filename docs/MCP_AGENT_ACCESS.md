@@ -58,6 +58,13 @@ digests. Those are implementation details, not tasks imposed on the user.
 - `command_*` tools call the built-in application command host.
 - `extension_*` tools come from active, locally installed extensions.
 
+`query_campaign_snapshot_get` returns one authoritative, role-filtered view of
+the current map, visible actors, roster, and durable initiative tracker.
+`query_campaign_events_read` is a cursor-based, optionally long-polled event
+feed. Its first durable event family covers initiative changes; later families
+must join the same visibility-filtered journal rather than expose raw socket
+traffic.
+
 Installed extension tools do not require separate user or administrator
 grants. They run as the same delegated campaign member through the extension
 bridge and remain constrained by their manifest, command binding, sandbox or
@@ -107,9 +114,24 @@ They are not browser macros and do not simulate clicks.
   orchestration. It does not receive a raw database, shell, HTTP, or Socket.IO
   escape hatch.
 
-Every successful mutation publishes the same campaign events as the human UI
-path, so connected human players see agent actions live. The public catalogue
-is also available to locally installed extensions: trusted extensions call the
-campaign-scoped `context.core` gateway, while sandboxed extensions return
-bounded declarative `coreActions`. Both paths resolve to these same application
-handlers and campaign-role checks.
+Agent mutations use the same application handlers and live Socket.IO fan-out as
+the human UI path, so connected human players see agent actions. Durable event
+journaling currently covers initiative transitions; it is intentionally not
+claimed for every legacy mutation yet. The public catalogue is also available
+to locally installed extensions: trusted extensions call the campaign-scoped
+`context.core` gateway, while sandboxed extensions return bounded declarative
+`coreActions`. Both paths resolve to the same domain authorization.
+
+## External harnesses and plugins
+
+CozyVTT owns game truth and safe game operations. It does **not** own model
+selection, prompts, planning, memory, autonomous loops, scheduling, or an
+agent's personality. Those belong in an external harness or a separately
+versioned plugin.
+
+The public `@cozyvtt/extension-sdk` contains only transport-independent
+manifest, handler, and core-gateway contracts. The separate
+`cozyvtt-npc-controller` reference plugin dogfoods that SDK: an external MCP
+harness decides when to call its contributed tool, the plugin reads the public
+campaign snapshot, and it dispatches one ordinary actor move or dice command.
+It imports no CozyVTT backend internals and contains no embedded AI runtime.

@@ -1,14 +1,39 @@
-// ============================================
-// Campaign Info Component
-// Displays campaign name, description, status
-// ============================================
+import { useState } from "react";
+import { CalendarDays, Crown, UserPlus, Users } from "lucide-react";
+import { useCampaign } from "@/contexts/CampaignContext";
+import type { CampaignStatus } from "@/types";
+import GameSystemBadge from "../common/GameSystemBadge";
+import InvitePlayerModal from "./InvitePlayerModal";
 
-import { useState } from 'react';
-import { useCampaign } from '@/contexts/CampaignContext';
-import { Info, Users, Crown, Calendar, UserPlus } from 'lucide-react';
-import type { CampaignStatus } from '@/types';
-import GameSystemBadge from '../common/GameSystemBadge';
-import InvitePlayerModal from './InvitePlayerModal';
+const STATUS_STYLES: Record<
+  CampaignStatus,
+  { label: string; className: string }
+> = {
+  PREPARATION: {
+    label: "Preparation",
+    className: "border-warm-amber/25 bg-warm-amber/10 text-warm-amber",
+  },
+  ACTIVE: {
+    label: "Active",
+    className: "border-moss-green/25 bg-moss-green/10 text-moss-green",
+  },
+  PAUSED: {
+    label: "Paused",
+    className: "border-ink-muted/20 bg-surface text-ink-secondary",
+  },
+  COMPLETED: {
+    label: "Completed",
+    className: "border-spirit-purple/25 bg-spirit-purple/10 text-spirit-purple",
+  },
+  ARCHIVED: {
+    label: "Archived",
+    className: "border-ink-muted/20 bg-surface text-ink-muted",
+  },
+  INACTIVE: {
+    label: "Inactive",
+    className: "border-ink-muted/20 bg-surface text-ink-muted",
+  },
+};
 
 export default function CampaignInfo() {
   const { campaign, userRole } = useCampaign();
@@ -16,152 +41,99 @@ export default function CampaignInfo() {
 
   if (!campaign) {
     return (
-      <div className="glass-panel p-4">
-        <div className="animate-pulse space-y-3">
-          <div className="h-6 bg-warm-gray/20 rounded w-3/4" />
-          <div className="h-4 bg-warm-gray/20 rounded w-full" />
-          <div className="h-4 bg-warm-gray/20 rounded w-5/6" />
-        </div>
+      <div className="animate-pulse border-b border-brand/10 p-3">
+        <div className="h-4 w-28 rounded bg-ink-muted/15" />
+        <div className="mt-3 h-3 w-full rounded bg-ink-muted/10" />
       </div>
     );
   }
 
-  // Get status badge styling
-  const getStatusBadge = (status: CampaignStatus) => {
-    const badges = {
-      PREPARATION: {
-        label: 'Preparation',
-        class: 'bg-warm-amber/20 text-warm-amber border-warm-amber/30',
-      },
-      ACTIVE: {
-        label: 'Active',
-        class: 'bg-moss-green/20 text-moss-green border-moss-green/30',
-      },
-      PAUSED: {
-        label: 'Paused',
-        class: 'bg-stone-gray/20 text-stone-gray border-stone-gray/30',
-      },
-      COMPLETED: {
-        label: 'Completed',
-        class: 'bg-spirit-purple/20 text-spirit-purple border-spirit-purple/30',
-      },
-      ARCHIVED: {
-        label: 'Archived',
-        class: 'bg-warm-gray/20 text-warm-gray border-warm-gray/30',
-      },
-      INACTIVE: {
-        label: 'Inactive',
-        class: 'bg-warm-gray/20 text-warm-gray border-warm-gray/30',
-      },
-    };
-
-    return badges[status] || badges.PREPARATION;
-  };
-
-  const statusBadge = getStatusBadge(campaign.status);
-  const memberCount = campaign.memberships?.length || 0;
+  const status = STATUS_STYLES[campaign.status] ?? STATUS_STYLES.PREPARATION;
+  const memberCount = campaign.memberships?.length ?? 0;
   const ownerName =
-    campaign.memberships?.find((m) => m.userId === campaign.ownerId)?.user
-      ?.displayName || 'Unknown';
+    campaign.memberships?.find(
+      (membership) => membership.userId === campaign.ownerId,
+    )?.user?.displayName ?? "Unknown";
 
   return (
-    <div className="glass-panel p-4 space-y-4">
-      {/* Header */}
-      <div className="flex items-center gap-2 pb-2 border-b border-moss-green/20">
-        <Info className="w-5 h-5 text-moss-green" />
-        <h3 className="text-lg font-semibold text-moss-green">
-          Campaign Info
-        </h3>
-      </div>
-
-      {/* Campaign Name */}
-      <div>
-        <h2 className="text-xl font-bold text-moss-green mb-1">
-          {campaign.name}
-        </h2>
-        {campaign.description && (
-          <p className="text-sm text-warm-gray line-clamp-3">
-            {campaign.description}
-          </p>
-        )}
-      </div>
-
-      {/* Status and Game System Badges */}
-      <div className="flex items-center gap-2 flex-wrap">
+    <section
+      className="border-b border-brand/10 px-3 py-3"
+      aria-label="Campaign overview"
+    >
+      <div className="flex flex-wrap items-center gap-1.5">
         <span
-          className={`inline-block px-2.5 py-1 rounded-full border text-xs font-medium ${statusBadge.class}`}
+          className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${status.className}`}
         >
-          {statusBadge.label}
+          {status.label}
         </span>
-        <GameSystemBadge gameSystem={campaign.gameSystem} size="md" />
-      </div>
-
-      {/* Details */}
-      <div className="space-y-2 text-sm">
-        <div className="flex items-center gap-2 text-stone-gray">
-          <Crown className="w-4 h-4 text-moss-green" />
-          <span className="text-warm-gray">DM:</span>
-          <span className="text-stone-gray font-medium">{ownerName}</span>
-        </div>
-
-        <div className="flex items-center gap-2 text-stone-gray">
-          <Users className="w-4 h-4 text-spirit-purple" />
-          <span className="text-warm-gray">Members:</span>
-          <span className="text-stone-gray font-medium">{memberCount}</span>
-        </div>
-
-        {campaign.lastPlayedAt && (
-          <div className="flex items-center gap-2 text-stone-gray">
-            <Calendar className="w-4 h-4 text-warm-amber" />
-            <span className="text-warm-gray">Last played:</span>
-            <span className="text-stone-gray font-medium">
-              {new Date(campaign.lastPlayedAt).toLocaleDateString()}
-            </span>
-          </div>
+        <GameSystemBadge gameSystem={campaign.gameSystem} size="sm" />
+        {userRole && (
+          <span className="ml-auto text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+            {userRole}
+          </span>
         )}
       </div>
 
-      {/* DM Actions - Invite Player Button */}
-      {userRole === 'DM' && (
-        <div className="pt-2 border-t border-moss-green/20">
-          <button
-            onClick={() => setShowInviteModal(true)}
-            className="flex items-center gap-2 px-3 py-2 w-full rounded-lg bg-moss-green/10 text-moss-green hover:bg-moss-green/20 transition-colors text-sm font-medium"
-          >
-            <UserPlus className="w-4 h-4" />
-            Invite Player
-          </button>
-        </div>
+      {campaign.description && (
+        <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-ink-secondary">
+          {campaign.description}
+        </p>
       )}
 
-      {/* User Role Badge */}
-      {userRole && (
-        <div className="pt-2 border-t border-moss-green/20">
-          <span className="text-xs text-warm-gray">Your role:</span>
-          <div
-            className={`inline-block ml-2 px-2.5 py-1 rounded-full border text-xs font-medium ${
-              userRole === 'DM'
-                ? 'bg-moss-green/20 text-moss-green border-moss-green/40'
-                : 'bg-spirit-purple/20 text-spirit-purple border-spirit-purple/40'
-            }`}
-          >
-            {userRole}
+      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <Crown
+            className="h-3.5 w-3.5 flex-none text-brand"
+            aria-hidden="true"
+          />
+          <dt className="sr-only">Dungeon master</dt>
+          <dd className="truncate text-ink-secondary">{ownerName}</dd>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Users
+            className="h-3.5 w-3.5 flex-none text-ink-muted"
+            aria-hidden="true"
+          />
+          <dt className="sr-only">Members</dt>
+          <dd className="text-ink-secondary">
+            {memberCount} {memberCount === 1 ? "member" : "members"}
+          </dd>
+        </div>
+        {campaign.lastPlayedAt && (
+          <div className="col-span-2 flex items-center gap-1.5">
+            <CalendarDays
+              className="h-3.5 w-3.5 flex-none text-ink-muted"
+              aria-hidden="true"
+            />
+            <dt className="sr-only">Last played</dt>
+            <dd className="text-ink-muted">
+              Last played {new Date(campaign.lastPlayedAt).toLocaleDateString()}
+            </dd>
           </div>
-        </div>
+        )}
+      </dl>
+
+      {userRole === "DM" && (
+        <button
+          type="button"
+          onClick={() => setShowInviteModal(true)}
+          className="mt-3 inline-flex h-8 w-full items-center justify-center gap-2 rounded-cozy border border-brand/20 bg-brand/5 px-3 text-xs font-medium text-brand transition-colors hover:bg-brand/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
+          Invite player
+        </button>
       )}
 
-      {/* Invite Player Modal */}
-      {showInviteModal && campaign && (
+      {showInviteModal && (
         <InvitePlayerModal
           campaignId={campaign.id}
           onClose={() => setShowInviteModal(false)}
           onSuccess={() => {
             setShowInviteModal(false);
-            // Refresh page to show updated member list
             window.location.reload();
           }}
         />
       )}
-    </div>
+    </section>
   );
 }

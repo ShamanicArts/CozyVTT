@@ -3,18 +3,18 @@
 // Real-time chat with message history and WebSocket integration
 // ============================================
 
-import { useState, useEffect, useRef, FormEvent, KeyboardEvent } from 'react';
-import { MessageCircle, Send, Loader, AlertCircle } from 'lucide-react';
-import { useParams } from 'react-router-dom';
-import { useWebSocket } from '@/contexts/WebSocketContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { useCampaign } from '@/contexts/CampaignContext';
-import { getMessages } from '@/services/message.service';
-import ChatMessage from './ChatMessage';
-import ChatMessageSkeleton from '@/components/skeletons/ChatMessageSkeleton';
-import { MessageType, PlatformRole } from '@/types';
-import type { Message, ChatMessageBroadcast } from '@/types';
-import Button from '@/components/ui/Button';
+import { useState, useEffect, useRef, FormEvent, KeyboardEvent } from "react";
+import { MessageCircle, Send, Loader, AlertCircle } from "lucide-react";
+import { useParams } from "react-router-dom";
+import { useWebSocket } from "@/contexts/WebSocketContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCampaign } from "@/contexts/CampaignContext";
+import { getMessages } from "@/services/message.service";
+import ChatMessage from "./ChatMessage";
+import ChatMessageSkeleton from "@/components/skeletons/ChatMessageSkeleton";
+import { MessageType, PlatformRole } from "@/types";
+import type { Message, ChatMessageBroadcast } from "@/types";
+import Button from "@/components/ui/Button";
 
 export default function ChatPanel() {
   const { id: campaignId } = useParams<{ id: string }>();
@@ -24,7 +24,7 @@ export default function ChatPanel() {
 
   // State
   const [messages, setMessages] = useState<Message[]>([]);
-  const [messageInput, setMessageInput] = useState('');
+  const [messageInput, setMessageInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
@@ -52,7 +52,8 @@ export default function ChatPanel() {
 
     const threshold = 50; // pixels from bottom
     const isBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+      container.scrollHeight - container.scrollTop - container.clientHeight <
+      threshold;
     return isBottom;
   };
 
@@ -66,7 +67,7 @@ export default function ChatPanel() {
     if (!container) return;
     container.scrollTo({
       top: container.scrollHeight,
-      behavior: smooth ? 'smooth' : 'auto',
+      behavior: smooth ? "smooth" : "auto",
     });
   };
 
@@ -100,8 +101,8 @@ export default function ChatPanel() {
         // Scroll to bottom after initial load (without smooth)
         setTimeout(() => scrollToBottom(false), 100);
       } catch (err: any) {
-        console.error('[ChatPanel] Failed to load messages:', err);
-        setError(err.message || 'Failed to load messages');
+        console.error("[ChatPanel] Failed to load messages:", err);
+        setError(err.message || "Failed to load messages");
       } finally {
         setIsLoading(false);
       }
@@ -142,12 +143,15 @@ export default function ChatPanel() {
           // Re-sort by createdAt to keep order correct if a gap was filled
           merged.sort(
             (a, b) =>
-              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
           );
           return merged;
         });
       } catch (err) {
-        console.error('[ChatPanel] Failed to resync messages after reconnect:', err);
+        console.error(
+          "[ChatPanel] Failed to resync messages after reconnect:",
+          err,
+        );
         // Non-fatal — user will still see new messages going forward
       }
     };
@@ -159,7 +163,8 @@ export default function ChatPanel() {
    * Load more messages (pagination)
    */
   const loadMoreMessages = async () => {
-    if (!campaignId || isLoadingMore || !hasMore || messages.length === 0) return;
+    if (!campaignId || isLoadingMore || !hasMore || messages.length === 0)
+      return;
 
     try {
       setIsLoadingMore(true);
@@ -179,8 +184,8 @@ export default function ChatPanel() {
       setMessages((prev) => [...fetchedMessages.reverse(), ...prev]);
       setHasMore(fetchedMessages.length === 50);
     } catch (err: any) {
-      console.error('[ChatPanel] Failed to load more messages:', err);
-      setError(err.message || 'Failed to load more messages');
+      console.error("[ChatPanel] Failed to load more messages:", err);
+      setError(err.message || "Failed to load more messages");
     } finally {
       setIsLoadingMore(false);
     }
@@ -197,7 +202,7 @@ export default function ChatPanel() {
     if (!socket) return;
 
     const handleChatMessage = (data: ChatMessageBroadcast) => {
-      console.log('[ChatPanel] Received chat message:', data);
+      console.log("[ChatPanel] Received chat message:", data);
 
       // Convert broadcast format to Message format
       const newMessage: Message = {
@@ -207,7 +212,7 @@ export default function ChatPanel() {
         user: {
           id: data.userId,
           displayName: data.userName,
-          email: '',
+          email: "",
           platformRole: PlatformRole.USER,
           globalAssetManager: false,
           mfaEnabled: false,
@@ -230,17 +235,19 @@ export default function ChatPanel() {
           // Find and replace the optimistic message with matching content
           const optimisticIndex = prev.findIndex(
             (msg) =>
-              msg.id.startsWith('temp-') &&
+              msg.id.startsWith("temp-") &&
               msg.userId === data.userId &&
               msg.content === data.content &&
-              msg.type === data.type
+              msg.type === data.type,
           );
 
           if (optimisticIndex !== -1) {
             // Replace optimistic message with real one
             const updated = [...prev];
             updated[optimisticIndex] = newMessage;
-            console.log('[ChatPanel] Replaced optimistic message with real message');
+            console.log(
+              "[ChatPanel] Replaced optimistic message with real message",
+            );
             return updated;
           }
         }
@@ -255,8 +262,12 @@ export default function ChatPanel() {
       }
     };
 
-    const handleSystemMessage = (data: { content: string; metadata?: any; timestamp: string }) => {
-      console.log('[ChatPanel] Received system message:', data);
+    const handleSystemMessage = (data: {
+      content: string;
+      metadata?: any;
+      timestamp: string;
+    }) => {
+      console.log("[ChatPanel] Received system message:", data);
 
       const systemMessage: Message = {
         id: `system-${Date.now()}`,
@@ -279,8 +290,8 @@ export default function ChatPanel() {
     socket.onChatSystem(handleSystemMessage);
 
     return () => {
-      socket.off('chat.message', handleChatMessage);
-      socket.off('chat.system', handleSystemMessage);
+      socket.off("chat.message", handleChatMessage);
+      socket.off("chat.system", handleSystemMessage);
     };
   }, [socket, campaignId]);
 
@@ -330,7 +341,7 @@ export default function ChatPanel() {
    * Handle Enter key (submit) and Shift+Enter (newline)
    */
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
@@ -340,14 +351,16 @@ export default function ChatPanel() {
    * Send chat message via WebSocket
    */
   const sendMessage = (): void => {
-    if (!messageInput.trim() || !canSend || !socket || !campaignId || !user) return;
+    if (!messageInput.trim() || !canSend || !socket || !campaignId || !user)
+      return;
 
     const content = messageInput.trim();
 
-    const messageType: MessageType = userRole === 'DM' ? MessageType.DM : MessageType.PLAYER;
+    const messageType: MessageType =
+      userRole === "DM" ? MessageType.DM : MessageType.PLAYER;
 
     try {
-      console.log('[ChatPanel] Sending message:', content);
+      console.log("[ChatPanel] Sending message:", content);
 
       // Emit to WebSocket (campaignId comes from server-side socket.campaignId)
       socket.emitChatMessage({
@@ -382,14 +395,14 @@ export default function ChatPanel() {
       setMessages((prev) => [...prev, optimisticMessage]);
 
       // Clear input and scroll
-      setMessageInput('');
+      setMessageInput("");
       setTimeout(() => scrollToBottom(true), 50);
 
       // Start rate limit cooldown
       startCooldown();
     } catch (err) {
-      console.error('[ChatPanel] Failed to send message:', err);
-      setError('Failed to send message');
+      console.error("[ChatPanel] Failed to send message:", err);
+      setError("Failed to send message");
     }
   };
 
@@ -399,50 +412,36 @@ export default function ChatPanel() {
 
   if (isLoading) {
     return (
-      <div className="glass-panel h-full flex flex-col">
-        {/* Header skeleton */}
-        <div className="flex items-center gap-2 p-4 border-b border-moss-green/20">
-          <MessageCircle className="w-5 h-5 text-moss-green/40" />
-          <div className="h-5 w-10 bg-moss-green/15 rounded animate-pulse" />
-        </div>
-        {/* Message skeletons */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex h-full flex-col bg-canvas">
+        <div className="flex-1 space-y-1 overflow-y-auto p-2">
           <ChatMessageSkeleton variant="long" />
           <ChatMessageSkeleton variant="short" />
           <ChatMessageSkeleton variant="medium" />
           <ChatMessageSkeleton variant="long" />
           <ChatMessageSkeleton variant="short" />
         </div>
-        {/* Input placeholder */}
-        <div className="p-4 border-t border-moss-green/20 animate-pulse">
-          <div className="h-16 bg-moss-green/5 rounded-lg" />
+        <div className="animate-pulse border-t border-brand/15 p-2">
+          <div className="h-11 rounded-cozy bg-surface" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="glass-panel h-full flex flex-col">
-      {/* Chat Header */}
-      <div className="flex items-center gap-2 p-4 border-b border-moss-green/20">
-        <MessageCircle className="w-5 h-5 text-moss-green" />
-        <h3 className="text-lg font-semibold text-moss-green">Chat</h3>
-        {messages.length > 0 && (
-          <span className="text-xs text-stone-gray/70 ml-auto">
-            {messages.length} {messages.length === 1 ? 'message' : 'messages'}
-          </span>
-        )}
-      </div>
-
-      {/* Error Display */}
+    <div className="flex h-full flex-col bg-canvas">
       {error && (
-        <div className="mx-4 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-          <p className="text-sm text-red-800">{error}</p>
+        <div
+          role="alert"
+          className="m-2 flex items-center gap-2 rounded-cozy border border-danger/25 bg-danger/5 p-2.5"
+        >
+          <AlertCircle
+            className="h-4 w-4 flex-shrink-0 text-danger"
+            aria-hidden="true"
+          />
+          <p className="text-sm text-danger">{error}</p>
         </div>
       )}
 
-      {/* Messages Area */}
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
@@ -450,35 +449,39 @@ export default function ChatPanel() {
         aria-live="polite"
         aria-label="Chat messages"
         aria-relevant="additions"
-        className="flex-1 overflow-y-auto p-4 space-y-3"
+        className="min-h-0 flex-1 overflow-y-auto px-1"
       >
-        {/* Load More Button */}
         {hasMore && messages.length > 0 && (
-          <div className="text-center pb-2">
+          <div className="py-2 text-center">
             <Button
               onClick={loadMoreMessages}
               disabled={isLoadingMore}
-              variant="secondary" className="text-sm px-4 py-2"
+              variant="ghost"
+              size="sm"
             >
               {isLoadingMore ? (
                 <>
-                  <Loader className="w-3 h-3 animate-spin mr-2" />
-                  Loading...
+                  <Loader
+                    className="mr-2 h-3 w-3 animate-spin"
+                    aria-hidden="true"
+                  />
+                  Loading
                 </>
               ) : (
-                'Load More'
+                "Load More"
               )}
             </Button>
           </div>
         )}
 
-        {/* Messages List */}
         {messages.length === 0 ? (
-          <div className="text-center py-8">
-            <MessageCircle className="w-12 h-12 text-moss-green/30 mx-auto mb-3" />
-            <p className="text-sm text-warm-gray mb-2">No messages yet</p>
-            <p className="text-xs text-stone-gray/70">
-              Start a conversation with your party
+          <div className="flex h-full min-h-48 flex-col items-center justify-center px-5 text-center">
+            <MessageCircle
+              className="mb-2 h-8 w-8 text-brand/35"
+              aria-hidden="true"
+            />
+            <p className="text-sm font-medium text-ink-secondary">
+              Start the conversation
             </p>
           </div>
         ) : (
@@ -488,7 +491,7 @@ export default function ChatPanel() {
                 key={message.id}
                 message={message}
                 isCurrentUser={message.userId === user?.id}
-                isPending={message.id.startsWith('temp-')}
+                isPending={message.id.startsWith("temp-")}
               />
             ))}
             <div ref={messagesEndRef} />
@@ -496,44 +499,43 @@ export default function ChatPanel() {
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="p-4 border-t border-moss-green/20">
-        <form onSubmit={handleSubmit} className="space-y-2">
-          <div className="flex gap-2">
+      <div className="border-t border-brand/15 bg-surface-light p-2">
+        <form onSubmit={handleSubmit}>
+          <div className="flex items-end gap-2">
             <textarea
               value={messageInput}
               onChange={(e) => setMessageInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
+              placeholder="Message the party"
               aria-label="Chat message"
-              aria-describedby="chat-hint"
-              className="input-cozy flex-1 text-sm resize-none min-h-[60px] max-h-[120px]"
-              rows={2}
+              className="input-cozy min-h-11 max-h-[120px] flex-1 resize-none text-sm"
+              rows={1}
               disabled={!canSend}
             />
             <Button
               type="submit"
-              className="px-4 py-2 flex items-center gap-2"
+              iconOnly
+              className="min-h-11 min-w-11"
               disabled={!messageInput.trim() || !canSend}
-              aria-label={!canSend ? `Rate limited — wait ${cooldownSeconds} seconds` : 'Send message'}
+              aria-label={
+                !canSend
+                  ? `Rate limited: wait ${cooldownSeconds} seconds`
+                  : "Send message"
+              }
             >
               {!canSend && cooldownSeconds > 0 ? (
-                <span className="text-sm font-mono" aria-hidden="true">{cooldownSeconds}s</span>
+                <span className="font-mono text-xs" aria-hidden="true">
+                  {cooldownSeconds}s
+                </span>
               ) : (
                 <Send className="w-4 h-4" aria-hidden="true" />
               )}
             </Button>
           </div>
 
-          {/* Rate Limiting Feedback */}
           {!canSend && cooldownSeconds > 0 && (
-            <p className="text-xs text-amber-700 text-center">
+            <p className="mt-1.5 text-center text-xs text-accent-text">
               Wait {cooldownSeconds}s before sending another message
-            </p>
-          )}
-          {canSend && (
-            <p id="chat-hint" className="text-xs text-stone-gray/70 text-center">
-              Press Enter to send, Shift+Enter for new line
             </p>
           )}
         </form>

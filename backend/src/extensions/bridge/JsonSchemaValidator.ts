@@ -28,6 +28,7 @@ const supportedKeywords = new Set([
   "const",
   "minLength",
   "maxLength",
+  "pattern",
   "minimum",
   "maximum",
   "minItems",
@@ -95,6 +96,14 @@ function validateString(
     issues.push(`${path}: is shorter than minLength`);
   if (typeof schema.maxLength === "number" && value.length > schema.maxLength)
     issues.push(`${path}: is longer than maxLength`);
+  if (typeof schema.pattern === "string") {
+    try {
+      if (!new RegExp(schema.pattern, "u").test(value))
+        issues.push(`${path}: does not match pattern`);
+    } catch {
+      issues.push(`${path}: schema pattern is invalid`);
+    }
+  }
 }
 
 function validateNumber(

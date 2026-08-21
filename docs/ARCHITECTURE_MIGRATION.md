@@ -66,11 +66,16 @@ an identifier, version, risk, permissions, idempotency/outbox settings, and
 descriptive input/output schemas. It is the protected façade used by the core
 agent HTTP command route.
 
-Read/query paths are not a corresponding universal query host. Many remain
-scoped REST, Socket.IO, or repository read adapters, and command metadata is
-not a replacement for every route's existing validation. In particular, most
-interactive REST/Socket mutations currently enter `productionCommandBus`
-directly rather than traversing `productionApplicationHost`.
+The query host now includes an authoritative campaign snapshot and a
+cursor-based event feed alongside the narrower existing reads. Snapshots reuse
+server-side map visibility filtering and include the persisted, revisioned
+initiative tracker. Initiative transitions append role-filtered durable events;
+the journal is a public primitive, but most other legacy event families have
+not joined it yet. Many other reads remain scoped REST, Socket.IO, or repository
+adapters, and command metadata is not a replacement for every route's existing
+validation. In particular, most interactive REST/Socket mutations currently
+enter `productionCommandBus` directly rather than traversing
+`productionApplicationHost`.
 
 ### Durable protected execution
 
@@ -127,6 +132,14 @@ The route can also list and invoke active extension tools through the extension
 bridge. That bridge has separate runtime bindings and policy/audit
 adapters, so it is not a general escape hatch to arbitrary REST, Socket.IO,
 database, shell, or network access.
+
+`packages/extension-sdk` is the independently compiled public plugin contract.
+It exports manifest/module types and a campaign-scoped core gateway without
+Prisma, Express, Socket.IO, React, or VTT-private imports. The separately
+versioned `cozyvtt-npc-controller` reference plugin uses only that SDK. Through
+MCP it reads `campaign.snapshot.get`, verifies the selected NPC owns the active
+turn, and dispatches exactly one public actor-move or dice-roll command. It is a
+dogfood integration, not an embedded AI/model runtime.
 
 The agent catalogue now provides first-class player, NPC, GM, and system
 operations: character and actor creation/control; actor speech and dice;
@@ -257,8 +270,9 @@ snapshot.
 - Executable browser rendering is limited to explicitly trusted local packages;
   it is not available to sandboxed packages. There is no frontend code sandbox,
   arbitrary CSS contribution, route/component injection, or iframe plugin UI.
-- Initiative combat state remains in process memory, so a backend restart
-  clears an active tracker even though map actors and persisted rolls remain.
+- Durable event coverage is deliberately incremental: initiative changes are
+  journaled now, while other realtime campaign events still rely on their
+  existing live transports until migrated.
 
 ## Evidence and verification
 
@@ -266,7 +280,8 @@ The architecture is covered by focused tests including
 `ApplicationHost.transaction.test.ts`, `productionApplicationHost.test.ts`,
 durable-foundation persistence tests, outbox dispatcher/runtime tests,
 extension host/route/sandbox tests, agent route tests, renderer host tests,
-MCP protocol/HTTP tests, PostgreSQL map-revision races, and
+MCP protocol/HTTP tests, durable initiative restart/revision races,
+role-filtered campaign event/snapshot tests, PostgreSQL map-revision races, and
 ThemeHost/contribution-picker tests. A change is not considered migrated merely
 because interfaces compile: it needs a production adapter path and behaviour,
 authorization, and failure coverage.

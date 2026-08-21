@@ -1,8 +1,20 @@
 import { InitiativeState } from '../domain/initiative/Initiative';
 
-/** Ephemeral, campaign-scoped combat state boundary. */
+export interface VersionedInitiativeState {
+  state: InitiativeState;
+  revision: number;
+}
+
+/** Durable, campaign-scoped combat state boundary with optimistic concurrency. */
 export interface InitiativeCombatStateStore {
-  get(campaignId: string): InitiativeState;
-  set(campaignId: string, state: InitiativeState): void;
-  clear(campaignId: string): void;
+  get(campaignId: string): Promise<VersionedInitiativeState>;
+  set(
+    campaignId: string,
+    expectedRevision: number,
+    state: InitiativeState,
+  ): Promise<VersionedInitiativeState>;
+  clear(
+    campaignId: string,
+    expectedRevision: number,
+  ): Promise<VersionedInitiativeState>;
 }

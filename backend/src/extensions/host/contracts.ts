@@ -24,6 +24,16 @@ export interface ThemeContribution {
   readonly name: string;
   readonly contractVersion: "1.0";
   readonly tokens: Readonly<Record<string, string>>;
+  readonly treatments?: {
+    readonly pageBackground?: {
+      readonly kind: "linear-gradient";
+      readonly angle: number;
+      readonly stops: readonly {
+        readonly token: string;
+        readonly position: number;
+      }[];
+    };
+  };
 }
 
 /** Executable browser contribution available only from active trusted packages. */

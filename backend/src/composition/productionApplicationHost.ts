@@ -1,7 +1,12 @@
 import { prisma } from "../config/database";
-import { PrismaTransactionContext } from "../adapters/persistence/PrismaTransactionContext";
+import {
+  productionPrisma,
+  productionTransactionContext,
+} from "./productionTransactionContext";
+import { productionCampaignEventJournal } from "./productionCampaignEventJournal";
 import { PrismaAgentAccessRepository } from "../adapters/persistence/PrismaAgentAccessRepository";
 import { CommandBus } from "../application/commands/CommandBus";
+import { TransactionalCommandHandler } from "../application/commands/TransactionalCommandHandler";
 import { ApplicationHost, CommandMetadata } from "./ApplicationHost";
 
 export {
@@ -182,7 +187,7 @@ import { PrismaDiceRollRepository } from "../adapters/persistence/PrismaDiceRoll
 import { DiceParserExpressionRoller } from "../adapters/dice/DiceParserExpressionRoller";
 import { SocketCampaignDiceRollRateGate } from "../adapters/rateLimiting/SocketCampaignDiceRollRateGate";
 import { PrismaInitiativeRepository } from "../adapters/persistence/PrismaInitiativeRepository";
-import { InMemoryInitiativeCombatStateStore } from "../adapters/initiative/InMemoryInitiativeCombatStateStore";
+import { PrismaInitiativeCombatStateStore } from "../adapters/persistence/PrismaInitiativeCombatStateStore";
 import { LegacyAuthenticationService } from "../adapters/auth/LegacyAuthenticationService";
 import { PrismaRegistrationPolicy } from "../adapters/persistence/PrismaRegistrationPolicy";
 import { PrismaAuthSecurityRepository } from "../adapters/persistence/PrismaAuthSecurityRepository";
@@ -256,8 +261,8 @@ import {
 
 /** Single process-wide handler graph for commands shared by HTTP and Socket.IO. */
 export const productionCommandBus = new CommandBus();
-const transactionContext = new PrismaTransactionContext(prisma);
-const transactionalPrisma = transactionContext.client;
+const transactionContext = productionTransactionContext;
+const transactionalPrisma = productionPrisma;
 const maps = new PrismaMapCoreRepository(transactionalPrisma);
 const assets = new AssetUrlMapNormalizer();
 productionCommandBus.register(CREATE_MAP, new CreateMap(maps, assets));
@@ -515,45 +520,97 @@ productionCommandBus.register(
 const initiativeRepository = new PrismaInitiativeRepository(
   transactionalPrisma,
 );
-const initiativeState = new InMemoryInitiativeCombatStateStore();
+export const productionInitiativeStateStore =
+  new PrismaInitiativeCombatStateStore(transactionalPrisma);
+const initiativeState = productionInitiativeStateStore;
 productionCommandBus.register(
   Initiative.ADD_INITIATIVE_COMBATANT,
-  new Initiative.AddInitiativeCombatant(initiativeRepository, initiativeState),
+  new TransactionalCommandHandler(
+    transactionContext,
+    new Initiative.AddInitiativeCombatant(
+      initiativeRepository,
+      initiativeState,
+      productionCampaignEventJournal,
+    ),
+  ),
 );
 productionCommandBus.register(
   Initiative.REMOVE_INITIATIVE_COMBATANT,
-  new Initiative.RemoveInitiativeCombatant(
-    initiativeRepository,
-    initiativeState,
+  new TransactionalCommandHandler(
+    transactionContext,
+    new Initiative.RemoveInitiativeCombatant(
+      initiativeRepository,
+      initiativeState,
+      productionCampaignEventJournal,
+    ),
   ),
 );
 productionCommandBus.register(
   Initiative.SET_INITIATIVE_VALUE,
-  new Initiative.SetInitiativeValue(initiativeRepository, initiativeState),
+  new TransactionalCommandHandler(
+    transactionContext,
+    new Initiative.SetInitiativeValue(
+      initiativeRepository,
+      initiativeState,
+      productionCampaignEventJournal,
+    ),
+  ),
 );
 productionCommandBus.register(
   Initiative.ROLL_INITIATIVE,
-  new Initiative.RollInitiative(
-    initiativeRepository,
-    initiativeState,
-    new DiceParserExpressionRoller(),
+  new TransactionalCommandHandler(
+    transactionContext,
+    new Initiative.RollInitiative(
+      initiativeRepository,
+      initiativeState,
+      new DiceParserExpressionRoller(),
+      productionCampaignEventJournal,
+    ),
   ),
 );
 productionCommandBus.register(
   Initiative.REORDER_INITIATIVE,
-  new Initiative.ReorderInitiative(initiativeRepository, initiativeState),
+  new TransactionalCommandHandler(
+    transactionContext,
+    new Initiative.ReorderInitiative(
+      initiativeRepository,
+      initiativeState,
+      productionCampaignEventJournal,
+    ),
+  ),
 );
 productionCommandBus.register(
   Initiative.START_INITIATIVE_COMBAT,
-  new Initiative.StartInitiativeCombat(initiativeRepository, initiativeState),
+  new TransactionalCommandHandler(
+    transactionContext,
+    new Initiative.StartInitiativeCombat(
+      initiativeRepository,
+      initiativeState,
+      productionCampaignEventJournal,
+    ),
+  ),
 );
 productionCommandBus.register(
   Initiative.ADVANCE_INITIATIVE_TURN,
-  new Initiative.AdvanceInitiativeTurn(initiativeRepository, initiativeState),
+  new TransactionalCommandHandler(
+    transactionContext,
+    new Initiative.AdvanceInitiativeTurn(
+      initiativeRepository,
+      initiativeState,
+      productionCampaignEventJournal,
+    ),
+  ),
 );
 productionCommandBus.register(
   Initiative.END_INITIATIVE_COMBAT,
-  new Initiative.EndInitiativeCombat(initiativeRepository, initiativeState),
+  new TransactionalCommandHandler(
+    transactionContext,
+    new Initiative.EndInitiativeCombat(
+      initiativeRepository,
+      initiativeState,
+      productionCampaignEventJournal,
+    ),
+  ),
 );
 const assetsRepository = new PrismaAssetMutationRepository(transactionalPrisma);
 const assetFiles = new FileSystemAssetFileStore();

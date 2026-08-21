@@ -50,7 +50,7 @@ function MascotImage({ className = "" }: { className?: string }) {
 function PageLoader() {
   return (
     <div
-      className="min-h-screen flex items-center justify-center bg-gradient-to-br from-soft-cream via-parchment to-warm-amber/20"
+      className="min-h-screen flex items-center justify-center bg-canvas"
       aria-live="polite"
       aria-label="Loading page"
     >
@@ -86,7 +86,7 @@ function App() {
                 </a>
                 {/* Global toast notifications */}
                 <ToastContainer />
-                <div className="min-h-screen bg-gradient-to-br from-soft-cream via-parchment to-warm-amber/20">
+                <div className="min-h-screen bg-canvas">
                   <Suspense fallback={<PageLoader />}>
                     <Routes>
                       {/* Public Routes */}

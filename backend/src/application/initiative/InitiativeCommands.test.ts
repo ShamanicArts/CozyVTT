@@ -30,10 +30,21 @@ function emptyState(): InitiativeState {
 
 function makeStore(initial: InitiativeState = emptyState()): InitiativeCombatStateStore {
   let state = initial;
+  let revision = 0;
   return {
-    get: jest.fn(() => state),
-    set: jest.fn((_campaignId, next) => { state = next; }),
-    clear: jest.fn(() => { state = emptyState(); }),
+    get: jest.fn(async () => ({ state, revision })),
+    set: jest.fn(async (_campaignId, expectedRevision, next) => {
+      expect(expectedRevision).toBe(revision);
+      state = next;
+      revision += 1;
+      return { state, revision };
+    }),
+    clear: jest.fn(async (_campaignId, expectedRevision) => {
+      expect(expectedRevision).toBe(revision);
+      state = emptyState();
+      revision += 1;
+      return { state, revision };
+    }),
   };
 }
 
@@ -74,7 +85,10 @@ describe('initiative application commands', () => {
       ...emptyState(),
       combatants: [{ tokenId: 'token-1', name: 'Mira', imageUrl: '/token-1.png', initiative: null, hp: { current: 10, max: 10, temp: 0 }, type: 'npc', disposition: 'hostile' }],
     });
-    store.set = jest.fn(() => { calls.push('state'); });
+    store.set = jest.fn(async (_campaignId, expectedRevision, state) => {
+      calls.push('state');
+      return { state, revision: expectedRevision + 1 };
+    });
 
     const state = await new SetInitiativeValue(repository, store).execute({
       type: 'initiative.set', context: dm, tokenId: 'token-1', mapId: 'map-1', value: 12,
@@ -132,6 +146,6 @@ describe('initiative application commands', () => {
     expect(removed.currentTokenId).toBe('a');
     const ended = await new EndInitiativeCombat(repository, store).execute({ type: 'initiative.end', context: dm });
     expect(ended).toEqual(emptyState());
-    expect(store.clear).toHaveBeenCalledWith('campaign-1');
+    expect(store.clear).toHaveBeenCalledWith('campaign-1', 6);
   });
 });

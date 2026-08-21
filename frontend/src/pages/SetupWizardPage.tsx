@@ -4,19 +4,26 @@
 // Multi-step wizard with form validation
 // ============================================
 
-import { useState, useEffect, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Settings, CheckCircle, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
-import { setupService } from '@/services/setup.service';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect, FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Shield,
+  Settings,
+  CheckCircle,
+  ArrowRight,
+  ArrowLeft,
+  Loader2,
+} from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
+import { setupService } from "@/services/setup.service";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   isValidEmail,
   isStrongPassword,
   getPasswordStrength,
-} from '@/utils/validation';
-import Button from '@/components/ui/Button';
+} from "@/utils/validation";
+import Button from "@/components/ui/Button";
 
 // ============================================
 // Types
@@ -50,14 +57,14 @@ export default function SetupWizardPage() {
 
   // Form data
   const [adminData, setAdminData] = useState<AdminAccountData>({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    displayName: '',
+    email: "",
+    password: "",
+    confirmPassword: "",
+    displayName: "",
   });
 
   const [systemConfig, setSystemConfig] = useState<SystemConfigData>({
-    instanceName: 'CozyVTT',
+    instanceName: "CozyVTT",
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     enableRegistration: false,
   });
@@ -75,19 +82,24 @@ export default function SetupWizardPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setupService.checkSetupStatus()
+    setupService
+      .checkSetupStatus()
       .then((status) => {
         if (cancelled) return;
         if (!status.needsSetup) {
-          navigate('/', { replace: true });
+          navigate("/", { replace: true });
         } else {
           setCheckingStatus(false);
         }
       })
       // On a failed check, allow the wizard through — the backend still guards
       // against double-initialization, so this can't corrupt an existing install.
-      .catch(() => { if (!cancelled) setCheckingStatus(false); });
-    return () => { cancelled = true; };
+      .catch(() => {
+        if (!cancelled) setCheckingStatus(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [navigate]);
 
   // Password strength
@@ -104,31 +116,31 @@ export default function SetupWizardPage() {
 
     // Display name
     if (!adminData.displayName) {
-      errors.displayName = 'Display name is required';
+      errors.displayName = "Display name is required";
     } else if (adminData.displayName.length < 2) {
-      errors.displayName = 'Display name must be at least 2 characters';
+      errors.displayName = "Display name must be at least 2 characters";
     }
 
     // Email
     if (!adminData.email) {
-      errors.email = 'Email is required';
+      errors.email = "Email is required";
     } else if (!isValidEmail(adminData.email)) {
-      errors.email = 'Please enter a valid email address';
+      errors.email = "Please enter a valid email address";
     }
 
     // Password
     if (!adminData.password) {
-      errors.password = 'Password is required';
+      errors.password = "Password is required";
     } else if (!isStrongPassword(adminData.password)) {
       errors.password =
-        'Password must be at least 12 characters with uppercase, lowercase, number, and special character';
+        "Password must be at least 12 characters with uppercase, lowercase, number, and special character";
     }
 
     // Confirm password
     if (!adminData.confirmPassword) {
-      errors.confirmPassword = 'Please confirm your password';
+      errors.confirmPassword = "Please confirm your password";
     } else if (adminData.password !== adminData.confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match';
+      errors.confirmPassword = "Passwords do not match";
     }
 
     setFieldErrors(errors);
@@ -139,9 +151,9 @@ export default function SetupWizardPage() {
     const errors: Record<string, string> = {};
 
     if (!systemConfig.instanceName) {
-      errors.instanceName = 'Instance name is required';
+      errors.instanceName = "Instance name is required";
     } else if (systemConfig.instanceName.length < 2) {
-      errors.instanceName = 'Instance name must be at least 2 characters';
+      errors.instanceName = "Instance name must be at least 2 characters";
     }
 
     setFieldErrors(errors);
@@ -198,16 +210,16 @@ export default function SetupWizardPage() {
       await refreshUser();
 
       // Redirect to dashboard
-      navigate('/dashboard');
+      navigate("/dashboard");
     } catch (err: any) {
-      console.error('Setup error:', err);
+      console.error("Setup error:", err);
 
       if (err.response?.data?.error) {
         setError(err.response.data.message || err.response.data.error);
       } else if (err.response?.status === 400) {
-        setError('Setup has already been completed');
+        setError("Setup has already been completed");
       } else {
-        setError('An error occurred during setup. Please try again.');
+        setError("An error occurred during setup. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -240,7 +252,9 @@ export default function SetupWizardPage() {
           />
         );
       case 4:
-        return <Step4Review adminData={adminData} systemConfig={systemConfig} />;
+        return (
+          <Step4Review adminData={adminData} systemConfig={systemConfig} />
+        );
       default:
         return null;
     }
@@ -254,22 +268,29 @@ export default function SetupWizardPage() {
   if (checkingStatus) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center bg-gradient-to-br from-soft-cream via-parchment to-warm-amber/20"
+        className="min-h-screen flex items-center justify-center bg-canvas"
         aria-live="polite"
         aria-label="Checking setup status"
       >
-        <Loader2 className="w-8 h-8 text-moss-green animate-spin" aria-hidden="true" />
+        <Loader2
+          className="w-8 h-8 text-moss-green animate-spin"
+          aria-hidden="true"
+        />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-soft-cream via-parchment to-warm-amber/20 px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-canvas px-4 py-8">
       <div className="glass-panel max-w-3xl w-full p-8 space-y-6">
         {/* Header */}
         <div className="text-center">
           <div className="flex justify-center mb-4">
-            <img src={mascotUrl} alt="CozyVTT" className="w-20 h-20 object-contain animate-pulse-soft" />
+            <img
+              src={mascotUrl}
+              alt="CozyVTT"
+              className="w-20 h-20 object-contain animate-pulse-soft"
+            />
           </div>
           <h1 className="text-4xl font-bold text-moss-green font-heading">
             CozyVTT Setup
@@ -286,10 +307,10 @@ export default function SetupWizardPage() {
               key={step}
               className={`h-2 rounded-full transition-all ${
                 step === currentStep
-                  ? 'w-12 bg-warm-amber'
+                  ? "w-12 bg-warm-amber"
                   : step < currentStep
-                  ? 'w-8 bg-moss-green'
-                  : 'w-8 bg-warm-gray/20'
+                    ? "w-8 bg-moss-green"
+                    : "w-8 bg-warm-gray/20"
               }`}
             />
           ))}
@@ -321,8 +342,9 @@ export default function SetupWizardPage() {
             type="button"
             onClick={handleBack}
             disabled={currentStep === 1 || loading}
-            variant="secondary" className={`flex items-center gap-2 ${
-            currentStep === 1 ? 'invisible' : ''
+            variant="secondary"
+            className={`flex items-center gap-2 ${
+              currentStep === 1 ? "invisible" : ""
             }`}
           >
             <ArrowLeft className="w-4 h-4" />
@@ -443,7 +465,12 @@ interface Step2Props {
   passwordStrength: { score: number; label: string; color: string } | null;
 }
 
-function Step2AdminAccount({ data, setData, fieldErrors, passwordStrength }: Step2Props) {
+function Step2AdminAccount({
+  data,
+  setData,
+  fieldErrors,
+  passwordStrength,
+}: Step2Props) {
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -458,7 +485,10 @@ function Step2AdminAccount({ data, setData, fieldErrors, passwordStrength }: Ste
       <div className="space-y-4">
         {/* Display Name */}
         <div>
-          <label htmlFor="displayName" className="block text-sm font-medium text-moss-green mb-1">
+          <label
+            htmlFor="displayName"
+            className="block text-sm font-medium text-moss-green mb-1"
+          >
             Display Name
           </label>
           <input
@@ -467,19 +497,24 @@ function Step2AdminAccount({ data, setData, fieldErrors, passwordStrength }: Ste
             value={data.displayName}
             onChange={(e) => setData({ ...data, displayName: e.target.value })}
             className={`input-cozy w-full ${
-              fieldErrors.displayName ? 'border-spirit-red' : ''
+              fieldErrors.displayName ? "border-spirit-red" : ""
             }`}
             placeholder="Your name"
             maxLength={50}
           />
           {fieldErrors.displayName && (
-            <p className="mt-1 text-xs text-spirit-red">{fieldErrors.displayName}</p>
+            <p className="mt-1 text-xs text-spirit-red">
+              {fieldErrors.displayName}
+            </p>
           )}
         </div>
 
         {/* Email */}
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-moss-green mb-1">
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-moss-green mb-1"
+          >
             Email Address
           </label>
           <input
@@ -488,7 +523,7 @@ function Step2AdminAccount({ data, setData, fieldErrors, passwordStrength }: Ste
             value={data.email}
             onChange={(e) => setData({ ...data, email: e.target.value })}
             className={`input-cozy w-full ${
-              fieldErrors.email ? 'border-spirit-red' : ''
+              fieldErrors.email ? "border-spirit-red" : ""
             }`}
             placeholder="admin@example.com"
           />
@@ -499,7 +534,10 @@ function Step2AdminAccount({ data, setData, fieldErrors, passwordStrength }: Ste
 
         {/* Password */}
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-moss-green mb-1">
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-moss-green mb-1"
+          >
             Password
           </label>
           <input
@@ -508,26 +546,30 @@ function Step2AdminAccount({ data, setData, fieldErrors, passwordStrength }: Ste
             value={data.password}
             onChange={(e) => setData({ ...data, password: e.target.value })}
             className={`input-cozy w-full ${
-              fieldErrors.password ? 'border-spirit-red' : ''
+              fieldErrors.password ? "border-spirit-red" : ""
             }`}
             placeholder="At least 12 characters"
           />
           {fieldErrors.password && (
-            <p className="mt-1 text-xs text-spirit-red">{fieldErrors.password}</p>
+            <p className="mt-1 text-xs text-spirit-red">
+              {fieldErrors.password}
+            </p>
           )}
 
           {/* Password Strength Indicator */}
           {data.password && passwordStrength && (
             <div className="mt-2">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-warm-gray">Password Strength:</span>
+                <span className="text-xs text-warm-gray">
+                  Password Strength:
+                </span>
                 <span
                   className={`text-xs font-medium ${
-                    passwordStrength.color === 'green'
-                      ? 'text-green-600'
-                      : passwordStrength.color === 'yellow'
-                      ? 'text-yellow-600'
-                      : 'text-red-600'
+                    passwordStrength.color === "green"
+                      ? "text-green-600"
+                      : passwordStrength.color === "yellow"
+                        ? "text-yellow-600"
+                        : "text-red-600"
                   }`}
                 >
                   {passwordStrength.label}
@@ -536,11 +578,11 @@ function Step2AdminAccount({ data, setData, fieldErrors, passwordStrength }: Ste
               <div className="w-full bg-warm-gray/20 rounded-full h-1.5">
                 <div
                   className={`h-1.5 rounded-full transition-all ${
-                    passwordStrength.color === 'green'
-                      ? 'bg-green-600'
-                      : passwordStrength.color === 'yellow'
-                      ? 'bg-yellow-600'
-                      : 'bg-red-600'
+                    passwordStrength.color === "green"
+                      ? "bg-green-600"
+                      : passwordStrength.color === "yellow"
+                        ? "bg-yellow-600"
+                        : "bg-red-600"
                   }`}
                   style={{ width: `${(passwordStrength.score / 10) * 100}%` }}
                 ></div>
@@ -561,14 +603,18 @@ function Step2AdminAccount({ data, setData, fieldErrors, passwordStrength }: Ste
             id="confirmPassword"
             type="password"
             value={data.confirmPassword}
-            onChange={(e) => setData({ ...data, confirmPassword: e.target.value })}
+            onChange={(e) =>
+              setData({ ...data, confirmPassword: e.target.value })
+            }
             className={`input-cozy w-full ${
-              fieldErrors.confirmPassword ? 'border-spirit-red' : ''
+              fieldErrors.confirmPassword ? "border-spirit-red" : ""
             }`}
             placeholder="Re-enter your password"
           />
           {fieldErrors.confirmPassword && (
-            <p className="mt-1 text-xs text-spirit-red">{fieldErrors.confirmPassword}</p>
+            <p className="mt-1 text-xs text-spirit-red">
+              {fieldErrors.confirmPassword}
+            </p>
           )}
         </div>
       </div>
@@ -589,20 +635,20 @@ interface Step3Props {
 function Step3SystemConfig({ data, setData, fieldErrors }: Step3Props) {
   // Get common timezones
   const timezones = [
-    'America/New_York',
-    'America/Chicago',
-    'America/Denver',
-    'America/Los_Angeles',
-    'America/Phoenix',
-    'America/Anchorage',
-    'Pacific/Honolulu',
-    'Europe/London',
-    'Europe/Paris',
-    'Europe/Berlin',
-    'Asia/Tokyo',
-    'Asia/Shanghai',
-    'Australia/Sydney',
-    'UTC',
+    "America/New_York",
+    "America/Chicago",
+    "America/Denver",
+    "America/Los_Angeles",
+    "America/Phoenix",
+    "America/Anchorage",
+    "Pacific/Honolulu",
+    "Europe/London",
+    "Europe/Paris",
+    "Europe/Berlin",
+    "Asia/Tokyo",
+    "Asia/Shanghai",
+    "Australia/Sydney",
+    "UTC",
   ];
 
   return (
@@ -631,7 +677,7 @@ function Step3SystemConfig({ data, setData, fieldErrors }: Step3Props) {
             value={data.instanceName}
             onChange={(e) => setData({ ...data, instanceName: e.target.value })}
             className={`input-cozy w-full ${
-              fieldErrors.instanceName ? 'border-spirit-red' : ''
+              fieldErrors.instanceName ? "border-spirit-red" : ""
             }`}
             placeholder="CozyVTT"
           />
@@ -639,13 +685,18 @@ function Step3SystemConfig({ data, setData, fieldErrors }: Step3Props) {
             This will appear in the browser tab and page titles
           </p>
           {fieldErrors.instanceName && (
-            <p className="mt-1 text-xs text-spirit-red">{fieldErrors.instanceName}</p>
+            <p className="mt-1 text-xs text-spirit-red">
+              {fieldErrors.instanceName}
+            </p>
           )}
         </div>
 
         {/* Timezone */}
         <div>
-          <label htmlFor="timezone" className="block text-sm font-medium text-moss-green mb-1">
+          <label
+            htmlFor="timezone"
+            className="block text-sm font-medium text-moss-green mb-1"
+          >
             Timezone
           </label>
           <select
@@ -690,8 +741,8 @@ function Step3SystemConfig({ data, setData, fieldErrors }: Step3Props) {
                 Enable Public Registration
               </label>
               <p className="mt-1 text-xs text-stone-gray">
-                Allow anyone to create an account on this instance. You can change this
-                later in system settings.
+                Allow anyone to create an account on this instance. You can
+                change this later in system settings.
               </p>
               <p className="mt-2 text-xs text-warm-amber font-medium">
                 ⚠️ Recommended: Keep this disabled for private instances
@@ -735,7 +786,9 @@ function Step4Review({ adminData, systemConfig }: Step4Props) {
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
               <dt className="text-warm-gray">Display Name:</dt>
-              <dd className="text-moss-green font-medium">{adminData.displayName}</dd>
+              <dd className="text-moss-green font-medium">
+                {adminData.displayName}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-warm-gray">Email:</dt>
@@ -757,20 +810,26 @@ function Step4Review({ adminData, systemConfig }: Step4Props) {
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
               <dt className="text-warm-gray">Instance Name:</dt>
-              <dd className="text-moss-green font-medium">{systemConfig.instanceName}</dd>
+              <dd className="text-moss-green font-medium">
+                {systemConfig.instanceName}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-warm-gray">Timezone:</dt>
-              <dd className="text-moss-green font-medium">{systemConfig.timezone}</dd>
+              <dd className="text-moss-green font-medium">
+                {systemConfig.timezone}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-warm-gray">Public Registration:</dt>
               <dd
                 className={`font-medium ${
-                  systemConfig.enableRegistration ? 'text-warm-amber' : 'text-stone-gray'
+                  systemConfig.enableRegistration
+                    ? "text-warm-amber"
+                    : "text-stone-gray"
                 }`}
               >
-                {systemConfig.enableRegistration ? 'Enabled' : 'Disabled'}
+                {systemConfig.enableRegistration ? "Enabled" : "Disabled"}
               </dd>
             </div>
           </dl>
@@ -779,9 +838,10 @@ function Step4Review({ adminData, systemConfig }: Step4Props) {
         {/* Confirmation Message */}
         <div className="glass-panel p-4 border-2 border-moss-green/30">
           <p className="text-sm text-stone-gray text-center">
-            Click <span className="font-medium text-moss-green">Complete Setup</span> to
-            create your admin account and finish the installation. You will be
-            automatically logged in and redirected to the dashboard.
+            Click{" "}
+            <span className="font-medium text-moss-green">Complete Setup</span>{" "}
+            to create your admin account and finish the installation. You will
+            be automatically logged in and redirected to the dashboard.
           </p>
         </div>
       </div>

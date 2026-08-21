@@ -5,8 +5,10 @@
 import { Server } from "socket.io";
 import { AuthenticatedSocket } from "../auth";
 import logger from "../../utils/logger";
-import { getState as getCombatState } from "../initiativeState";
-import { productionCommandBus } from "../../composition/productionApplicationHost";
+import {
+  productionCommandBus,
+  productionInitiativeStateStore,
+} from "../../composition/productionApplicationHost";
 import {
   ADD_INITIATIVE_COMBATANT,
   AddInitiativeCombatantCommand,
@@ -317,8 +319,16 @@ export function registerInitiativeHandlers(
   });
 
   // Read-only reconnect query remains outside the mutation command spine.
-  socket.on("initiative.request_state", () => {
+  socket.on("initiative.request_state", async () => {
     if (!socket.campaignId) return;
-    socket.emit("initiative.state", getCombatState(socket.campaignId));
+    try {
+      const snapshot = await productionInitiativeStateStore.get(
+        socket.campaignId,
+      );
+      socket.emit("initiative.state", snapshot.state);
+    } catch (error) {
+      logger.error("initiative.request_state failed", { err: error });
+      socket.emit("error", { message: "Failed to load initiative state" });
+    }
   });
 }

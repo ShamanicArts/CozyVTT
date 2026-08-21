@@ -13,7 +13,6 @@
 import { randomUUID } from "crypto";
 import { io as ioc } from "socket.io-client";
 import { prisma } from "../../config/database";
-import { clearState as clearCombatState } from "../initiativeState";
 import {
   createWsTestServer,
   waitForEvent,
@@ -110,9 +109,15 @@ async function resetGameState() {
       chatCooldownEnabled: false,
       currentVibe: null,
       vibeSettings: {},
+      initiativeState: {
+        active: false,
+        round: 0,
+        currentTokenId: null,
+        combatants: [],
+      },
+      initiativeRevision: 0,
     },
   });
-  clearCombatState(campaignId);
 }
 
 beforeAll(async () => {

@@ -3,9 +3,9 @@
 // Catches unhandled render errors and shows a friendly recovery UI instead of a blank screen.
 // ============================================
 
-import React, { Component, ReactNode } from 'react';
-import { AlertTriangle, RefreshCcw, ExternalLink } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import React, { Component, ReactNode } from "react";
+import { AlertTriangle, RefreshCcw, ExternalLink } from "lucide-react";
+import Button from "@/components/ui/Button";
 
 interface Props {
   children: ReactNode;
@@ -32,7 +32,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     this.setState({ errorInfo });
     // Log for developers / future error reporting service
-    console.error('[ErrorBoundary] Uncaught error:', error, errorInfo);
+    console.error("[ErrorBoundary] Uncaught error:", error, errorInfo);
   }
 
   private handleReload = () => {
@@ -49,12 +49,15 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (this.props.fallback) return this.props.fallback;
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-soft-cream via-parchment to-warm-amber/20 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-canvas p-4">
         <div className="glass-panel max-w-lg w-full p-8 text-center space-y-6">
           {/* Icon */}
           <div className="flex justify-center">
             <div className="p-4 rounded-full bg-red-100">
-              <AlertTriangle className="w-10 h-10 text-red-600" aria-hidden="true" />
+              <AlertTriangle
+                className="w-10 h-10 text-red-600"
+                aria-hidden="true"
+              />
             </div>
           </div>
 
@@ -64,7 +67,8 @@ export default class ErrorBoundary extends Component<Props, State> {
               Something went wrong
             </h1>
             <p className="text-sm text-warm-gray">
-              CozyVTT encountered an unexpected error. Your data is safe — this is a display problem only.
+              CozyVTT encountered an unexpected error. Your data is safe — this
+              is a display problem only.
             </p>
           </div>
 
@@ -77,8 +81,8 @@ export default class ErrorBoundary extends Component<Props, State> {
               <pre className="mt-2 text-xs text-red-700 overflow-x-auto whitespace-pre-wrap break-words">
                 {this.state.error.message}
                 {this.state.errorInfo?.componentStack
-                  ? '\n\nComponent stack:' + this.state.errorInfo.componentStack
-                  : ''}
+                  ? "\n\nComponent stack:" + this.state.errorInfo.componentStack
+                  : ""}
               </pre>
             </details>
           )}
@@ -87,7 +91,8 @@ export default class ErrorBoundary extends Component<Props, State> {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button
               onClick={this.handleReset}
-              variant="secondary" className="flex items-center justify-center gap-2"
+              variant="secondary"
+              className="flex items-center justify-center gap-2"
             >
               <RefreshCcw className="w-4 h-4" aria-hidden="true" />
               Try Again

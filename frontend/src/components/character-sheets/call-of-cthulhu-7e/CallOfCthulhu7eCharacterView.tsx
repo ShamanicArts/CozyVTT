@@ -5,7 +5,7 @@
  * Organized in tabs for easy navigation. Uses vintage 1920s aesthetic.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   User,
   Target,
@@ -17,13 +17,13 @@ import {
   Eye,
   Skull,
   Palette,
-} from 'lucide-react';
-import { Character } from '../../../types';
-import { CharacteristicBlock } from './components/CharacteristicBlock';
-import { SanityTracker } from './components/SanityTracker';
-import { SkillsList } from './components/SkillsList';
-import { WeaponsList } from './components/WeaponsList';
-import { BackstorySection } from './components/BackstorySection';
+} from "lucide-react";
+import { Character } from "../../../types";
+import { CharacteristicBlock } from "./components/CharacteristicBlock";
+import { SanityTracker } from "./components/SanityTracker";
+import { SkillsList } from "./components/SkillsList";
+import { WeaponsList } from "./components/WeaponsList";
+import { BackstorySection } from "./components/BackstorySection";
 
 interface CallOfCthulhu7eCharacterViewProps {
   character: Character;
@@ -32,7 +32,7 @@ interface CallOfCthulhu7eCharacterViewProps {
   onRoll?: (expression: string, purpose: string) => void;
 }
 
-type TabId = 'overview' | 'skills' | 'combat' | 'possessions' | 'backstory';
+type TabId = "overview" | "skills" | "combat" | "possessions" | "backstory";
 
 interface Tab {
   id: TabId;
@@ -41,50 +41,118 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-  { id: 'overview', label: 'Overview', icon: User },
-  { id: 'skills', label: 'Skills', icon: Target },
-  { id: 'combat', label: 'Combat', icon: Swords },
-  { id: 'possessions', label: 'Possessions', icon: Package },
-  { id: 'backstory', label: 'Backstory', icon: BookText },
+  { id: "overview", label: "Overview", icon: User },
+  { id: "skills", label: "Skills", icon: Target },
+  { id: "combat", label: "Combat", icon: Swords },
+  { id: "possessions", label: "Possessions", icon: Package },
+  { id: "backstory", label: "Backstory", icon: BookText },
 ];
 
 // Call of Cthulhu color presets - Vintage 1920s aesthetic
 const COLOR_PRESETS = [
-  { name: 'Dark Forest', from: 'from-green-900', to: 'to-green-800', accent: 'green-800', border: 'amber-600', hex: '#14532d' },
-  { name: 'Noir Shadow', from: 'from-slate-900', to: 'to-slate-800', accent: 'slate-800', border: 'amber-500', hex: '#0f172a' },
-  { name: 'Deep Sepia', from: 'from-sepia-900', to: 'to-sepia-800', accent: 'sepia-800', border: 'sepia-400', hex: '#2E2419' },
-  { name: 'Midnight Blue', from: 'from-blue-950', to: 'to-blue-900', accent: 'blue-900', border: 'amber-600', hex: '#172554' },
-  { name: 'Burgundy Wine', from: 'from-red-950', to: 'to-red-900', accent: 'red-900', border: 'amber-500', hex: '#450a0a' },
-  { name: 'Victorian Purple', from: 'from-purple-950', to: 'to-purple-900', accent: 'purple-900', border: 'amber-600', hex: '#3b0764' },
-  { name: 'Emerald Mist', from: 'from-emerald-900', to: 'to-emerald-800', accent: 'emerald-800', border: 'amber-600', hex: '#064e3b' },
-  { name: 'Charcoal Gray', from: 'from-gray-900', to: 'to-gray-800', accent: 'gray-800', border: 'amber-500', hex: '#111827' },
-  { name: 'Teal Shadow', from: 'from-teal-950', to: 'to-teal-900', accent: 'teal-900', border: 'amber-600', hex: '#042f2e' },
-  { name: 'Amber Dusk', from: 'from-amber-900', to: 'to-amber-800', accent: 'amber-800', border: 'amber-400', hex: '#78350f' },
+  {
+    name: "Dark Forest",
+    from: "from-green-900",
+    to: "to-green-800",
+    accent: "green-800",
+    border: "amber-600",
+    hex: "#14532d",
+  },
+  {
+    name: "Noir Shadow",
+    from: "from-slate-900",
+    to: "to-slate-800",
+    accent: "slate-800",
+    border: "amber-500",
+    hex: "#0f172a",
+  },
+  {
+    name: "Deep Sepia",
+    from: "from-sepia-900",
+    to: "to-sepia-800",
+    accent: "sepia-800",
+    border: "sepia-400",
+    hex: "#2E2419",
+  },
+  {
+    name: "Midnight Blue",
+    from: "from-blue-950",
+    to: "to-blue-900",
+    accent: "blue-900",
+    border: "amber-600",
+    hex: "#172554",
+  },
+  {
+    name: "Burgundy Wine",
+    from: "from-red-950",
+    to: "to-red-900",
+    accent: "red-900",
+    border: "amber-500",
+    hex: "#450a0a",
+  },
+  {
+    name: "Victorian Purple",
+    from: "from-purple-950",
+    to: "to-purple-900",
+    accent: "purple-900",
+    border: "amber-600",
+    hex: "#3b0764",
+  },
+  {
+    name: "Emerald Mist",
+    from: "from-emerald-900",
+    to: "to-emerald-800",
+    accent: "emerald-800",
+    border: "amber-600",
+    hex: "#064e3b",
+  },
+  {
+    name: "Charcoal Gray",
+    from: "from-gray-900",
+    to: "to-gray-800",
+    accent: "gray-800",
+    border: "amber-500",
+    hex: "#111827",
+  },
+  {
+    name: "Teal Shadow",
+    from: "from-teal-950",
+    to: "to-teal-900",
+    accent: "teal-900",
+    border: "amber-600",
+    hex: "#042f2e",
+  },
+  {
+    name: "Amber Dusk",
+    from: "from-amber-900",
+    to: "to-amber-800",
+    accent: "amber-800",
+    border: "amber-400",
+    hex: "#78350f",
+  },
 ];
 
 /**
  * CallOfCthulhu7eCharacterView - Read-only Call of Cthulhu 7e character sheet
  */
-export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterViewProps> = ({
-  character,
-  onEdit,
-  onRoll,
-}) => {
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
+export const CallOfCthulhu7eCharacterView: React.FC<
+  CallOfCthulhu7eCharacterViewProps
+> = ({ character, onEdit, onRoll }) => {
+  const [activeTab, setActiveTab] = useState<TabId>("overview");
   const data = character.data as any; // Type will be CallOfCthulhu7eCharacterData
   const [themeColor, setThemeColor] = useState(COLOR_PRESETS[0]);
   const [isCustomColor, setIsCustomColor] = useState(false);
-  const [customColorHex, setCustomColorHex] = useState('');
+  const [customColorHex, setCustomColorHex] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Load saved color preference from character metadata
   useEffect(() => {
     if (data.themeColor) {
-      const savedColor = COLOR_PRESETS.find(c => c.name === data.themeColor);
+      const savedColor = COLOR_PRESETS.find((c) => c.name === data.themeColor);
       if (savedColor) {
         setThemeColor(savedColor);
         setIsCustomColor(false);
-      } else if (data.themeColor.startsWith('#')) {
+      } else if (data.themeColor.startsWith("#")) {
         // Custom hex color
         setCustomColorHex(data.themeColor);
         setIsCustomColor(true);
@@ -99,7 +167,7 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
   };
 
   // Handle preset color selection
-  const handlePresetColorSelect = (color: typeof COLOR_PRESETS[0]) => {
+  const handlePresetColorSelect = (color: (typeof COLOR_PRESETS)[0]) => {
     setThemeColor(color);
     setIsCustomColor(false);
     setShowColorPicker(false);
@@ -108,13 +176,11 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
   // Render character header with vintage styling
   const renderHeader = () => {
     // Determine the current background style
-    const headerStyle = isCustomColor
-      ? { background: `linear-gradient(to right, ${customColorHex}, ${customColorHex}dd)` }
-      : {};
+    const headerStyle = {
+      backgroundColor: isCustomColor ? customColorHex : themeColor.hex,
+    };
 
-    const headerClasses = isCustomColor
-      ? 'text-parchment p-6 rounded-t-lg relative border-b-4 border-amber-600'
-      : `bg-gradient-to-r ${themeColor.from} via-${themeColor.accent} ${themeColor.to} text-parchment p-6 rounded-t-lg relative border-b-4 border-${themeColor.border}`;
+    const headerClasses = `text-parchment p-6 rounded-t-lg relative border-b-4 border-${themeColor.border}`;
 
     return (
       <div className={headerClasses} style={headerStyle}>
@@ -140,11 +206,14 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
                   onClick={() => handlePresetColorSelect(color)}
                   className={`px-2 py-2 rounded-lg text-sm font-medium transition-all ${
                     !isCustomColor && themeColor.name === color.name
-                      ? 'ring-2 ring-stone-400 bg-stone-100'
-                      : 'hover:bg-stone-50'
+                      ? "ring-2 ring-stone-400 bg-stone-100"
+                      : "hover:bg-stone-50"
                   }`}
                 >
-                  <div className={`w-full h-6 rounded mb-1 bg-gradient-to-r ${color.from} ${color.to}`} />
+                  <div
+                    className="mb-1 h-6 w-full rounded"
+                    style={{ backgroundColor: color.hex }}
+                  />
                   <div className="text-xs">{color.name}</div>
                 </button>
               ))}
@@ -152,13 +221,15 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
 
             {/* Custom Color Section */}
             <div className="border-t pt-4 space-y-3">
-              <h5 className="text-sm font-semibold text-stone-700">Custom Color</h5>
+              <h5 className="text-sm font-semibold text-stone-700">
+                Custom Color
+              </h5>
 
               <div className="flex items-center space-x-2">
                 {/* Native Color Picker */}
                 <input
                   type="color"
-                  value={customColorHex || '#14532d'}
+                  value={customColorHex || "#14532d"}
                   onChange={(e) => handleCustomColorChange(e.target.value)}
                   className="w-12 h-12 rounded cursor-pointer border-2 border-stone-300"
                   title="Pick a custom color"
@@ -172,27 +243,33 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
                     onChange={(e) => {
                       const hex = e.target.value;
                       // Validate hex format
-                      if (hex === '' || /^#[0-9A-Fa-f]{0,6}$/.test(hex)) {
+                      if (hex === "" || /^#[0-9A-Fa-f]{0,6}$/.test(hex)) {
                         handleCustomColorChange(hex);
                       }
                     }}
                     placeholder="#14532d"
                     className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <div className="text-xs text-stone-500 mt-1">Enter hex code (e.g., #14532d)</div>
+                  <div className="text-xs text-stone-500 mt-1">
+                    Enter hex code (e.g., #14532d)
+                  </div>
                 </div>
               </div>
 
               {/* Custom Color Preview */}
-              {isCustomColor && customColorHex && /^#[0-9A-Fa-f]{6}$/.test(customColorHex) && (
-                <div className="flex items-center space-x-2 p-2 bg-stone-50 rounded">
-                  <div
-                    className="w-8 h-8 rounded"
-                    style={{ background: `linear-gradient(to right, ${customColorHex}, ${customColorHex}dd)` }}
-                  />
-                  <span className="text-sm font-medium">Custom: {customColorHex}</span>
-                </div>
-              )}
+              {isCustomColor &&
+                customColorHex &&
+                /^#[0-9A-Fa-f]{6}$/.test(customColorHex) && (
+                  <div className="flex items-center space-x-2 p-2 bg-stone-50 rounded">
+                    <div
+                      className="w-8 h-8 rounded"
+                      style={{ backgroundColor: customColorHex }}
+                    />
+                    <span className="text-sm font-medium">
+                      Custom: {customColorHex}
+                    </span>
+                  </div>
+                )}
             </div>
           </div>
         )}
@@ -209,62 +286,69 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
           </button>
         )}
 
-      <div className="flex items-start justify-between pr-24">
-        <div className="flex items-start space-x-4">
-          {/* Token Image */}
-          <div className="flex-shrink-0">
-            {character.tokenImageUrl ? (
-              <img
-                src={character.tokenImageUrl}
-                alt={data.investigatorName || 'Investigator'}
-                className="w-24 h-24 rounded-full border-4 border-amber-600/50 object-cover shadow-xl"
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-full border-4 border-amber-600/50 bg-sepia-900 flex items-center justify-center shadow-xl">
-                <User className="w-12 h-12 text-amber-400/40" />
-              </div>
-            )}
-          </div>
-
-          {/* Character Info */}
-          <div>
-            <h2 className="text-3xl font-bold mb-2 text-parchment drop-shadow-lg">
-              {data.investigatorName || 'Unnamed Investigator'}
-            </h2>
-            <div className="space-y-1 text-parchment-light">
-              <div className="flex items-center space-x-4">
-                <span className="font-medium">{data.occupation || 'No Occupation'}</span>
-                {data.era && <span>• {data.era}</span>}
-              </div>
-              {data.residence && (
-                <div className="text-sm">
-                  <span className="text-amber-300">Residence:</span> {data.residence}
+        <div className="flex items-start justify-between pr-24">
+          <div className="flex items-start space-x-4">
+            {/* Token Image */}
+            <div className="flex-shrink-0">
+              {character.tokenImageUrl ? (
+                <img
+                  src={character.tokenImageUrl}
+                  alt={data.investigatorName || "Investigator"}
+                  className="w-24 h-24 rounded-full border-4 border-amber-600/50 object-cover shadow-xl"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full border-4 border-amber-600/50 bg-sepia-900 flex items-center justify-center shadow-xl">
+                  <User className="w-12 h-12 text-amber-400/40" />
                 </div>
               )}
-              <div className="flex items-center space-x-4 text-sm">
-                {data.age && <span>Age {data.age}</span>}
-                {data.sex && <span>• {data.sex}</span>}
-                {data.birthplace && <span>• Born in {data.birthplace}</span>}
+            </div>
+
+            {/* Character Info */}
+            <div>
+              <h2 className="text-3xl font-bold mb-2 text-parchment drop-shadow-lg">
+                {data.investigatorName || "Unnamed Investigator"}
+              </h2>
+              <div className="space-y-1 text-parchment-light">
+                <div className="flex items-center space-x-4">
+                  <span className="font-medium">
+                    {data.occupation || "No Occupation"}
+                  </span>
+                  {data.era && <span>• {data.era}</span>}
+                </div>
+                {data.residence && (
+                  <div className="text-sm">
+                    <span className="text-amber-300">Residence:</span>{" "}
+                    {data.residence}
+                  </div>
+                )}
+                <div className="flex items-center space-x-4 text-sm">
+                  {data.age && <span>Age {data.age}</span>}
+                  {data.sex && <span>• {data.sex}</span>}
+                  {data.birthplace && <span>• Born in {data.birthplace}</span>}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Player Name */}
-        {data.playerName && (
-          <div className="text-right">
-            <div className="text-xs text-amber-300 uppercase tracking-wide">Player</div>
-            <div className="text-lg font-semibold text-parchment">{data.playerName}</div>
-          </div>
-        )}
+          {/* Player Name */}
+          {data.playerName && (
+            <div className="text-right">
+              <div className="text-xs text-amber-300 uppercase tracking-wide">
+                Player
+              </div>
+              <div className="text-lg font-semibold text-parchment">
+                {data.playerName}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
     );
   };
 
   // Render tabs
   const renderTabs = () => (
-    <div className="flex space-x-1 border-b-2 border-sepia-400 bg-parchment-light/50 px-4">
+    <div className="scrollbar-none flex max-w-full gap-1 overflow-x-auto overflow-y-hidden border-b border-sepia-400 bg-parchment-light/50 px-2 sm:px-4">
       {TABS.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;
@@ -276,8 +360,8 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
               flex items-center space-x-2 px-4 py-3 font-medium transition-colors
               ${
                 isActive
-                  ? 'text-green-800 border-b-2 border-green-800 -mb-0.5 bg-parchment'
-                  : 'text-sepia-600 hover:text-sepia-900 hover:bg-parchment-light/70'
+                  ? "text-green-800 border-b-2 border-green-800 -mb-0.5 bg-parchment"
+                  : "text-sepia-600 hover:text-sepia-900 hover:bg-parchment-light/70"
               }
             `}
           >
@@ -374,7 +458,9 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
 
       {/* Derived Stats Grid */}
       <div>
-        <h3 className="text-lg font-bold text-sepia-900 mb-4">Derived Attributes</h3>
+        <h3 className="text-lg font-bold text-sepia-900 mb-4">
+          Derived Attributes
+        </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {/* Hit Points */}
           {data.derivedStats?.hp && (
@@ -382,14 +468,19 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">
                   <Heart className="w-4 h-4 text-red-600" />
-                  <span className="text-xs font-semibold text-red-900 uppercase">Hit Points</span>
+                  <span className="text-xs font-semibold text-red-900 uppercase">
+                    Hit Points
+                  </span>
                 </div>
               </div>
               <div className="text-center">
                 <span className="text-3xl font-bold text-red-700">
                   {data.derivedStats.hp.current}
                 </span>
-                <span className="text-lg text-red-500"> / {data.derivedStats.hp.maximum}</span>
+                <span className="text-lg text-red-500">
+                  {" "}
+                  / {data.derivedStats.hp.maximum}
+                </span>
               </div>
               <div className="text-xs text-red-600 text-center mt-1">
                 Major Wound: {data.derivedStats.hp.majorWoundThreshold} HP
@@ -403,16 +494,23 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">
                   <Skull className="w-4 h-4 text-purple-600" />
-                  <span className="text-xs font-semibold text-purple-900 uppercase">Magic Points</span>
+                  <span className="text-xs font-semibold text-purple-900 uppercase">
+                    Magic Points
+                  </span>
                 </div>
               </div>
               <div className="text-center">
                 <span className="text-3xl font-bold text-purple-700">
                   {data.derivedStats.magicPoints.current}
                 </span>
-                <span className="text-lg text-purple-500"> / {data.derivedStats.magicPoints.maximum}</span>
+                <span className="text-lg text-purple-500">
+                  {" "}
+                  / {data.derivedStats.magicPoints.maximum}
+                </span>
               </div>
-              <div className="text-xs text-purple-600 text-center mt-1">POW / 5</div>
+              <div className="text-xs text-purple-600 text-center mt-1">
+                POW / 5
+              </div>
             </div>
           )}
 
@@ -422,7 +520,9 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">
                   <Eye className="w-4 h-4 text-yellow-600" />
-                  <span className="text-xs font-semibold text-yellow-900 uppercase">Luck</span>
+                  <span className="text-xs font-semibold text-yellow-900 uppercase">
+                    Luck
+                  </span>
                 </div>
               </div>
               <div className="text-center">
@@ -442,7 +542,9 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">
                   <Target className="w-4 h-4 text-blue-600" />
-                  <span className="text-xs font-semibold text-blue-900 uppercase">Dodge</span>
+                  <span className="text-xs font-semibold text-blue-900 uppercase">
+                    Dodge
+                  </span>
                 </div>
               </div>
               <div className="text-center">
@@ -450,7 +552,9 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
                   {data.derivedStats.dodge.value}%
                 </span>
               </div>
-              <div className="text-xs text-blue-600 text-center mt-1">DEX / 2</div>
+              <div className="text-xs text-blue-600 text-center mt-1">
+                DEX / 2
+              </div>
             </div>
           )}
         </div>
@@ -460,20 +564,30 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
       <div className="grid grid-cols-3 gap-4">
         {data.derivedStats?.moveRate !== undefined && (
           <div className="bg-parchment border border-sepia-400 rounded-md p-3 text-center">
-            <div className="text-xs text-sepia-600 uppercase mb-1">Move Rate</div>
-            <div className="text-2xl font-bold text-sepia-900">{data.derivedStats.moveRate}</div>
+            <div className="text-xs text-sepia-600 uppercase mb-1">
+              Move Rate
+            </div>
+            <div className="text-2xl font-bold text-sepia-900">
+              {data.derivedStats.moveRate}
+            </div>
           </div>
         )}
         {data.derivedStats?.build !== undefined && (
           <div className="bg-parchment border border-sepia-400 rounded-md p-3 text-center">
             <div className="text-xs text-sepia-600 uppercase mb-1">Build</div>
-            <div className="text-2xl font-bold text-sepia-900">{data.derivedStats.build}</div>
+            <div className="text-2xl font-bold text-sepia-900">
+              {data.derivedStats.build}
+            </div>
           </div>
         )}
         {data.derivedStats?.damageBonus && (
           <div className="bg-parchment border border-sepia-400 rounded-md p-3 text-center">
-            <div className="text-xs text-sepia-600 uppercase mb-1">Damage Bonus</div>
-            <div className="text-2xl font-bold text-sepia-900">{data.derivedStats.damageBonus}</div>
+            <div className="text-xs text-sepia-600 uppercase mb-1">
+              Damage Bonus
+            </div>
+            <div className="text-2xl font-bold text-sepia-900">
+              {data.derivedStats.damageBonus}
+            </div>
           </div>
         )}
       </div>
@@ -481,24 +595,32 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
       {/* Conditions */}
       {data.conditions && (
         <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4">
-          <h4 className="text-sm font-semibold text-amber-900 mb-3 uppercase">Current Conditions</h4>
+          <h4 className="text-sm font-semibold text-amber-900 mb-3 uppercase">
+            Current Conditions
+          </h4>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {Object.entries(data.conditions).map(([key, value]: [string, any]) => (
-              <div
-                key={key}
-                className={`flex items-center space-x-2 px-3 py-2 rounded ${
-                  value ? 'bg-red-100 text-red-700 font-semibold' : 'bg-white/50 text-amber-700'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={value}
-                  readOnly
-                  className="w-4 h-4"
-                />
-                <span className="text-sm capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-              </div>
-            ))}
+            {Object.entries(data.conditions).map(
+              ([key, value]: [string, any]) => (
+                <div
+                  key={key}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded ${
+                    value
+                      ? "bg-red-100 text-red-700 font-semibold"
+                      : "bg-white/50 text-amber-700"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={value}
+                    readOnly
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm capitalize">
+                    {key.replace(/([A-Z])/g, " $1").trim()}
+                  </span>
+                </div>
+              ),
+            )}
           </div>
         </div>
       )}
@@ -508,14 +630,22 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
   // Render Skills tab
   const renderSkillsTab = () => (
     <div>
-      {data.skills && <SkillsList skills={data.skills} themeColor={themeColor} onRoll={onRoll} />}
+      {data.skills && (
+        <SkillsList
+          skills={data.skills}
+          themeColor={themeColor}
+          onRoll={onRoll}
+        />
+      )}
     </div>
   );
 
   // Render Combat tab
   const renderCombatTab = () => (
     <div>
-      {data.combat?.weapons && <WeaponsList weapons={data.combat.weapons} onRoll={onRoll} />}
+      {data.combat?.weapons && (
+        <WeaponsList weapons={data.combat.weapons} onRoll={onRoll} />
+      )}
     </div>
   );
 
@@ -531,15 +661,25 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
           </h3>
           <div className="grid grid-cols-3 gap-4 mb-3">
             <div>
-              <div className="text-xs text-amber-700 uppercase mb-1">Spending Level</div>
-              <div className="text-xl font-bold text-amber-900">{data.wealth.spendingLevel}</div>
+              <div className="text-xs text-amber-700 uppercase mb-1">
+                Spending Level
+              </div>
+              <div className="text-xl font-bold text-amber-900">
+                {data.wealth.spendingLevel}
+              </div>
             </div>
             <div>
-              <div className="text-xs text-amber-700 uppercase mb-1">Cash on Hand</div>
-              <div className="text-xl font-bold text-amber-900">${data.wealth.cash}</div>
+              <div className="text-xs text-amber-700 uppercase mb-1">
+                Cash on Hand
+              </div>
+              <div className="text-xl font-bold text-amber-900">
+                ${data.wealth.cash}
+              </div>
             </div>
             <div>
-              <div className="text-xs text-amber-700 uppercase mb-1">Credit Rating</div>
+              <div className="text-xs text-amber-700 uppercase mb-1">
+                Credit Rating
+              </div>
               <div className="text-xl font-bold text-amber-900">
                 {data.skills?.creditRating?.currentValue || 0}%
               </div>
@@ -547,7 +687,9 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
           </div>
           {data.wealth.assets && (
             <div className="bg-white/50 rounded p-3 mt-3">
-              <div className="text-xs text-amber-700 font-semibold mb-1">Assets</div>
+              <div className="text-xs text-amber-700 font-semibold mb-1">
+                Assets
+              </div>
               <p className="text-sm text-amber-900">{data.wealth.assets}</p>
             </div>
           )}
@@ -560,11 +702,18 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
           <h3 className="text-lg font-bold text-sepia-900 mb-4">Possessions</h3>
           <div className="space-y-2">
             {data.possessions.map((item: any, index: number) => (
-              <div key={index} className="bg-parchment border border-sepia-400 rounded-md p-3">
+              <div
+                key={index}
+                className="bg-parchment border border-sepia-400 rounded-md p-3"
+              >
                 <div className="flex items-start justify-between">
-                  <div className="font-semibold text-sepia-900">{item.name}</div>
+                  <div className="font-semibold text-sepia-900">
+                    {item.name}
+                  </div>
                 </div>
-                {item.notes && <p className="text-sm text-sepia-700 mt-1">{item.notes}</p>}
+                {item.notes && (
+                  <p className="text-sm text-sepia-700 mt-1">{item.notes}</p>
+                )}
               </div>
             ))}
           </div>
@@ -577,14 +726,21 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
           <h3 className="text-lg font-bold text-sepia-900 mb-4">Contacts</h3>
           <div className="space-y-2">
             {data.contacts.map((contact: any, index: number) => (
-              <div key={index} className="bg-blue-50 border border-blue-300 rounded-md p-3">
+              <div
+                key={index}
+                className="bg-blue-50 border border-blue-300 rounded-md p-3"
+              >
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="font-semibold text-blue-900">{contact.name}</div>
+                    <div className="font-semibold text-blue-900">
+                      {contact.name}
+                    </div>
                     <div className="text-sm text-blue-700">{contact.role}</div>
                   </div>
                 </div>
-                {contact.notes && <p className="text-sm text-blue-800 mt-2">{contact.notes}</p>}
+                {contact.notes && (
+                  <p className="text-sm text-blue-800 mt-2">{contact.notes}</p>
+                )}
               </div>
             ))}
           </div>
@@ -605,38 +761,50 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
             {data.appearance.age && (
               <div>
-                <span className="text-sepia-600">Age:</span>{' '}
-                <span className="text-sepia-900 font-medium">{data.appearance.age}</span>
+                <span className="text-sepia-600">Age:</span>{" "}
+                <span className="text-sepia-900 font-medium">
+                  {data.appearance.age}
+                </span>
               </div>
             )}
             {data.appearance.height && (
               <div>
-                <span className="text-sepia-600">Height:</span>{' '}
-                <span className="text-sepia-900 font-medium">{data.appearance.height}</span>
+                <span className="text-sepia-600">Height:</span>{" "}
+                <span className="text-sepia-900 font-medium">
+                  {data.appearance.height}
+                </span>
               </div>
             )}
             {data.appearance.weight && (
               <div>
-                <span className="text-sepia-600">Weight:</span>{' '}
-                <span className="text-sepia-900 font-medium">{data.appearance.weight}</span>
+                <span className="text-sepia-600">Weight:</span>{" "}
+                <span className="text-sepia-900 font-medium">
+                  {data.appearance.weight}
+                </span>
               </div>
             )}
             {data.appearance.eyes && (
               <div>
-                <span className="text-sepia-600">Eyes:</span>{' '}
-                <span className="text-sepia-900 font-medium">{data.appearance.eyes}</span>
+                <span className="text-sepia-600">Eyes:</span>{" "}
+                <span className="text-sepia-900 font-medium">
+                  {data.appearance.eyes}
+                </span>
               </div>
             )}
             {data.appearance.hair && (
               <div>
-                <span className="text-sepia-600">Hair:</span>{' '}
-                <span className="text-sepia-900 font-medium">{data.appearance.hair}</span>
+                <span className="text-sepia-600">Hair:</span>{" "}
+                <span className="text-sepia-900 font-medium">
+                  {data.appearance.hair}
+                </span>
               </div>
             )}
             {data.appearance.skin && (
               <div>
-                <span className="text-sepia-600">Skin:</span>{' '}
-                <span className="text-sepia-900 font-medium">{data.appearance.skin}</span>
+                <span className="text-sepia-600">Skin:</span>{" "}
+                <span className="text-sepia-900 font-medium">
+                  {data.appearance.skin}
+                </span>
               </div>
             )}
           </div>
@@ -646,8 +814,12 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
       {/* Notes */}
       {data.notes && (
         <div className="mt-6 bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
-          <h3 className="text-lg font-bold text-yellow-900 mb-2">Keeper's Notes</h3>
-          <p className="text-sm text-yellow-800 whitespace-pre-wrap">{data.notes}</p>
+          <h3 className="text-lg font-bold text-yellow-900 mb-2">
+            Keeper's Notes
+          </h3>
+          <p className="text-sm text-yellow-800 whitespace-pre-wrap">
+            {data.notes}
+          </p>
         </div>
       )}
     </div>
@@ -658,12 +830,12 @@ export const CallOfCthulhu7eCharacterView: React.FC<CallOfCthulhu7eCharacterView
     <div className="glass-panel overflow-hidden">
       {renderHeader()}
       {renderTabs()}
-      <div className="p-6 bg-parchment">
-        {activeTab === 'overview' && renderOverviewTab()}
-        {activeTab === 'skills' && renderSkillsTab()}
-        {activeTab === 'combat' && renderCombatTab()}
-        {activeTab === 'possessions' && renderPossessionsTab()}
-        {activeTab === 'backstory' && renderBackstoryTab()}
+      <div className="bg-parchment p-3 sm:p-6">
+        {activeTab === "overview" && renderOverviewTab()}
+        {activeTab === "skills" && renderSkillsTab()}
+        {activeTab === "combat" && renderCombatTab()}
+        {activeTab === "possessions" && renderPossessionsTab()}
+        {activeTab === "backstory" && renderBackstoryTab()}
       </div>
     </div>
   );

@@ -4,7 +4,7 @@
 // ============================================
 
 import { memo } from "react";
-import { Bot, Shield } from "lucide-react";
+import { Bot, Dice5, Shield, Sparkles, User } from "lucide-react";
 import type { Message, MessageType } from "@/types";
 
 interface ChatMessageProps {
@@ -53,56 +53,63 @@ function formatRelativeTime(timestamp: string): string {
   });
 }
 
-/**
- * Get message styling based on type
- */
-function getMessageStyle(type: MessageType): {
-  bg: string;
-  textColor: string;
-  borderColor: string;
-} {
+function getMessageStyle(type: MessageType) {
   switch (type) {
     case "DM":
       return {
-        bg: "bg-amber-50/30",
-        textColor: "text-amber-900",
-        borderColor: "border-amber-200",
+        icon: Shield,
+        iconClass: "text-accent-text bg-accent/20",
+        nameClass: "text-accent-text",
       };
     case "SYSTEM":
       return {
-        bg: "bg-moss-green/10",
-        textColor: "text-moss-green",
-        borderColor: "border-moss-green/20",
+        icon: Bot,
+        iconClass: "text-brand bg-brand/10",
+        nameClass: "text-brand",
       };
     case "DICE_ROLL":
       return {
-        bg: "bg-blue-50/30",
-        textColor: "text-blue-900",
-        borderColor: "border-blue-200",
+        icon: Dice5,
+        iconClass: "text-spirit bg-spirit/10",
+        nameClass: "text-spirit",
       };
     case "CHARACTER_ACTION":
       return {
-        bg: "bg-purple-50/30",
-        textColor: "text-purple-900",
-        borderColor: "border-purple-200",
+        icon: Sparkles,
+        iconClass: "text-spirit bg-spirit/10",
+        nameClass: "text-spirit",
       };
-    default: // PLAYER
+    default:
       return {
-        bg: "bg-parchment/40",
-        textColor: "text-stone-gray",
-        borderColor: "border-stone-gray/20",
+        icon: User,
+        iconClass: "text-brand bg-surface-dark",
+        nameClass: "text-ink",
       };
   }
 }
+
+const INTERNAL_ACTIONS = new Set([
+  "user.joined",
+  "user.left",
+  "spirit_layer.toggle",
+  "vibe.update",
+  "session.started",
+  "session.paused",
+  "session.ended",
+  "session.resumed",
+]);
 
 function ChatMessageInner({
   message,
   isCurrentUser = false,
   isPending = false,
 }: ChatMessageProps) {
-  const { bg, textColor, borderColor } = getMessageStyle(message.type);
+  const {
+    icon: MessageIcon,
+    iconClass,
+    nameClass,
+  } = getMessageStyle(message.type);
   const isSystem = message.type === "SYSTEM";
-  const isDM = message.type === "DM";
   const actorSpeaker =
     typeof message.metadata?.speakerName === "string"
       ? message.metadata.speakerName
@@ -113,78 +120,71 @@ function ChatMessageInner({
     ? "System"
     : actorSpeaker || message.user?.displayName || "Unknown User";
 
+  const metadataVisible =
+    message.metadata &&
+    Object.keys(message.metadata).length > 0 &&
+    !INTERNAL_ACTIONS.has(String(message.metadata.action)) &&
+    !actorSpeaker;
+
   return (
-    <div
-      className={`p-3 rounded-lg border ${bg} ${borderColor} transition-all hover:shadow-sm ${
-        isPending ? "opacity-60" : ""
-      }`}
+    <article
+      className={`grid grid-cols-[28px_minmax(0,1fr)] gap-2.5 border-b border-brand/10 px-2 py-2.5 last:border-b-0 ${
+        isSystem ? "bg-surface/35" : ""
+      } ${isPending ? "opacity-60" : ""}`}
     >
-      {/* Message Header */}
-      <div className="flex items-center gap-2 mb-1">
-        {/* Icon for special message types */}
-        {isSystem && <Bot className="w-3.5 h-3.5 text-moss-green" />}
-        {actorSpeaker && <Bot className="w-3.5 h-3.5 text-purple-600" />}
-        {isDM && <Shield className="w-3.5 h-3.5 text-amber-600" />}
-
-        {/* Username */}
-        <span
-          className={`text-xs font-semibold ${
-            isDM
-              ? "text-amber-700"
-              : isSystem
-                ? "text-moss-green"
-                : isCurrentUser
-                  ? "text-moss-green"
-                  : "text-stone-gray"
-          }`}
-        >
-          {displayName}
-          {isCurrentUser &&
-            !isSystem &&
-            (actorSpeaker ? " (via You)" : " (You)")}
-        </span>
-
-        {/* Timestamp / pending indicator */}
-        {isPending ? (
-          <span className="text-xs text-stone-gray/50 italic">sending…</span>
+      <span
+        className={`flex h-7 w-7 items-center justify-center rounded-full ${iconClass}`}
+        aria-hidden="true"
+      >
+        {actorSpeaker ? (
+          <Bot className="h-3.5 w-3.5" />
         ) : (
-          <span
-            className="text-xs text-stone-gray/70"
-            title={
-              message.createdAt
-                ? new Date(message.createdAt).toLocaleString()
-                : "Unknown time"
-            }
-          >
-            {formatRelativeTime(message.createdAt)}
-          </span>
+          <MessageIcon className="h-3.5 w-3.5" />
         )}
-      </div>
+      </span>
 
-      {/* Message Content */}
-      <p className={`text-sm ${textColor} whitespace-pre-wrap break-words`}>
-        {message.content}
-      </p>
+      <div className="min-w-0">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className={`text-xs font-semibold ${nameClass}`}>
+            {displayName}
+            {isCurrentUser &&
+              !isSystem &&
+              (actorSpeaker ? " (via You)" : " (You)")}
+          </span>
 
-      {/* Metadata (e.g., dice roll results) - hide for internal system actions */}
-      {message.metadata &&
-        Object.keys(message.metadata).length > 0 &&
-        message.metadata.action !== "user.joined" &&
-        message.metadata.action !== "user.left" &&
-        message.metadata.action !== "spirit_layer.toggle" &&
-        message.metadata.action !== "vibe.update" &&
-        message.metadata.action !== "session.started" &&
-        message.metadata.action !== "session.paused" &&
-        message.metadata.action !== "session.ended" &&
-        message.metadata.action !== "session.resumed" &&
-        !actorSpeaker && (
-          <div className="mt-2 pt-2 border-t border-current/10">
-            <pre className="text-xs opacity-70 font-mono">
+          {isPending ? (
+            <span className="text-[11px] italic text-ink-muted">sending…</span>
+          ) : (
+            <time
+              className="text-[11px] text-ink-muted"
+              dateTime={message.createdAt}
+              title={
+                message.createdAt
+                  ? new Date(message.createdAt).toLocaleString()
+                  : "Unknown time"
+              }
+            >
+              {formatRelativeTime(message.createdAt)}
+            </time>
+          )}
+        </div>
+
+        <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-ink">
+          {message.content}
+        </p>
+
+        {metadataVisible && (
+          <details className="mt-1.5 text-xs text-ink-secondary">
+            <summary className="w-fit cursor-pointer rounded px-1 py-0.5 hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+              Details
+            </summary>
+            <pre className="mt-1 max-w-full overflow-x-auto rounded-cozy bg-surface p-2 font-mono text-[11px]">
               {JSON.stringify(message.metadata, null, 2)}
             </pre>
-          </div>
+          </details>
         )}
-    </div>
+      </div>
+    </article>
   );
 }
 

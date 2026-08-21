@@ -57,18 +57,21 @@ export default function LoginPage() {
    * Validate form fields
    * Returns true if valid, false otherwise
    */
-  const validateForm = (): boolean => {
+  const validateForm = (
+    candidateEmail: string = email,
+    candidatePassword: string = password,
+  ): boolean => {
     const errors: { email?: string; password?: string } = {};
 
     // Validate email
-    if (!email) {
+    if (!candidateEmail) {
       errors.email = "Email is required";
-    } else if (!isValidEmail(email)) {
+    } else if (!isValidEmail(candidateEmail)) {
       errors.email = "Please enter a valid email address";
     }
 
     // Validate password
-    if (!password) {
+    if (!candidatePassword) {
       errors.password = "Password is required";
     }
 
@@ -84,14 +87,24 @@ export default function LoginPage() {
     setError(null);
     setFieldErrors({});
 
+    // Password managers and mobile Safari can populate an input without
+    // dispatching the input event React uses to update controlled state. Read
+    // the live form values at the point of action so autofilled credentials
+    // are never replaced by stale empty state.
+    const formData = new FormData(e.currentTarget);
+    const submittedEmail = String(formData.get("email") ?? "");
+    const submittedPassword = String(formData.get("password") ?? "");
+    setEmail(submittedEmail);
+    setPassword(submittedPassword);
+
     // Validate form
-    if (!validateForm()) {
+    if (!validateForm(submittedEmail, submittedPassword)) {
       return;
     }
 
     try {
       setLoading(true);
-      await login(email, password, rememberMe);
+      await login(submittedEmail, submittedPassword, rememberMe);
 
       // If MFA is not required, user is logged in and will be redirected by auth check above
       // If MFA is required, mfaPending will be true and user will be redirected to MFA page
@@ -112,7 +125,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-soft-cream via-parchment to-warm-amber/20 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-canvas px-4">
       <main
         id="main-content"
         className="glass-panel max-w-md w-full p-8 space-y-6"
@@ -149,6 +162,7 @@ export default function LoginPage() {
             </label>
             <input
               id="email"
+              name="email"
               type="email"
               autoComplete="email"
               value={email}
@@ -188,6 +202,7 @@ export default function LoginPage() {
             </label>
             <input
               id="password"
+              name="password"
               type="password"
               autoComplete="current-password"
               value={password}
@@ -224,9 +239,20 @@ export default function LoginPage() {
             <div className="flex items-center">
               <input
                 id="remember-me"
+                name="rememberMe"
                 type="checkbox"
                 checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
+                onChange={(e) => {
+                  // Preserve values painted into the DOM by browser autofill
+                  // before this checkbox-triggered rerender occurs.
+                  const form = e.currentTarget.form;
+                  if (form) {
+                    const liveData = new FormData(form);
+                    setEmail(String(liveData.get("email") ?? ""));
+                    setPassword(String(liveData.get("password") ?? ""));
+                  }
+                  setRememberMe(e.target.checked);
+                }}
                 className="h-4 w-4 text-warm-amber focus:ring-warm-amber border-warm-gray/30 rounded"
                 disabled={loading}
               />

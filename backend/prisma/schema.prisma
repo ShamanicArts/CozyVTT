@@ -238,6 +238,12 @@ model Campaign {
   chatCooldownEnabled Boolean @default(false)
   chatCooldownSeconds Int     @default(5)
 
+  // Authoritative combat tracker state. This is VTT state rather than agent
+  // runtime state: every UI, MCP client, and extension observes the same
+  // initiative order across server restarts.
+  initiativeState    Json @default("{\"active\":false,\"round\":0,\"currentTokenId\":null,\"combatants\":[]}")
+  initiativeRevision Int  @default(0)
+
   // Metadata
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -246,7 +252,7 @@ model Campaign {
   // Relations
   memberships       CampaignMembership[]
   invitations       CampaignInvitation[]
-  maps              Map[]                @relation("CampaignMaps")
+  maps              Map[]                 @relation("CampaignMaps")
   characters        Character[]
   messages          Message[]
   diceRolls         DiceRoll[]
@@ -255,9 +261,32 @@ model Campaign {
   creatureTemplates CreatureTemplate[]
   creatureFavorites CreatureFavorite[]
   tokenTemplates    TokenTemplate[]
+  campaignEvents    CampaignEventRecord[]
 
   @@index([ownerId])
   @@index([status])
+}
+
+/// Durable, campaign-scoped event journal for public API consumers and local
+/// extensions. Visibility is evaluated before delivery; this is not an agent
+/// memory or task queue.
+model CampaignEventRecord {
+  sequence      BigInt   @id @default(autoincrement())
+  id            String   @unique @default(uuid())
+  campaignId    String
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  type          String
+  version       Int      @default(1)
+  actorId       String?
+  correlationId String
+  causationId   String?
+  visibility    String   @default("PUBLIC")
+  recipientIds  String[] @default([])
+  payload       Json
+  occurredAt    DateTime @default(now())
+
+  @@index([campaignId, sequence])
+  @@index([campaignId, type, sequence])
 }
 
 model CampaignMembership {

@@ -3,18 +3,18 @@
 // Allows editing characters for any game system
 // ============================================
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, AlertCircle, Loader2, Lock, Download } from 'lucide-react';
-import CharacterSheetSkeleton from '@/components/skeletons/CharacterSheetSkeleton';
-import ConfirmDialog from '@/components/common/ConfirmDialog';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/contexts/ToastContext';
-import characterService from '@/services/character.service';
-import campaignService from '@/services/campaign.service';
-import { CharacterSheetRouter } from '@/components/character-sheets/CharacterSheetRouter';
-import type { Character, Campaign } from '@/types';
-import Button from '@/components/ui/Button';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, AlertCircle, Loader2, Lock, Download } from "lucide-react";
+import CharacterSheetSkeleton from "@/components/skeletons/CharacterSheetSkeleton";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
+import characterService from "@/services/character.service";
+import campaignService from "@/services/campaign.service";
+import { CharacterSheetRouter } from "@/components/character-sheets/CharacterSheetRouter";
+import type { Character, Campaign } from "@/types";
+import Button from "@/components/ui/Button";
 
 export default function CharacterEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -58,7 +58,7 @@ export default function CharacterEditorPage() {
         const canEdit = await checkEditPermission(fetchedCharacter);
         if (!canEdit) {
           setPermissionError(
-            'You do not have permission to edit this character. Only the owner or the DM of the assigned campaign can edit characters.'
+            "You do not have permission to edit this character. Only the owner or the DM of the assigned campaign can edit characters.",
           );
           return;
         }
@@ -67,17 +67,17 @@ export default function CharacterEditorPage() {
         if (fetchedCharacter.campaignId) {
           try {
             const fetchedCampaign = await campaignService.getCampaign(
-              fetchedCharacter.campaignId
+              fetchedCharacter.campaignId,
             );
             setCampaign(fetchedCampaign);
           } catch (err) {
-            console.warn('Failed to fetch campaign:', err);
+            console.warn("Failed to fetch campaign:", err);
             // Not critical - continue without campaign data
           }
         }
       } catch (err: any) {
-        console.error('Failed to fetch character:', err);
-        setError(err.message || 'Failed to load character');
+        console.error("Failed to fetch character:", err);
+        setError(err.message || "Failed to load character");
       } finally {
         setLoading(false);
       }
@@ -106,7 +106,7 @@ export default function CharacterEditorPage() {
           return true;
         }
       } catch (err) {
-        console.error('Failed to check campaign permission:', err);
+        console.error("Failed to check campaign permission:", err);
       }
     }
 
@@ -129,7 +129,10 @@ export default function CharacterEditorPage() {
         const updated = await characterService.updateCharacter(character.id, {
           name: character.name,
           data,
-          tokenImageUrl: tokenImageUrl !== undefined ? tokenImageUrl : (character.tokenImageUrl || undefined),
+          tokenImageUrl:
+            tokenImageUrl !== undefined
+              ? tokenImageUrl
+              : character.tokenImageUrl || undefined,
         });
 
         // Update local state
@@ -139,26 +142,32 @@ export default function CharacterEditorPage() {
         pendingDataRef.current = null;
 
         if (doShowToast) {
-          showToast('Character saved!', 'success');
+          showToast("Character saved!", "success");
         }
       } catch (err: any) {
-        console.error('Failed to save character:', err);
-        console.error('Error response:', err.response?.data);
+        console.error("Failed to save character:", err);
+        console.error("Error response:", err.response?.data);
 
         // Show detailed validation errors if available
         if (err.response?.data?.validationErrors) {
           const validationErrors = err.response.data.validationErrors;
-          const errorMessages = validationErrors.map((e: any) => `${e.path}: ${e.message}`).join('\n');
+          const errorMessages = validationErrors
+            .map((e: any) => `${e.path}: ${e.message}`)
+            .join("\n");
           setError(`Validation errors:\n${errorMessages}`);
-          console.error('Validation errors:', validationErrors);
+          console.error("Validation errors:", validationErrors);
         } else {
-          setError(err.response?.data?.message || err.message || 'Failed to save character');
+          setError(
+            err.response?.data?.message ||
+              err.message ||
+              "Failed to save character",
+          );
         }
       } finally {
         setSaving(false);
       }
     },
-    [character]
+    [character],
   );
 
   // ============================================
@@ -168,7 +177,7 @@ export default function CharacterEditorPage() {
   const handleSheetSave = useCallback(
     async (data: any, showToast?: boolean, tokenImageUrl?: string) => {
       // Log the data being saved for debugging
-      console.log('Saving character data:', data);
+      console.log("Saving character data:", data);
 
       // Save immediately when user clicks save in character sheet
       // Pass tokenImageUrl through so token images are persisted
@@ -177,7 +186,7 @@ export default function CharacterEditorPage() {
       // Store for top save button reference
       pendingDataRef.current = data;
     },
-    [handleSave]
+    [handleSave],
   );
 
   // ============================================
@@ -201,12 +210,12 @@ export default function CharacterEditorPage() {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
         e.preventDefault();
-        e.returnValue = '';
+        e.returnValue = "";
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
   // ============================================
@@ -218,21 +227,11 @@ export default function CharacterEditorPage() {
       setConfirmLeave(true);
       return;
     }
-    navigate('/characters');
+    navigate("/characters");
   };
 
   const handleCancel = () => {
     handleBack();
-  };
-
-  // ============================================
-  // Manual Save Handler
-  // ============================================
-
-  const handleManualSave = async () => {
-    if (pendingDataRef.current) {
-      await handleSave(pendingDataRef.current, true);
-    }
   };
 
   // ============================================
@@ -242,7 +241,7 @@ export default function CharacterEditorPage() {
   // Loading state — full-page skeleton
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-soft-cream via-parchment to-warm-amber/20">
+      <div className="min-h-screen bg-canvas">
         <CharacterSheetSkeleton />
       </div>
     );
@@ -251,15 +250,17 @@ export default function CharacterEditorPage() {
   // Error state
   if (error || !character) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-soft-cream via-parchment to-warm-amber/20 p-4">
-        <div className="glass-panel p-8 max-w-md w-full text-center">
-          <AlertCircle className="w-12 h-12 text-spirit-red mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-moss-green mb-2">
-            Failed to Load Character
+      <div className="min-h-screen flex items-center justify-center bg-canvas p-4">
+        <div className="w-full max-w-md rounded-cozy border border-danger/20 bg-surface-light p-6 text-center">
+          <AlertCircle className="mx-auto mb-3 h-8 w-8 text-danger" />
+          <h2 className="mb-2 text-xl font-semibold text-ink">
+            Failed to load character
           </h2>
-          <p className="text-stone-gray mb-6">{error || 'Character not found'}</p>
-          <Button onClick={() => navigate('/characters')}>
-            Back to Characters
+          <p className="mb-5 text-sm text-ink-secondary">
+            {error || "Character not found"}
+          </p>
+          <Button onClick={() => navigate("/characters")}>
+            Back to characters
           </Button>
         </div>
       </div>
@@ -269,15 +270,15 @@ export default function CharacterEditorPage() {
   // Permission denied state
   if (permissionError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-soft-cream via-parchment to-warm-amber/20 p-4">
-        <div className="glass-panel p-8 max-w-md w-full text-center">
-          <Lock className="w-12 h-12 text-sunset-orange mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-moss-green mb-2">
-            Permission Denied
+      <div className="min-h-screen flex items-center justify-center bg-canvas p-4">
+        <div className="w-full max-w-md rounded-cozy border border-warm-amber/20 bg-surface-light p-6 text-center">
+          <Lock className="mx-auto mb-3 h-8 w-8 text-warm-amber" />
+          <h2 className="mb-2 text-xl font-semibold text-ink">
+            Permission denied
           </h2>
-          <p className="text-stone-gray mb-6">{permissionError}</p>
-          <Button onClick={() => navigate('/characters')}>
-            Back to Characters
+          <p className="mb-5 text-sm text-ink-secondary">{permissionError}</p>
+          <Button onClick={() => navigate("/characters")}>
+            Back to characters
           </Button>
         </div>
       </div>
@@ -287,90 +288,79 @@ export default function CharacterEditorPage() {
   // Main editor
   return (
     <>
-    <ConfirmDialog
-      isOpen={confirmLeave}
-      title="Unsaved Changes"
-      message="You have unsaved changes. Are you sure you want to leave? Your changes will be lost."
-      confirmLabel="Leave"
-      cancelLabel="Stay"
-      variant="warning"
-      onConfirm={() => navigate('/characters')}
-      onCancel={() => setConfirmLeave(false)}
-    />
-    <div className="min-h-screen bg-gradient-to-br from-soft-cream via-parchment to-warm-amber/20">
-      {/* Header */}
-      <div className="glass-panel m-4 p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleBack}
-              className="p-2 rounded-lg hover:bg-moss-green/10 transition-colors"
-              aria-label="Back to characters"
-            >
-              <ArrowLeft className="w-5 h-5 text-moss-green" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-moss-green">
-                Editing: {character.name}
-              </h1>
-              {campaign && (
-                <p className="text-sm text-stone-gray">
-                  Campaign: {campaign.name}
-                </p>
+      <ConfirmDialog
+        isOpen={confirmLeave}
+        title="Unsaved Changes"
+        message="You have unsaved changes. Are you sure you want to leave? Your changes will be lost."
+        confirmLabel="Leave"
+        cancelLabel="Stay"
+        variant="warning"
+        onConfirm={() => navigate("/characters")}
+        onCancel={() => setConfirmLeave(false)}
+      />
+      <div className="min-h-screen bg-canvas text-ink">
+        <header className="sticky top-0 z-40 border-b border-brand/15 bg-surface-light">
+          <div className="mx-auto flex min-h-14 max-w-7xl items-center justify-between gap-3 px-3 py-2 sm:px-6">
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                onClick={handleBack}
+                className="flex h-9 w-9 flex-none items-center justify-center rounded-cozy text-ink-secondary transition-colors hover:bg-surface hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                aria-label="Back to characters"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <div className="min-w-0">
+                <h1 className="truncate text-sm font-semibold text-ink sm:text-base">
+                  {character.name}
+                </h1>
+                {campaign && (
+                  <p className="truncate text-[11px] text-ink-muted">
+                    {campaign.name}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {saving && (
+                <span className="flex items-center gap-1.5 text-xs text-brand">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Saving…
+                </span>
               )}
+              {lastSaved && !hasUnsavedChanges && (
+                <span className="hidden text-xs text-ink-muted lg:inline">
+                  Saved{" "}
+                  {lastSaved.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              )}
+
+              <Button
+                onClick={() => characterService.exportCharacterJSON(character)}
+                variant="ghost"
+                size="sm"
+                iconOnly
+                title="Export character as JSON"
+                aria-label="Export character as JSON"
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+              </Button>
             </div>
           </div>
+        </header>
 
-          <div className="flex items-center gap-3">
-            {/* Save Status */}
-            {hasUnsavedChanges && (
-              <span className="text-sm text-sunset-orange">Unsaved changes</span>
-            )}
-            {saving && (
-              <span className="text-sm text-moss-green flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Saving...
-              </span>
-            )}
-            {lastSaved && !hasUnsavedChanges && (
-              <span className="text-sm text-stone-gray">
-                Saved {lastSaved.toLocaleTimeString()}
-              </span>
-            )}
-
-            {/* Manual Save Button */}
-            <Button
-              onClick={handleManualSave}
-              disabled={!hasUnsavedChanges || saving}
-              className="flex items-center gap-2"
-            >
-              <Save className="w-4 h-4" />
-              Save
-            </Button>
-
-            {/* Export Button */}
-            <Button
-              onClick={() => characterService.exportCharacterJSON(character)}
-              variant="secondary" className="flex items-center gap-2"
-              title="Export character as JSON"
-            >
-              <Download className="w-4 h-4" />
-              Export
-            </Button>
-          </div>
-        </div>
+        <main className="mx-auto max-w-7xl px-2 py-3 sm:px-4 sm:py-5">
+          <CharacterSheetRouter
+            character={character}
+            mode="edit"
+            onSave={handleSheetSave}
+            onCancel={handleCancel}
+          />
+        </main>
       </div>
-
-      {/* Character Sheet Editor */}
-      <div className="p-4">
-        <CharacterSheetRouter
-          character={character}
-          mode="edit"
-          onSave={handleSheetSave}
-          onCancel={handleCancel}
-        />
-      </div>
-    </div>
     </>
   );
 }

@@ -11,32 +11,38 @@
 // working while the tab is inactive.
 // ============================================
 
-import { useEffect, useRef, useState } from 'react';
-import { MessageCircle, Dices, ListOrdered, PlayCircle, type LucideIcon } from 'lucide-react';
-import { useWebSocket } from '@/contexts/WebSocketContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { cn } from '@/utils/cn';
-import ChatPanel from './ChatPanel';
-import DiceRoller from './DiceRoller';
-import VibeTracker from './VibeTracker';
-import InitiativeTracker from './InitiativeTracker';
-import SessionControls from './SessionControls';
-import type { ChatMessageBroadcast } from '@/types';
+import { useEffect, useRef, useState } from "react";
+import {
+  MessageCircle,
+  Dices,
+  ListOrdered,
+  PlayCircle,
+  type LucideIcon,
+} from "lucide-react";
+import { useWebSocket } from "@/contexts/WebSocketContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/utils/cn";
+import ChatPanel from "./ChatPanel";
+import DiceRoller from "./DiceRoller";
+import VibeTracker from "./VibeTracker";
+import InitiativeTracker from "./InitiativeTracker";
+import SessionControls from "./SessionControls";
+import type { ChatMessageBroadcast } from "@/types";
 
-type RailTab = 'chat' | 'dice' | 'initiative' | 'session';
+type RailTab = "chat" | "dice" | "initiative" | "session";
 
-const TAB_STORAGE_KEY = 'cozyvtt-session-tab';
+const TAB_STORAGE_KEY = "cozyvtt-session-tab";
 
 const TABS: { key: RailTab; label: string; icon: LucideIcon }[] = [
-  { key: 'chat', label: 'Chat', icon: MessageCircle },
-  { key: 'dice', label: 'Dice', icon: Dices },
-  { key: 'initiative', label: 'Initiative', icon: ListOrdered },
-  { key: 'session', label: 'Session', icon: PlayCircle },
+  { key: "chat", label: "Chat", icon: MessageCircle },
+  { key: "dice", label: "Dice", icon: Dices },
+  { key: "initiative", label: "Initiative", icon: ListOrdered },
+  { key: "session", label: "Session", icon: PlayCircle },
 ];
 
 function loadInitialTab(): RailTab {
   const stored = localStorage.getItem(TAB_STORAGE_KEY);
-  return TABS.some((t) => t.key === stored) ? (stored as RailTab) : 'chat';
+  return TABS.some((t) => t.key === stored) ? (stored as RailTab) : "chat";
 }
 
 export default function SessionSidebar() {
@@ -53,7 +59,7 @@ export default function SessionSidebar() {
   useEffect(() => {
     activeTabRef.current = activeTab;
     localStorage.setItem(TAB_STORAGE_KEY, activeTab);
-    if (activeTab === 'chat') {
+    if (activeTab === "chat") {
       setUnreadChat(0);
     }
   }, [activeTab]);
@@ -65,22 +71,25 @@ export default function SessionSidebar() {
     if (!socket) return;
 
     const handleChatMessage = (data: ChatMessageBroadcast) => {
-      if (activeTabRef.current === 'chat') return;
+      if (activeTabRef.current === "chat") return;
       if (user && data.userId === user.id) return; // own messages aren't "unread"
       setUnreadChat((count) => count + 1);
     };
 
     socket.onChatMessage(handleChatMessage);
     return () => {
-      socket.off('chat.message', handleChatMessage);
+      socket.off("chat.message", handleChatMessage);
     };
   }, [socket, user]);
 
   // Roving-tabindex keyboard support: Left/Right arrows move between tabs.
-  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const handleTabKeyDown = (
+    e: React.KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
     e.preventDefault();
-    const delta = e.key === 'ArrowLeft' ? -1 : 1;
+    const delta = e.key === "ArrowLeft" ? -1 : 1;
     const next = TABS[(index + delta + TABS.length) % TABS.length];
     setActiveTab(next.key);
     const tabEl = document.getElementById(`session-tab-${next.key}`);
@@ -88,12 +97,12 @@ export default function SessionSidebar() {
   };
 
   return (
-    <aside className="h-full flex flex-col bg-parchment/30 border-l border-moss-green/20">
+    <aside className="flex h-full flex-col border-l border-brand/15 bg-canvas">
       {/* Tab bar */}
       <div
         role="tablist"
         aria-label="Session panels"
-        className="flex items-stretch gap-1 px-2 pt-2 border-b border-moss-green/20 flex-shrink-0"
+        className="flex flex-shrink-0 items-stretch border-b border-brand/15 bg-surface-light px-2 pt-1.5"
       >
         {TABS.map(({ key, label, icon: Icon }, index) => {
           const active = activeTab === key;
@@ -108,22 +117,22 @@ export default function SessionSidebar() {
               onClick={() => setActiveTab(key)}
               onKeyDown={(e) => handleTabKeyDown(e, index)}
               className={cn(
-                'flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-t-lg',
-                'text-xs font-medium transition-colors duration-150',
-                'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                "flex flex-1 items-center justify-center gap-1.5 rounded-t-cozy px-2 py-2",
+                "text-xs font-medium transition-colors duration-150",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand",
                 active
-                  ? 'text-brand bg-surface-light/70 border-b-2 border-brand -mb-px'
-                  : 'text-ink-muted hover:text-ink hover:bg-surface/60'
+                  ? "-mb-px border-b-2 border-brand bg-canvas text-brand"
+                  : "text-ink-muted hover:bg-surface hover:text-ink",
               )}
             >
               <Icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
               <span>{label}</span>
-              {key === 'chat' && unreadChat > 0 && (
+              {key === "chat" && unreadChat > 0 && (
                 <span
                   className="min-w-[18px] h-[18px] px-1 rounded-full bg-brand text-canvas text-[10px] font-bold flex items-center justify-center"
                   aria-label={`${unreadChat} unread messages`}
                 >
-                  {unreadChat > 9 ? '9+' : unreadChat}
+                  {unreadChat > 9 ? "9+" : unreadChat}
                 </span>
               )}
             </button>
@@ -137,7 +146,10 @@ export default function SessionSidebar() {
           id="session-tabpanel-chat"
           role="tabpanel"
           aria-labelledby="session-tab-chat"
-          className={cn('absolute inset-0 p-3', activeTab === 'chat' ? 'animate-fade-in' : 'invisible')}
+          className={cn(
+            "absolute inset-0",
+            activeTab === "chat" ? "animate-fade-in" : "invisible",
+          )}
         >
           <ChatPanel />
         </div>
@@ -146,7 +158,10 @@ export default function SessionSidebar() {
           id="session-tabpanel-dice"
           role="tabpanel"
           aria-labelledby="session-tab-dice"
-          className={cn('absolute inset-0 p-3', activeTab === 'dice' ? 'animate-fade-in' : 'invisible')}
+          className={cn(
+            "absolute inset-0",
+            activeTab === "dice" ? "animate-fade-in" : "invisible",
+          )}
         >
           <DiceRoller />
         </div>
@@ -156,8 +171,8 @@ export default function SessionSidebar() {
           role="tabpanel"
           aria-labelledby="session-tab-initiative"
           className={cn(
-            'absolute inset-0 p-3 overflow-y-auto',
-            activeTab === 'initiative' ? 'animate-fade-in' : 'invisible'
+            "absolute inset-0 p-3 overflow-y-auto",
+            activeTab === "initiative" ? "animate-fade-in" : "invisible",
           )}
         >
           <InitiativeTracker />
@@ -168,8 +183,8 @@ export default function SessionSidebar() {
           role="tabpanel"
           aria-labelledby="session-tab-session"
           className={cn(
-            'absolute inset-0 p-3 overflow-y-auto space-y-4',
-            activeTab === 'session' ? 'animate-fade-in' : 'invisible'
+            "absolute inset-0 p-3 overflow-y-auto space-y-4",
+            activeTab === "session" ? "animate-fade-in" : "invisible",
           )}
         >
           <VibeTracker />

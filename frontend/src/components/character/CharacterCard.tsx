@@ -1,13 +1,16 @@
-// ============================================
-// Character Card Component
-// Displays character info with glassmorphism style
-// ============================================
-
-import { memo, useState } from 'react';
-import type { Character, Campaign } from '@/types';
-import { User, Calendar, Link2, MoreVertical, Edit, Copy, Trash2, FileDown, Link as LinkIcon } from 'lucide-react';
-import GameSystemBadge from '@/components/common/GameSystemBadge';
-import { motion, AnimatePresence } from 'framer-motion';
+import { memo, useState } from "react";
+import {
+  CalendarDays,
+  Copy,
+  Edit,
+  FileDown,
+  Link2,
+  MoreHorizontal,
+  Trash2,
+  User,
+} from "lucide-react";
+import type { Campaign, Character } from "@/types";
+import GameSystemBadge from "@/components/common/GameSystemBadge";
 
 interface CharacterCardProps {
   character: Character;
@@ -17,6 +20,18 @@ interface CharacterCardProps {
   onDelete: (character: Character) => void;
   onAssign: (character: Character) => void;
   onExport: (character: Character) => void;
+}
+
+function relativeDate(dateString: string): string {
+  const elapsedDays = Math.floor(
+    (Date.now() - new Date(dateString).getTime()) / (1000 * 60 * 60 * 24),
+  );
+  if (elapsedDays <= 0) return "Today";
+  if (elapsedDays === 1) return "Yesterday";
+  if (elapsedDays < 7) return `${elapsedDays} days ago`;
+  if (elapsedDays < 30) return `${Math.floor(elapsedDays / 7)} weeks ago`;
+  if (elapsedDays < 365) return `${Math.floor(elapsedDays / 30)} months ago`;
+  return `${Math.floor(elapsedDays / 365)} years ago`;
 }
 
 function CharacterCardInner({
@@ -30,224 +45,146 @@ function CharacterCardInner({
 }: CharacterCardProps) {
   const [showMenu, setShowMenu] = useState(false);
 
-  // Format date
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-    return `${Math.floor(diffDays / 365)} years ago`;
-  };
-
-  // Handle card click (open character editor)
-  const handleCardClick = () => {
-    onEdit(character);
-  };
-
-  // Handle menu item click (prevent card click propagation)
-  const handleMenuItemClick = (e: React.MouseEvent, action: () => void) => {
-    e.stopPropagation();
+  const runAction = (event: React.MouseEvent, action: () => void) => {
+    event.stopPropagation();
     setShowMenu(false);
     action();
   };
 
-  // Toggle menu (prevent card click)
-  const handleMenuToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowMenu(!showMenu);
-  };
-
-  // Close menu when clicking outside
-  const handleClickOutside = () => {
-    if (showMenu) {
-      setShowMenu(false);
-    }
-  };
-
   return (
-    <>
-      {/* Backdrop to close menu */}
+    <article
+      className={`group relative rounded-cozy border border-brand/15 bg-surface-light transition-colors hover:border-brand/30 ${
+        showMenu ? "z-20" : "z-0"
+      }`}
+    >
       {showMenu && (
-        <div
-          className="fixed inset-0 z-10"
-          onClick={handleClickOutside}
+        <button
+          type="button"
+          className="fixed inset-0 z-10 cursor-default"
+          aria-label="Close character actions"
+          onClick={() => setShowMenu(false)}
         />
       )}
 
-      <div
-        onClick={handleCardClick}
-        className={`group relative glass-panel p-6 text-left transition-all duration-300
-                   hover:scale-105 hover:shadow-xl hover:shadow-moss-green/20
-                   focus:outline-none focus:ring-2 focus:ring-moss-green/50 focus:scale-105
-                   active:scale-100 w-full cursor-pointer ${showMenu ? 'z-50' : 'z-0'}`}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleCardClick();
-          }
-        }}
-        style={{
-          transformStyle: 'preserve-3d',
-        }}
+      <button
+        type="button"
+        onClick={() => onEdit(character)}
+        className="flex w-full items-start gap-3 p-4 pr-12 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand"
       >
-        {/* Actions Menu Button (Top Right) */}
-        <div className="absolute top-4 right-4 z-20">
-          <button
-            onClick={handleMenuToggle}
-            className="p-2 rounded-lg hover:bg-warm-gray/20 transition-colors
-                     focus:outline-none focus:ring-2 focus:ring-moss-green/50"
-            aria-label="Character actions"
-            type="button"
-          >
-            <MoreVertical className="w-5 h-5 text-stone-gray" />
-          </button>
+        <span className="flex h-12 w-12 flex-none items-center justify-center overflow-hidden rounded-cozy border border-brand/20 bg-brand/5">
+          {character.tokenImageUrl ? (
+            <img
+              src={character.tokenImageUrl}
+              alt=""
+              loading="lazy"
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <User className="h-5 w-5 text-brand" aria-hidden="true" />
+          )}
+        </span>
 
-          {/* Dropdown Menu */}
-          <AnimatePresence>
-            {showMenu && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                transition={{ duration: 0.15 }}
-                className="absolute right-0 mt-2 w-48 rounded-lg shadow-xl z-50
-                           bg-surface-light/95 backdrop-blur-cozy border border-brand/20"
-              >
-                <div className="py-1">
-                  <button
-                    onClick={(e) => handleMenuItemClick(e, () => onEdit(character))}
-                    className="w-full px-4 py-2 text-left text-sm text-stone-gray hover:bg-moss-green/10
-                             flex items-center gap-2 transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                    Edit Character
-                  </button>
-
-                  <button
-                    onClick={(e) => handleMenuItemClick(e, () => onCopy(character))}
-                    className="w-full px-4 py-2 text-left text-sm text-stone-gray hover:bg-moss-green/10
-                             flex items-center gap-2 transition-colors"
-                  >
-                    <Copy className="w-4 h-4" />
-                    Copy/Duplicate
-                  </button>
-
-                  <button
-                    onClick={(e) => handleMenuItemClick(e, () => onAssign(character))}
-                    className="w-full px-4 py-2 text-left text-sm text-stone-gray hover:bg-moss-green/10
-                             flex items-center gap-2 transition-colors"
-                  >
-                    <LinkIcon className="w-4 h-4" />
-                    {campaign ? 'Reassign Campaign' : 'Assign to Campaign'}
-                  </button>
-
-                  <button
-                    onClick={(e) => handleMenuItemClick(e, () => onExport(character))}
-                    className="w-full px-4 py-2 text-left text-sm text-stone-gray hover:bg-moss-green/10
-                             flex items-center gap-2 transition-colors"
-                  >
-                    <FileDown className="w-4 h-4" />
-                    Export as JSON
-                  </button>
-
-                  <div className="border-t border-moss-green/20 my-1" />
-
-                  <button
-                    onClick={(e) => handleMenuItemClick(e, () => onDelete(character))}
-                    className="w-full px-4 py-2 text-left text-sm text-spirit-red hover:bg-spirit-red/10
-                             flex items-center gap-2 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete Character
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Character Avatar/Token */}
-        <div className="mb-4 flex items-center gap-4">
-          <div className="w-16 h-16 rounded-lg bg-moss-green/10 border-2 border-moss-green/30
-                        flex items-center justify-center overflow-hidden">
-            {character.tokenImageUrl ? (
-              <img
-                src={character.tokenImageUrl}
-                alt={character.name}
-                loading="lazy"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <User className="w-8 h-8 text-moss-green" />
-            )}
-          </div>
-
-          <div className="flex-1 min-w-0 pr-8">
-            {/* Character Name */}
-            <h3 className="text-xl font-semibold text-moss-green mb-1 truncate
-                         group-hover:text-spirit-purple transition-colors">
-              {character.name}
-            </h3>
-
-            {/* Game System Badge */}
-            <GameSystemBadge gameSystem={character.gameSystem} size="md" />
-          </div>
-        </div>
-
-        {/* Campaign Assignment Status */}
-        {campaign && (
-          <div className="mb-4 px-3 py-2 rounded-lg bg-spirit-purple/10 border border-spirit-purple/30">
-            <div className="flex items-center gap-2">
-              <Link2 className="w-4 h-4 text-spirit-purple" />
-              <span className="text-sm font-medium text-spirit-purple">
-                Assigned to:
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-start justify-between gap-2">
+            <span className="min-w-0">
+              <strong className="block truncate text-base font-semibold text-ink">
+                {character.name}
+              </strong>
+              <span className="mt-1 block">
+                <GameSystemBadge gameSystem={character.gameSystem} size="sm" />
               </span>
-              <span className="text-sm text-stone-gray truncate">
-                {campaign.name}
-              </span>
-            </div>
+            </span>
+          </span>
+
+          <span className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-brand/10 pt-2 text-xs text-ink-muted">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <Link2 className="h-3.5 w-3.5 flex-none" aria-hidden="true" />
+              <span className="truncate">{campaign?.name ?? "Unassigned"}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+              {relativeDate(character.updatedAt)}
+            </span>
+          </span>
+        </span>
+      </button>
+
+      <div className="absolute right-2 top-2 z-30">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            setShowMenu((open) => !open);
+          }}
+          className="flex h-8 w-8 items-center justify-center rounded-cozy text-ink-muted transition-colors hover:bg-surface hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          aria-label={`Actions for ${character.name}`}
+          aria-expanded={showMenu}
+        >
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+        </button>
+
+        {showMenu && (
+          <div className="absolute right-0 mt-1 w-48 overflow-hidden rounded-cozy border border-brand/15 bg-surface-light py-1 shadow-lg">
+            <MenuAction
+              icon={Edit}
+              label="Edit"
+              onClick={(event) => runAction(event, () => onEdit(character))}
+            />
+            <MenuAction
+              icon={Copy}
+              label="Duplicate"
+              onClick={(event) => runAction(event, () => onCopy(character))}
+            />
+            <MenuAction
+              icon={Link2}
+              label={campaign ? "Reassign campaign" : "Assign to campaign"}
+              onClick={(event) => runAction(event, () => onAssign(character))}
+            />
+            <MenuAction
+              icon={FileDown}
+              label="Export JSON"
+              onClick={(event) => runAction(event, () => onExport(character))}
+            />
+            <div className="my-1 border-t border-brand/10" />
+            <MenuAction
+              icon={Trash2}
+              label="Delete"
+              danger
+              onClick={(event) => runAction(event, () => onDelete(character))}
+            />
           </div>
         )}
-
-        {!campaign && (
-          <div className="mb-4 px-3 py-2 rounded-lg bg-warm-gray/10 border border-warm-gray/30">
-            <div className="flex items-center gap-2">
-              <Link2 className="w-4 h-4 text-warm-gray" />
-              <span className="text-sm text-warm-gray">
-                Not assigned to any campaign
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Info Grid */}
-        <div className="space-y-2 text-sm">
-          {/* Last Updated */}
-          <div className="flex items-center gap-2 text-stone-gray">
-            <Calendar className="w-4 h-4 text-warm-amber" />
-            <span className="text-warm-gray">Updated:</span>
-            <span className="text-stone-gray font-medium">{formatDate(character.updatedAt)}</span>
-          </div>
-        </div>
-
-        {/* Hover Overlay Effect */}
-        <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-moss-green/5 to-spirit-purple/5
-                        opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-             style={{ transform: 'translateZ(-1px)' }} />
       </div>
-    </>
+    </article>
   );
 }
 
-// Memoised so the character grid only re-renders a card when its own props change
-// (e.g. the character was edited or the menu toggled), not on every sibling update.
+function MenuAction({
+  icon: Icon,
+  label,
+  danger = false,
+  onClick,
+}: {
+  icon: typeof Edit;
+  label: string;
+  danger?: boolean;
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
+        danger
+          ? "text-danger hover:bg-danger/10"
+          : "text-ink-secondary hover:bg-surface hover:text-ink"
+      }`}
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      {label}
+    </button>
+  );
+}
+
 const CharacterCard = memo(CharacterCardInner);
 export default CharacterCard;

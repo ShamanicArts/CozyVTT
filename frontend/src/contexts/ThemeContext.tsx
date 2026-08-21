@@ -159,10 +159,16 @@ function resolveColors(
   return theme.colors;
 }
 
+function resolveTreatments(themeHost: ThemeHost, themeId: string | undefined) {
+  if (themeId === "custom") return undefined;
+  return (themeHost.get(themeId || "") || PRESET_THEMES[0]).treatments;
+}
+
 /** Apply a full system AppearanceSettings record (theme + font + favicon). */
 function applySystemAppearance(themeHost: ThemeHost, data: AppearanceSettings) {
   applyThemeColors(
     resolveColors(themeHost, data.themeId, data.customThemeColors),
+    resolveTreatments(themeHost, data.themeId),
   );
   applyFont(getFontById(data.fontId) || FONT_OPTIONS[0]);
 
@@ -177,6 +183,7 @@ function applyCachedUserTheme(themeHost: ThemeHost, cache: UserThemeCache) {
   if (cache.themeId) {
     applyThemeColors(
       resolveColors(themeHost, cache.themeId, cache.customThemeColors ?? null),
+      resolveTreatments(themeHost, cache.themeId),
     );
   }
   if (cache.fontId) {
@@ -308,7 +315,10 @@ export function ThemeProvider({
           : appearance?.themeId === "custom"
             ? ((appearance?.customThemeColors as any) ?? null)
             : null;
-      applyThemeColors(resolveColors(themeHost, themeId, customColors));
+      applyThemeColors(
+        resolveColors(themeHost, themeId, customColors),
+        resolveTreatments(themeHost, themeId),
+      );
 
       // Font: prefer user choice, fall back to system default.
       const fontId = prefs.fontId ?? appearance?.fontId ?? "default";

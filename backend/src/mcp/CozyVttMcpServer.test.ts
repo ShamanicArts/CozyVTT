@@ -7,6 +7,7 @@ import { AGENT_SET_ATMOSPHERE_EFFECT } from "../application/agents/AgentGmComman
 import { IMPORT_REMOTE_MAP } from "../application/maps/RemoteMapImportCommands";
 import { AGENT_SPAWN_ACTOR } from "../application/agents/AgentGameplayCommands";
 import type { AgentAccessRepository } from "../ports/AgentAccessRepository";
+import type { ProductionExtensionRuntime } from "../composition/productionExtensionRuntime";
 import type {
   AgentAuditPort,
   IdempotencyPort,
@@ -270,6 +271,98 @@ describe("CozyVTT MCP adapter", () => {
     );
     expect(createConfirmation).not.toHaveBeenCalled();
 
+    await client.close();
+    await server.close();
+  });
+
+  it("keeps OAuth campaign scope out of extension-owned input schemas", async () => {
+    const invoke = jest.fn(async () => ({
+      toolId: "reference_npc_take_step",
+      commandId: "reference-npc.take-step",
+      extensionId: "cozyvtt.reference-npc",
+      result: { action: "move" },
+    }));
+    const extensionRuntime = {
+      bridge: {
+        listCatalog: async () => [
+          {
+            id: "reference_npc_take_step",
+            extensionId: "cozyvtt.reference-npc",
+            title: "Take an NPC step",
+            description: "Move one NPC",
+            inputSchema: {
+              type: "object",
+              properties: { actorId: { type: "string" } },
+              required: ["actorId"],
+              additionalProperties: false,
+            },
+            requiredPermissions: ["tokens.write"],
+            risk: "low",
+            confirmationRequired: false,
+          },
+        ],
+        invoke,
+      },
+      registry: {
+        listAgentTools: () => [
+          {
+            id: "reference_npc_take_step",
+            extensionId: "cozyvtt.reference-npc",
+            commandId: "reference-npc.take-step",
+          },
+        ],
+        getCommand: () => ({
+          id: "reference-npc.take-step",
+          inputSchema: {
+            type: "object",
+            properties: { actorId: { type: "string" } },
+            required: ["actorId"],
+            additionalProperties: false,
+          },
+          outputSchema: { type: "object" },
+        }),
+      },
+    } as unknown as ProductionExtensionRuntime;
+    const server = createCozyVttMcpServer(
+      {
+        credentialId: "credential-1",
+        delegatedUserId: "dm-1",
+        campaignId: "campaign-1",
+        expiresAt: null,
+      },
+      {
+        access: {} as AgentAccessRepository,
+        audit: { append: async () => undefined },
+        idempotency: {
+          register: async () => "CREATED",
+          complete: async () => undefined,
+        },
+        applicationHost: new ApplicationHost(),
+        queryHost: new QueryHost(),
+        extensionRuntime: () => extensionRuntime,
+      },
+    );
+    const client = new Client({ name: "test", version: "1.0.0" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+
+    const result = await client.callTool({
+      name: "extension_reference_npc_take_step",
+      arguments: {
+        input: { actorId: "npc-1" },
+        idempotencyKey: "extension-request-1234",
+      },
+    });
+
+    expect(result.isError).not.toBe(true);
+    expect(invoke).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: { actorId: "npc-1" },
+        scope: { campaignId: "campaign-1" },
+      }),
+    );
     await client.close();
     await server.close();
   });
