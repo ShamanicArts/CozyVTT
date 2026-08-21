@@ -43,6 +43,16 @@ export function extensionThemesToManifests(
       if (!value) return [];
       colors[color] = value;
     }
+    const pageBackground = theme.treatments?.pageBackground;
+    const stops = pageBackground?.stops.map((stop) => {
+      const entry = (
+        Object.entries(extensionTokenNames) as Array<
+          [keyof ThemeColors, string]
+        >
+      ).find(([, tokenName]) => tokenName === stop.token);
+      return entry ? { token: entry[0], position: stop.position } : null;
+    });
+    if (stops?.some((stop) => stop === null)) return [];
     return [
       {
         id: `${extensionId}-${theme.id}`,
@@ -51,6 +61,16 @@ export function extensionThemesToManifests(
         category: "neutral",
         contractVersion: THEME_CONTRACT_VERSION,
         colors,
+        treatments:
+          pageBackground && stops
+            ? {
+                pageBackground: {
+                  kind: pageBackground.kind,
+                  angle: pageBackground.angle,
+                  stops: stops.filter((stop) => stop !== null),
+                },
+              }
+            : undefined,
       },
     ];
   });

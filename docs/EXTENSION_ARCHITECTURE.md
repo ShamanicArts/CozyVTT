@@ -12,6 +12,11 @@ The canonical contracts live under `backend/src/extensions/`. Keep transport
 details (Express paths, Socket.IO events, Prisma models, SQL, DOM, and React
 closures) out of manifests and extension contracts.
 
+The distributable contract surface is `packages/extension-sdk`. A plugin can
+depend on that package without importing the VTT repository. The
+`cozyvtt-npc-controller` reference implementation lives in its own repository
+and is compiled/tested independently.
+
 ## Runtime shape
 
 ```mermaid
@@ -147,6 +152,36 @@ host validates and dispatches each action through the same gateway after the
 sandbox exits. Neither mode receives Prisma, Express, Socket.IO, or an ambient
 network/database handle.
 
+### Ownership contract
+
+CozyVTT owns authoritative campaign data, membership/role checks, atomic domain
+commands, visibility-filtered snapshots and events, idempotency/audit, live
+fan-out, and the versioned SDK/gateway contracts. An extension owns only its
+declared contribution and deterministic integration policy. An external agent
+harness owns inference, prompts, goals, memory, timing, retries, multi-agent
+coordination, and model-provider concerns.
+
+These contexts all converge without moving the agent runtime into the VTT:
+
+```mermaid
+flowchart LR
+  Harness[External agent harness] --> MCP[MCP /api/mcp]
+  Human[Human browser] --> UI[REST + Socket.IO]
+  Harness --> Tool[Installed extension tool]
+  Tool --> Gateway[context.core gateway]
+  MCP --> Host[Application/query hosts]
+  UI --> Core[Core commands and queries]
+  Gateway --> Host
+  Host --> Core
+  Core --> Truth[(Campaign state + event journal)]
+  Core --> Live[Role-filtered live fan-out]
+```
+
+The plugin is optional composition logic, not the exclusive route to game
+control. External agents can call core MCP tools directly, call a plugin tool
+through MCP, or use the sibling JSON API. Trusted and sandboxed plugins reach
+the same public core catalogue through their constrained gateways.
+
 ## Frontend contributions
 
 The renderer host is per map canvas and supports controlled terrain, token,
@@ -180,8 +215,10 @@ not a package registry or publishing workflow.
 - Trusted renderer modules can extend or replace named map layers, but there is
   no general React component/route injection, arbitrary CSS, or iframe plugin UI.
 - MCP exposes the finite application query/command catalogues rather than a
-  generic resource mirror. Initiative state is still process-memory state and
-  resets on a backend restart. Persistent sandbox workers and richer
+  generic resource mirror. Initiative state is durable and revisioned, and the
+  public snapshot/event queries reconstruct external-agent context after a
+  restart. The durable event journal currently covers initiative transitions,
+  not every campaign mutation. Persistent sandbox workers and richer
   resource/observability controls remain absent.
 
 New work should extend explicit ports and versioned contracts, preserve the

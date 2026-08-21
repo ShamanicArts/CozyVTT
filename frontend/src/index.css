@@ -36,12 +36,13 @@
     --color-spirit: 147 112 219;
 
     /* ── Font Families ── */
-    --font-heading: 'Quicksand', 'Comfortaa', sans-serif;
-    --font-body: 'Inter', 'Open Sans', sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --font-heading: "Quicksand", "Comfortaa", sans-serif;
+    --font-body: "Inter", "Open Sans", sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
 
     /* ── Google Fonts import URL (dynamically swapped by ThemeProvider) ── */
-    --font-import-url: '';
+    --font-import-url: "";
+    --theme-page-background-image: none;
   }
 
   body {
@@ -49,11 +50,18 @@
     margin: 0;
     padding: 0;
     min-height: 100vh;
+    background-image: var(--theme-page-background-image, none);
+    background-attachment: fixed;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-heading;
   }
 
@@ -63,9 +71,9 @@
 }
 
 @layer components {
-  /* Glassmorphism Panel */
+  /* Legacy alias kept for compatibility; the default surface is intentionally solid. */
   .glass-panel {
-    @apply bg-white/10 backdrop-blur-cozy border border-white/20 rounded-cozy shadow-lg;
+    @apply rounded-cozy border border-brand/15 bg-surface-light shadow-sm;
   }
 
   /* Cozy Button — canonical button styles.
@@ -95,14 +103,22 @@
   /* Cozy Input */
   .input-cozy {
     @apply w-full px-4 py-2 border border-ink-muted/30 rounded-cozy
-           bg-paper/80 backdrop-blur-sm text-ink placeholder:text-ink-muted
+           bg-paper text-ink placeholder:text-ink-muted
            focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent
-           transition-all duration-200;
+           transition-colors duration-200;
   }
 
   /* Card */
   .card-cozy {
-    @apply glass-panel p-6 hover:shadow-xl transition-shadow duration-300;
+    @apply glass-panel p-6 hover:border-brand/25 transition-colors duration-200;
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 }
 

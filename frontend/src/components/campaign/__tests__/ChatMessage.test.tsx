@@ -30,4 +30,26 @@ describe("ChatMessage agent actor identity", () => {
     expect(screen.getByText("The gate is sealed.")).toBeInTheDocument();
     expect(screen.queryByText(/controlledByUserId/)).not.toBeInTheDocument();
   });
+
+  it("keeps supplementary metadata collapsed in the activity stream", () => {
+    const { container } = render(
+      <ChatMessage
+        message={
+          {
+            id: "message-2",
+            campaignId: "campaign-1",
+            userId: "player-1",
+            type: "PLAYER",
+            content: "I check the northern door.",
+            createdAt: new Date().toISOString(),
+            user: { displayName: "Mara" },
+            metadata: { language: "Elvish" },
+          } as unknown as Message
+        }
+      />,
+    );
+
+    expect(screen.getByText("Details")).toBeInTheDocument();
+    expect(container.querySelector("details")).not.toHaveAttribute("open");
+  });
 });

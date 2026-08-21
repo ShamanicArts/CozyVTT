@@ -4,25 +4,25 @@
 // Includes password strength validation and confirmation
 // ============================================
 
-import { useState, FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState, FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   isValidEmail,
   isStrongPassword,
   getPasswordStrength,
-} from '@/utils/validation';
-import Button from '@/components/ui/Button';
+} from "@/utils/validation";
+import Button from "@/components/ui/Button";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { register, authenticated } = useAuth();
 
   // Form state
-  const [displayName, setDisplayName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -40,7 +40,7 @@ export default function RegisterPage() {
 
   // Redirect if already authenticated
   if (authenticated) {
-    navigate('/dashboard');
+    navigate("/dashboard");
     return null;
   }
 
@@ -58,33 +58,33 @@ export default function RegisterPage() {
 
     // Validate display name
     if (!displayName) {
-      errors.displayName = 'Display name is required';
+      errors.displayName = "Display name is required";
     } else if (displayName.length < 2) {
-      errors.displayName = 'Display name must be at least 2 characters';
+      errors.displayName = "Display name must be at least 2 characters";
     } else if (displayName.length > 50) {
-      errors.displayName = 'Display name must be less than 50 characters';
+      errors.displayName = "Display name must be less than 50 characters";
     }
 
     // Validate email
     if (!email) {
-      errors.email = 'Email is required';
+      errors.email = "Email is required";
     } else if (!isValidEmail(email)) {
-      errors.email = 'Please enter a valid email address';
+      errors.email = "Please enter a valid email address";
     }
 
     // Validate password
     if (!password) {
-      errors.password = 'Password is required';
+      errors.password = "Password is required";
     } else if (!isStrongPassword(password)) {
       errors.password =
-        'Password must be at least 12 characters with uppercase, lowercase, number, and special character';
+        "Password must be at least 12 characters with uppercase, lowercase, number, and special character";
     }
 
     // Validate confirm password
     if (!confirmPassword) {
-      errors.confirmPassword = 'Please confirm your password';
+      errors.confirmPassword = "Please confirm your password";
     } else if (password !== confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match';
+      errors.confirmPassword = "Passwords do not match";
     }
 
     setFieldErrors(errors);
@@ -117,15 +117,17 @@ export default function RegisterPage() {
     } catch (err: any) {
       // Handle specific error messages
       if (err.response?.status === 403) {
-        setError(err.response.data.message || 'Registration is currently disabled.');
+        setError(
+          err.response.data.message || "Registration is currently disabled.",
+        );
       } else if (err.response?.data?.error) {
         setError(err.response.data.error);
       } else if (err.response?.status === 409) {
-        setError('An account with this email already exists');
+        setError("An account with this email already exists");
       } else if (err.response?.status === 429) {
-        setError('Too many registration attempts. Please try again later.');
+        setError("Too many registration attempts. Please try again later.");
       } else {
-        setError('An error occurred during registration. Please try again.');
+        setError("An error occurred during registration. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -134,14 +136,18 @@ export default function RegisterPage() {
 
   if (pendingApproval) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-soft-cream via-parchment to-warm-amber/20 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-canvas px-4">
         <div className="glass-panel max-w-md w-full p-8 space-y-4 text-center">
           <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto">
             <span className="text-3xl">&#9203;</span>
           </div>
-          <h1 className="text-2xl font-bold text-moss-green font-heading">Registration Submitted</h1>
+          <h1 className="text-2xl font-bold text-moss-green font-heading">
+            Registration Submitted
+          </h1>
           <p className="text-warm-gray text-sm">
-            Your account has been created and is <strong>pending admin approval</strong>. You will be able to log in once an administrator approves your account.
+            Your account has been created and is{" "}
+            <strong>pending admin approval</strong>. You will be able to log in
+            once an administrator approves your account.
           </p>
           <Link to="/auth/login" className="btn-primary inline-block mt-4">
             Back to Login
@@ -152,7 +158,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-soft-cream via-parchment to-warm-amber/20 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-canvas px-4">
       <div className="glass-panel max-w-md w-full p-8 space-y-6">
         {/* Header */}
         <div className="text-center">
@@ -166,7 +172,10 @@ export default function RegisterPage() {
 
         {/* Error Alert */}
         {error && (
-          <div role="alert" className="bg-spirit-red/10 border border-spirit-red/30 rounded-lg p-4">
+          <div
+            role="alert"
+            className="bg-spirit-red/10 border border-spirit-red/30 rounded-lg p-4"
+          >
             <p className="text-sm text-spirit-red font-medium">{error}</p>
           </div>
         )}
@@ -192,18 +201,24 @@ export default function RegisterPage() {
               }}
               className={`input-cozy w-full ${
                 fieldErrors.displayName
-                  ? 'border-spirit-red focus:ring-spirit-red'
-                  : ''
+                  ? "border-spirit-red focus:ring-spirit-red"
+                  : ""
               }`}
               placeholder="Your name"
               disabled={loading}
               maxLength={50}
               aria-required="true"
               aria-invalid={!!fieldErrors.displayName}
-              aria-describedby={fieldErrors.displayName ? 'displayName-error' : undefined}
+              aria-describedby={
+                fieldErrors.displayName ? "displayName-error" : undefined
+              }
             />
             {fieldErrors.displayName && (
-              <p id="displayName-error" role="alert" className="mt-1 text-xs text-spirit-red">
+              <p
+                id="displayName-error"
+                role="alert"
+                className="mt-1 text-xs text-spirit-red"
+              >
                 {fieldErrors.displayName}
               </p>
             )}
@@ -227,16 +242,26 @@ export default function RegisterPage() {
                 setFieldErrors((prev) => ({ ...prev, email: undefined }));
               }}
               className={`input-cozy w-full ${
-                fieldErrors.email ? 'border-spirit-red focus:ring-spirit-red' : ''
+                fieldErrors.email
+                  ? "border-spirit-red focus:ring-spirit-red"
+                  : ""
               }`}
               placeholder="your@email.com"
               disabled={loading}
               aria-required="true"
               aria-invalid={!!fieldErrors.email}
-              aria-describedby={fieldErrors.email ? 'reg-email-error' : undefined}
+              aria-describedby={
+                fieldErrors.email ? "reg-email-error" : undefined
+              }
             />
             {fieldErrors.email && (
-              <p id="reg-email-error" role="alert" className="mt-1 text-xs text-spirit-red">{fieldErrors.email}</p>
+              <p
+                id="reg-email-error"
+                role="alert"
+                className="mt-1 text-xs text-spirit-red"
+              >
+                {fieldErrors.email}
+              </p>
             )}
           </div>
 
@@ -259,20 +284,28 @@ export default function RegisterPage() {
               }}
               className={`input-cozy w-full ${
                 fieldErrors.password
-                  ? 'border-spirit-red focus:ring-spirit-red'
-                  : ''
+                  ? "border-spirit-red focus:ring-spirit-red"
+                  : ""
               }`}
               placeholder="At least 12 characters"
               disabled={loading}
               aria-required="true"
               aria-invalid={!!fieldErrors.password}
-              aria-describedby={[
-                fieldErrors.password ? 'reg-password-error' : '',
-                password ? 'password-strength' : '',
-              ].filter(Boolean).join(' ') || undefined}
+              aria-describedby={
+                [
+                  fieldErrors.password ? "reg-password-error" : "",
+                  password ? "password-strength" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ") || undefined
+              }
             />
             {fieldErrors.password && (
-              <p id="reg-password-error" role="alert" className="mt-1 text-xs text-spirit-red">
+              <p
+                id="reg-password-error"
+                role="alert"
+                className="mt-1 text-xs text-spirit-red"
+              >
                 {fieldErrors.password}
               </p>
             )}
@@ -286,11 +319,11 @@ export default function RegisterPage() {
                   </span>
                   <span
                     className={`text-xs font-medium ${
-                      passwordStrength.color === 'green'
-                        ? 'text-green-600'
-                        : passwordStrength.color === 'yellow'
-                        ? 'text-yellow-600'
-                        : 'text-red-600'
+                      passwordStrength.color === "green"
+                        ? "text-green-600"
+                        : passwordStrength.color === "yellow"
+                          ? "text-yellow-600"
+                          : "text-red-600"
                     }`}
                   >
                     {passwordStrength.label}
@@ -299,11 +332,11 @@ export default function RegisterPage() {
                 <div className="w-full bg-warm-gray/20 rounded-full h-1.5">
                   <div
                     className={`h-1.5 rounded-full transition-all ${
-                      passwordStrength.color === 'green'
-                        ? 'bg-green-600'
-                        : passwordStrength.color === 'yellow'
-                        ? 'bg-yellow-600'
-                        : 'bg-red-600'
+                      passwordStrength.color === "green"
+                        ? "bg-green-600"
+                        : passwordStrength.color === "yellow"
+                          ? "bg-yellow-600"
+                          : "bg-red-600"
                     }`}
                     style={{ width: `${(passwordStrength.score / 10) * 100}%` }}
                   ></div>
@@ -334,8 +367,8 @@ export default function RegisterPage() {
               }}
               className={`input-cozy w-full ${
                 fieldErrors.confirmPassword
-                  ? 'border-spirit-red focus:ring-spirit-red'
-                  : ''
+                  ? "border-spirit-red focus:ring-spirit-red"
+                  : ""
               }`}
               placeholder="Re-enter your password"
               disabled={loading}
@@ -348,11 +381,7 @@ export default function RegisterPage() {
           </div>
 
           {/* Submit Button */}
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full mt-6"
-          >
+          <Button type="submit" disabled={loading} className="w-full mt-6">
             {loading ? (
               <span className="flex items-center justify-center">
                 <svg
@@ -378,7 +407,7 @@ export default function RegisterPage() {
                 Creating account...
               </span>
             ) : (
-              'Create Account'
+              "Create Account"
             )}
           </Button>
         </form>
@@ -386,7 +415,7 @@ export default function RegisterPage() {
         {/* Login Link */}
         <div className="text-center">
           <p className="text-sm text-warm-gray">
-            Already have an account?{' '}
+            Already have an account?{" "}
             <Link
               to="/auth/login"
               className="text-moss-green hover:text-moss-green/80 font-medium transition-colors"

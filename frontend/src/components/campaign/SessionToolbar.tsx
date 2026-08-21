@@ -15,19 +15,19 @@ import {
   Cloud,
   Settings,
   type LucideIcon,
-} from 'lucide-react';
-import Button from '@/components/ui/Button';
-import Tooltip from '@/components/ui/Tooltip';
-import { cn } from '@/utils/cn';
+} from "lucide-react";
+import Button from "@/components/ui/Button";
+import Tooltip from "@/components/ui/Tooltip";
+import { cn } from "@/utils/cn";
 
 export type SessionToolKey =
-  | 'maps'
-  | 'tokens'
-  | 'creatures'
-  | 'templates'
-  | 'spirit'
-  | 'atmosphere'
-  | 'settings';
+  | "maps"
+  | "tokens"
+  | "creatures"
+  | "templates"
+  | "spirit"
+  | "atmosphere"
+  | "settings";
 
 interface ToolDef {
   key: SessionToolKey;
@@ -38,16 +38,16 @@ interface ToolDef {
 // Grouped by intent: campaign content, scene ambience, configuration.
 const TOOL_GROUPS: ToolDef[][] = [
   [
-    { key: 'maps', label: 'Map Library', icon: MapIcon },
-    { key: 'tokens', label: 'Token Manager', icon: Swords },
-    { key: 'creatures', label: 'Creature Library', icon: BookOpen },
-    { key: 'templates', label: 'Token Templates', icon: Package },
+    { key: "maps", label: "Map Library", icon: MapIcon },
+    { key: "tokens", label: "Token Manager", icon: Swords },
+    { key: "creatures", label: "Creature Library", icon: BookOpen },
+    { key: "templates", label: "Token Templates", icon: Package },
   ],
   [
-    { key: 'spirit', label: 'Spirit Layer', icon: Ghost },
-    { key: 'atmosphere', label: 'Atmosphere', icon: Cloud },
+    { key: "spirit", label: "Spirit Layer", icon: Ghost },
+    { key: "atmosphere", label: "Atmosphere", icon: Cloud },
   ],
-  [{ key: 'settings', label: 'Campaign Settings', icon: Settings }],
+  [{ key: "settings", label: "Campaign Settings", icon: Settings }],
 ];
 
 interface SessionToolbarProps {
@@ -56,32 +56,54 @@ interface SessionToolbarProps {
   onOpen: (key: SessionToolKey) => void;
   /** Spirit layer active for the campaign — keeps the purple ring cue. */
   spiritLayerEnabled?: boolean;
+  presentation?: "toolbar" | "menu";
 }
 
 export default function SessionToolbar({
   openPanels,
   onOpen,
   spiritLayerEnabled = false,
+  presentation = "toolbar",
 }: SessionToolbarProps) {
+  const menu = presentation === "menu";
   return (
-    <div className="flex items-center gap-1" role="toolbar" aria-label="DM tools">
+    <div
+      className={cn(
+        menu ? "grid grid-cols-2 gap-2" : "flex flex-wrap items-center gap-1",
+      )}
+      role="toolbar"
+      aria-label="DM tools"
+    >
       {TOOL_GROUPS.map((group, groupIndex) => (
-        <div key={groupIndex} className="flex items-center gap-1">
-          {groupIndex > 0 && <div className="h-6 w-px bg-moss-green/20 mx-1" aria-hidden="true" />}
+        <div
+          key={groupIndex}
+          className={cn(menu ? "contents" : "flex items-center gap-1")}
+        >
+          {groupIndex > 0 && (
+            <div
+              className={cn("h-6 w-px bg-moss-green/20 mx-1", menu && "hidden")}
+              aria-hidden="true"
+            />
+          )}
           {group.map(({ key, label, icon }) => (
             <Tooltip key={key} content={label} side="bottom">
               <Button
                 variant="ghost"
-                iconOnly
+                iconOnly={!menu}
                 icon={icon}
                 aria-label={label}
                 onClick={() => onOpen(key)}
                 className={cn(
-                  openPanels[key] && '!bg-accent/15 !text-accent',
-                  key === 'spirit' && 'text-spirit-purple',
-                  key === 'spirit' && spiritLayerEnabled && 'ring-2 ring-spirit-purple/50'
+                  menu && "min-h-11 w-full justify-start text-left",
+                  openPanels[key] && "!bg-accent/15 !text-accent",
+                  key === "spirit" && "text-spirit-purple",
+                  key === "spirit" &&
+                    spiritLayerEnabled &&
+                    "ring-2 ring-spirit-purple/50",
                 )}
-              />
+              >
+                {menu && label}
+              </Button>
             </Tooltip>
           ))}
         </div>

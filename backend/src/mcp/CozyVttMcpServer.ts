@@ -210,7 +210,11 @@ async function buildBindings(
         ),
         call: async (argumentsValue) => {
           const execution = readCommandArguments(argumentsValue);
-          const input = scopedInput(execution.input, identity.campaignId);
+          // Extension manifests describe only extension-owned input. Campaign
+          // scope is authoritative OAuth context and is bound by the guarded
+          // bridge after manifest validation; adding it here makes otherwise
+          // valid `additionalProperties: false` schemas impossible to call.
+          const input = execution.input;
           validateJsonSchema(command.inputSchema, input);
           const confirmation = await confirmOrPend({
             dependencies,

@@ -32,6 +32,35 @@ const themeContributionSchema = z
         z.string().trim().min(1).max(512),
       )
       .refine((tokens) => Object.keys(tokens).length <= 128),
+    treatments: z
+      .object({
+        pageBackground: z
+          .object({
+            kind: z.literal("linear-gradient"),
+            angle: z.number().min(0).max(360),
+            stops: z
+              .array(
+                z
+                  .object({
+                    token: z.string().regex(/^--color-[a-z0-9-]{1,80}$/),
+                    position: z.number().min(0).max(100),
+                  })
+                  .strict(),
+              )
+              .min(2)
+              .max(4)
+              .refine((stops) =>
+                stops.every(
+                  (stop, index) =>
+                    index === 0 || stop.position >= stops[index - 1].position,
+                ),
+              ),
+          })
+          .strict()
+          .optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 const rendererContributionSchema = z

@@ -108,6 +108,8 @@ describeDatabase("MCP Streamable HTTP adapter", () => {
     expect(listed.body.result.tools).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "query_campaign_summary_get" }),
+        expect.objectContaining({ name: "query_campaign_snapshot_get" }),
+        expect.objectContaining({ name: "query_campaign_events_read" }),
       ]),
     );
 
@@ -120,6 +122,34 @@ describeDatabase("MCP Streamable HTTP adapter", () => {
     expect(called.body.result.structuredContent).toMatchObject({
       id: campaignId,
       name: "MCP Test",
+    });
+
+    await prisma.campaignEventRecord.create({
+      data: {
+        campaignId,
+        type: "initiative.turn.started",
+        correlationId: "mcp-event-test",
+        payload: { actorId: "npc-1" },
+      },
+    });
+    const events = await post({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "tools/call",
+      params: {
+        name: "query_campaign_events_read",
+        arguments: { afterCursor: "0", limit: 10 },
+      },
+    }).expect(200);
+    expect(events.body.result).toMatchObject({
+      structuredContent: {
+        result: expect.arrayContaining([
+          expect.objectContaining({
+            type: "initiative.turn.started",
+            correlationId: "mcp-event-test",
+          }),
+        ]),
+      },
     });
   });
 

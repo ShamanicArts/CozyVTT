@@ -1,5 +1,5 @@
+import { randomUUID } from "node:crypto";
 import {
-  emptyInitiativeState,
   InitiativeError,
   InitiativeState,
   sortInitiativeCombatants,
@@ -9,6 +9,10 @@ import { DiceRollError, DiceRollResult } from '../../domain/dice/DiceRoll';
 import { InitiativeCombatStateStore } from '../../ports/InitiativeCombatStateStore';
 import { InitiativeRepository } from '../../ports/InitiativeRepository';
 import { DiceExpressionRoller } from '../../ports/DiceExpressionRoller';
+import {
+  CampaignEventJournal,
+  NOOP_CAMPAIGN_EVENT_JOURNAL,
+} from "../../ports/CampaignEventJournal";
 import { Command, CommandHandler } from '../commands/CommandBus';
 
 export const ADD_INITIATIVE_COMBATANT = 'initiative.add' as const;
@@ -24,6 +28,8 @@ interface InitiativeCommandContext {
   campaignId: string;
   userId: string;
   role: unknown;
+  correlationId?: string;
+  causationId?: string;
 }
 
 export interface AddInitiativeCombatantCommand extends Command<InitiativeState> {
@@ -98,7 +104,9 @@ export interface RollInitiativeResult {
 abstract class InitiativeCommandBase {
   constructor(
     protected readonly repository: InitiativeRepository,
-    protected readonly stateStore: InitiativeCombatStateStore
+    protected readonly stateStore: InitiativeCombatStateStore,
+    protected readonly events: CampaignEventJournal =
+      NOOP_CAMPAIGN_EVENT_JOURNAL,
   ) {}
 
   protected assertDm(context: InitiativeCommandContext, message: string): void {
@@ -112,6 +120,44 @@ abstract class InitiativeCommandBase {
     }
     return map;
   }
+
+  protected async loadState(campaignId: string) {
+    const snapshot = await this.stateStore.get(campaignId);
+    return {
+      revision: snapshot.revision,
+      state: {
+        ...snapshot.state,
+        combatants: snapshot.state.combatants.map((combatant) => ({
+          ...combatant,
+          hp: combatant.hp ? { ...combatant.hp } : null,
+        })),
+      },
+    };
+  }
+
+  protected async saveState(
+    campaignId: string,
+    revision: number,
+    state: InitiativeState,
+  ): Promise<InitiativeState> {
+    return (await this.stateStore.set(campaignId, revision, state)).state;
+  }
+
+  protected publish(
+    context: InitiativeCommandContext,
+    type: string,
+    payload: Readonly<Record<string, unknown>>,
+    actorId?: string,
+  ) {
+    return this.events.append({
+      campaignId: context.campaignId,
+      type,
+      actorId,
+      correlationId: context.correlationId ?? randomUUID(),
+      causationId: context.causationId,
+      payload,
+    });
+  }
 }
 
 export class AddInitiativeCombatant extends InitiativeCommandBase implements CommandHandler<AddInitiativeCombatantCommand, InitiativeState> {
@@ -124,14 +170,20 @@ export class AddInitiativeCombatant extends InitiativeCommandBase implements Com
     const token = map.tokens.find((candidate) => candidate.id === command.tokenId);
     if (!token) throw new InitiativeError('TOKEN_NOT_FOUND', 'Token not found');
 
-    const state = this.stateStore.get(command.context.campaignId);
+    const { state, revision } = await this.loadState(command.context.campaignId);
     if (state.combatants.some((combatant) => combatant.tokenId === command.tokenId)) {
       throw new InitiativeError('DUPLICATE_COMBATANT', 'Token is already in initiative');
     }
 
     state.combatants = sortInitiativeCombatants([...state.combatants, toInitiativeCombatant(token)]);
-    this.stateStore.set(command.context.campaignId, state);
-    return state;
+    const persisted = await this.saveState(command.context.campaignId, revision, state);
+    await this.publish(
+      command.context,
+      "initiative.combatant.added",
+      { state: persisted, tokenId: command.tokenId as string },
+      command.tokenId as string,
+    );
+    return persisted;
   }
 }
 
@@ -140,13 +192,19 @@ export class RemoveInitiativeCombatant extends InitiativeCommandBase implements 
     this.assertDm(command.context, 'Only the DM can modify initiative');
     if (!command.tokenId) throw new InitiativeError('TOKEN_REQUIRED', 'tokenId required');
 
-    const state = this.stateStore.get(command.context.campaignId);
+    const { state, revision } = await this.loadState(command.context.campaignId);
     state.combatants = state.combatants.filter((combatant) => combatant.tokenId !== command.tokenId);
     if (state.currentTokenId === command.tokenId) {
       state.currentTokenId = state.combatants[0]?.tokenId ?? null;
     }
-    this.stateStore.set(command.context.campaignId, state);
-    return state;
+    const persisted = await this.saveState(command.context.campaignId, revision, state);
+    await this.publish(
+      command.context,
+      "initiative.combatant.removed",
+      { state: persisted, tokenId: command.tokenId as string },
+      command.tokenId as string,
+    );
+    return persisted;
   }
 }
 
@@ -169,13 +227,34 @@ export class SetInitiativeValue extends InitiativeCommandBase implements Command
       await this.repository.updateTokens(map.id, map.revision, tokens);
     }
 
-    const state = this.stateStore.get(command.context.campaignId);
+    const { state, revision } = await this.loadState(command.context.campaignId);
     const combatantIndex = state.combatants.findIndex((combatant) => combatant.tokenId === command.tokenId);
     if (combatantIndex !== -1) {
       state.combatants[combatantIndex].initiative = command.value as number | null;
       state.combatants = sortInitiativeCombatants(state.combatants);
-      this.stateStore.set(command.context.campaignId, state);
+      const persisted = await this.saveState(command.context.campaignId, revision, state);
+      await this.publish(
+        command.context,
+        "initiative.value.set",
+        {
+          state: persisted,
+          tokenId: command.tokenId as string,
+          value: command.value as number | null,
+        },
+        command.tokenId as string,
+      );
+      return persisted;
     }
+    await this.publish(
+      command.context,
+      "initiative.value.set",
+      {
+        state,
+        tokenId: command.tokenId as string,
+        value: command.value as number | null,
+      },
+      command.tokenId as string,
+    );
     return state;
   }
 }
@@ -184,9 +263,10 @@ export class RollInitiative extends InitiativeCommandBase implements CommandHand
   constructor(
     repository: InitiativeRepository,
     stateStore: InitiativeCombatStateStore,
-    private readonly roller: DiceExpressionRoller
+    private readonly roller: DiceExpressionRoller,
+    events: CampaignEventJournal = NOOP_CAMPAIGN_EVENT_JOURNAL,
   ) {
-    super(repository, stateStore);
+    super(repository, stateStore, events);
   }
 
   async execute(command: RollInitiativeCommand): Promise<RollInitiativeResult> {
@@ -216,7 +296,7 @@ export class RollInitiative extends InitiativeCommandBase implements CommandHand
     // Maintain legacy durability-before-broadcast/state ordering.
     await this.repository.updateTokens(map.id, map.revision, tokens);
 
-    const state = this.stateStore.get(command.context.campaignId);
+    const { state, revision } = await this.loadState(command.context.campaignId);
     const existingIndex = state.combatants.findIndex((combatant) => combatant.tokenId === command.tokenId);
     if (existingIndex !== -1) {
       state.combatants[existingIndex].initiative = rolledValue;
@@ -224,11 +304,26 @@ export class RollInitiative extends InitiativeCommandBase implements CommandHand
       state.combatants.push(toInitiativeCombatant({ ...token, initiative: rolledValue }));
     }
     state.combatants = sortInitiativeCombatants(state.combatants);
-    this.stateStore.set(command.context.campaignId, state);
+    const persistedState = await this.saveState(
+      command.context.campaignId,
+      revision,
+      state,
+    );
+    await this.publish(
+      command.context,
+      "initiative.rolled",
+      {
+        state: persistedState,
+        tokenId: command.tokenId as string,
+        expression: command.expression as string,
+        result: rolledValue,
+      },
+      command.tokenId as string,
+    );
 
     const userName = (await this.repository.findUserDisplayName(command.context.userId)) ?? 'DM';
     return {
-      state,
+      state: persistedState,
       tokenName: token.name,
       roll: {
         userId: command.context.userId,
@@ -252,7 +347,7 @@ export class ReorderInitiative extends InitiativeCommandBase implements CommandH
       throw new InitiativeError('INVALID_ORDER', 'orderedTokenIds must be an array');
     }
 
-    const state = this.stateStore.get(command.context.campaignId);
+    const { state, revision } = await this.loadState(command.context.campaignId);
     const combatantMap = new Map(state.combatants.map((combatant) => [combatant.tokenId, combatant]));
     const reordered = [] as InitiativeState['combatants'];
     for (const id of command.orderedTokenIds) {
@@ -263,30 +358,39 @@ export class ReorderInitiative extends InitiativeCommandBase implements CommandH
       if (!reordered.includes(combatant)) reordered.push(combatant);
     }
     state.combatants = reordered;
-    this.stateStore.set(command.context.campaignId, state);
-    return state;
+    const persisted = await this.saveState(command.context.campaignId, revision, state);
+    await this.publish(command.context, "initiative.reordered", {
+      state: persisted,
+    });
+    return persisted;
   }
 }
 
 export class StartInitiativeCombat extends InitiativeCommandBase implements CommandHandler<StartInitiativeCombatCommand, InitiativeState> {
   async execute(command: StartInitiativeCombatCommand): Promise<InitiativeState> {
     this.assertDm(command.context, 'Only the DM can start combat');
-    const state = this.stateStore.get(command.context.campaignId);
+    const { state, revision } = await this.loadState(command.context.campaignId);
     if (state.combatants.length === 0) {
       throw new InitiativeError('NO_COMBATANTS', 'Add combatants before starting combat');
     }
     state.active = true;
     state.round = 1;
     state.currentTokenId = state.combatants[0].tokenId;
-    this.stateStore.set(command.context.campaignId, state);
-    return state;
+    const persisted = await this.saveState(command.context.campaignId, revision, state);
+    await this.publish(
+      command.context,
+      "initiative.turn.started",
+      { state: persisted, reason: "combat-started" },
+      persisted.currentTokenId ?? undefined,
+    );
+    return persisted;
   }
 }
 
 export class AdvanceInitiativeTurn extends InitiativeCommandBase implements CommandHandler<AdvanceInitiativeTurnCommand, InitiativeState> {
   async execute(command: AdvanceInitiativeTurnCommand): Promise<InitiativeState> {
     this.assertDm(command.context, 'Only the DM can advance the turn');
-    const state = this.stateStore.get(command.context.campaignId);
+    const { state, revision } = await this.loadState(command.context.campaignId);
     if (!state.active || state.combatants.length === 0) {
       throw new InitiativeError('COMBAT_INACTIVE', 'Combat is not active');
     }
@@ -298,15 +402,27 @@ export class AdvanceInitiativeTurn extends InitiativeCommandBase implements Comm
     } else {
       state.currentTokenId = state.combatants[nextIndex].tokenId;
     }
-    this.stateStore.set(command.context.campaignId, state);
-    return state;
+    const persisted = await this.saveState(command.context.campaignId, revision, state);
+    await this.publish(
+      command.context,
+      "initiative.turn.started",
+      { state: persisted, reason: "turn-advanced" },
+      persisted.currentTokenId ?? undefined,
+    );
+    return persisted;
   }
 }
 
 export class EndInitiativeCombat extends InitiativeCommandBase implements CommandHandler<EndInitiativeCombatCommand, InitiativeState> {
   async execute(command: EndInitiativeCombatCommand): Promise<InitiativeState> {
     this.assertDm(command.context, 'Only the DM can end combat');
-    this.stateStore.clear(command.context.campaignId);
-    return emptyInitiativeState();
+    const { revision } = await this.loadState(command.context.campaignId);
+    const persisted = (
+      await this.stateStore.clear(command.context.campaignId, revision)
+    ).state;
+    await this.publish(command.context, "initiative.combat.ended", {
+      state: persisted,
+    });
+    return persisted;
   }
 }

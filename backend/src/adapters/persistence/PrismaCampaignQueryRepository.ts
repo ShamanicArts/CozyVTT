@@ -58,11 +58,16 @@ export class PrismaCampaignQueryRepository implements CampaignQueryRepository {
     }) as any;
   }
   async initiative(c: string) {
-    const session = await this.prisma.session.findFirst({
-      where: { campaignId: c },
-      orderBy: { startedAt: "desc" },
+    const campaign = await this.prisma.campaign.findUnique({
+      where: { id: c },
+      select: { initiativeState: true, initiativeRevision: true },
     });
-    return (session as any) ?? null;
+    return campaign
+      ? {
+          ...(campaign.initiativeState as Record<string, unknown>),
+          revision: campaign.initiativeRevision,
+        }
+      : null;
   }
   chat(c: string, l: number) {
     return this.prisma.message.findMany({

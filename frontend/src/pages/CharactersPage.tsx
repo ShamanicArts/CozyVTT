@@ -3,23 +3,27 @@
 // Character library management for players
 // ============================================
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/contexts/ToastContext';
-import { Plus, LogOut, Loader2, RefreshCw, Upload } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
-import characterService from '@/services/character.service';
-import { useCampaignsQuery, useCharactersQuery, queryKeys } from '@/hooks/queries';
-import CharacterCard from '@/components/character/CharacterCard';
-import NewCharacterModal from '@/components/character/NewCharacterModal';
-import DeleteCharacterModal from '@/components/character/DeleteCharacterModal';
-import AssignCharacterModal from '@/components/character/AssignCharacterModal';
-import ImportCharacterModal from '@/components/character/ImportCharacterModal';
-import EmptyState from '@/components/common/EmptyState';
-import type { Character, Campaign } from '@/types';
-import Button from '@/components/ui/Button';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
+import { Plus, LogOut, Loader2, RefreshCw, Upload } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
+import characterService from "@/services/character.service";
+import {
+  useCampaignsQuery,
+  useCharactersQuery,
+  queryKeys,
+} from "@/hooks/queries";
+import CharacterCard from "@/components/character/CharacterCard";
+import NewCharacterModal from "@/components/character/NewCharacterModal";
+import DeleteCharacterModal from "@/components/character/DeleteCharacterModal";
+import AssignCharacterModal from "@/components/character/AssignCharacterModal";
+import ImportCharacterModal from "@/components/character/ImportCharacterModal";
+import EmptyState from "@/components/common/EmptyState";
+import type { Character, Campaign } from "@/types";
+import Button from "@/components/ui/Button";
 
 export default function CharactersPage() {
   const { logout } = useAuth();
@@ -32,7 +36,9 @@ export default function CharactersPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
+  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(
+    null,
+  );
 
   // Server resources via react-query (shared cache with DashboardPage)
   const queryClient = useQueryClient();
@@ -44,8 +50,8 @@ export default function CharactersPage() {
   const loading = charactersQuery.isPending || campaignsQuery.isPending;
   const queryError = charactersQuery.error || campaignsQuery.error;
   const error = queryError
-    ? ((queryError as any).response?.data?.message || 'Failed to load characters')
-    : '';
+    ? (queryError as any).response?.data?.message || "Failed to load characters"
+    : "";
 
   const loadData = () => {
     charactersQuery.refetch();
@@ -54,12 +60,14 @@ export default function CharactersPage() {
 
   // Local cache mutations mirror the previous setState behavior
   const setCharactersData = (updater: (prev: Character[]) => Character[]) => {
-    queryClient.setQueryData<Character[]>(queryKeys.characters, (prev) => updater(prev ?? []));
+    queryClient.setQueryData<Character[]>(queryKeys.characters, (prev) =>
+      updater(prev ?? []),
+    );
   };
 
   const handleCharacterCreated = (newCharacter: Character) => {
     setCharactersData((prev) => [newCharacter, ...prev]);
-    showSuccess('Character created successfully!');
+    showSuccess("Character created successfully!");
     // Note: For now we just close the modal.
   };
 
@@ -69,11 +77,16 @@ export default function CharactersPage() {
 
   const handleCopy = async (character: Character) => {
     try {
-      const copiedCharacter = await characterService.copyCharacter(character.id);
+      const copiedCharacter = await characterService.copyCharacter(
+        character.id,
+      );
       setCharactersData((prev) => [copiedCharacter, ...prev]);
       showSuccess(`${character.name} copied successfully`);
     } catch (err: any) {
-      showToast(err.response?.data?.message || 'Failed to copy character', 'error');
+      showToast(
+        err.response?.data?.message || "Failed to copy character",
+        "error",
+      );
     }
   };
 
@@ -86,7 +99,7 @@ export default function CharactersPage() {
     // Errors propagate to the modal, which handles the display
     await characterService.deleteCharacter(characterId);
     setCharactersData((prev) => prev.filter((c) => c.id !== characterId));
-    showSuccess('Character deleted successfully');
+    showSuccess("Character deleted successfully");
     setShowDeleteModal(false);
     setSelectedCharacter(null);
   };
@@ -96,22 +109,28 @@ export default function CharactersPage() {
     setShowAssignModal(true);
   };
 
-  const handleAssignConfirm = async (characterId: string, campaignId: string | null) => {
+  const handleAssignConfirm = async (
+    characterId: string,
+    campaignId: string | null,
+  ) => {
     // Errors propagate to the modal, which handles the display
     let updatedCharacter: Character;
 
     if (campaignId) {
-      updatedCharacter = await characterService.assignCharacter(characterId, campaignId);
+      updatedCharacter = await characterService.assignCharacter(
+        characterId,
+        campaignId,
+      );
       const campaign = campaigns.find((c) => c.id === campaignId);
-      showSuccess(`Assigned to ${campaign?.name || 'campaign'}`);
+      showSuccess(`Assigned to ${campaign?.name || "campaign"}`);
     } else {
       updatedCharacter = await characterService.unassignCharacter(characterId);
-      showSuccess('Character unassigned');
+      showSuccess("Character unassigned");
     }
 
     // Update character in list
     setCharactersData((prev) =>
-      prev.map((c) => (c.id === characterId ? updatedCharacter : c))
+      prev.map((c) => (c.id === characterId ? updatedCharacter : c)),
     );
 
     setShowAssignModal(false);
@@ -123,12 +142,16 @@ export default function CharactersPage() {
     showSuccess(`Exported ${character.name}`);
   };
 
-  const handleImport = async (data: { name: string; gameSystem: string | null; data: any }) => {
+  const handleImport = async (data: {
+    name: string;
+    gameSystem: string | null;
+    data: any;
+  }) => {
     // Errors propagate to the modal, which handles the display
     const importedCharacter = await characterService.createCharacter({
       name: data.name,
       data: data.data,
-      gameSystem: data.gameSystem as import('@/types').GameSystem | null,
+      gameSystem: data.gameSystem as import("@/types").GameSystem | null,
     });
 
     setCharactersData((prev) => [importedCharacter, ...prev]);
@@ -140,7 +163,7 @@ export default function CharactersPage() {
   };
 
   const showSuccess = (message: string) => {
-    showToast(message, 'success');
+    showToast(message, "success");
   };
 
   // Get campaign for a character
@@ -150,180 +173,143 @@ export default function CharactersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-soft-cream via-parchment to-warm-amber/20">
-      {/* Header */}
-      <header className="bg-moss-green/10 border-b border-moss-green/20 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-6">
-            {/* Left: Logo + Title */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="p-2 rounded-lg bg-moss-green/10 hover:bg-moss-green/20 transition-colors"
-              >
-                <img src={mascotUrl} alt="CozyVTT" className="w-10 h-10 object-contain" />
-              </button>
-              <div>
-                <h1 className="text-3xl font-bold text-moss-green font-heading">
-                  My Characters
-                </h1>
-                <p className="text-sm text-warm-gray">
-                  Manage your character library
-                </p>
-              </div>
-            </div>
+    <div className="min-h-screen bg-canvas text-ink">
+      <header className="border-b border-brand/15 bg-surface-light">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="flex h-9 w-9 flex-none items-center justify-center rounded-cozy transition-colors hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              aria-label="Back to dashboard"
+            >
+              <img src={mascotUrl} alt="" className="h-7 w-7 object-contain" />
+            </button>
+            <h1 className="truncate text-base font-semibold text-ink">
+              Characters
+            </h1>
+          </div>
 
-            {/* Right: Actions */}
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={() => navigate('/dashboard')}
-                variant="secondary" className="flex items-center gap-2"
-              >
-                <span className="hidden sm:inline">Back to Dashboard</span>
-                <span className="sm:hidden">Dashboard</span>
-              </Button>
-
-              <Button
-                onClick={loadData}
-                disabled={loading}
-                variant="secondary" className="flex items-center gap-2"
-                aria-label={loading ? 'Refreshing characters' : 'Refresh characters'}
-                aria-busy={loading}
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
-                <span className="hidden sm:inline">Refresh</span>
-              </Button>
-
-              <Button
-                onClick={handleLogout}
-                variant="danger" className="flex items-center gap-2"
-                aria-label="Log out of CozyVTT"
-              >
-                <LogOut className="w-4 h-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Logout</span>
-              </Button>
-            </div>
+          <div className="flex items-center gap-1">
+            <Button
+              onClick={() => navigate("/dashboard")}
+              variant="ghost"
+              size="sm"
+              className="hidden sm:inline-flex"
+            >
+              Dashboard
+            </Button>
+            <Button
+              onClick={loadData}
+              disabled={loading}
+              variant="ghost"
+              size="sm"
+              iconOnly
+              aria-label={
+                loading ? "Refreshing characters" : "Refresh characters"
+              }
+              aria-busy={loading}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                aria-hidden="true"
+              />
+            </Button>
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              size="sm"
+              iconOnly
+              aria-label="Log out of CozyVTT"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+            </Button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-8">
+      <main
+        id="main-content"
+        className="mx-auto max-w-6xl px-3 py-6 sm:px-6 sm:py-8"
+      >
+        <section>
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <h2 className="text-xl font-semibold text-ink">
+              Your characters
+              {!loading && (
+                <span className="ml-2 text-sm font-normal text-ink-muted">
+                  {characters.length}
+                </span>
+              )}
+            </h2>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setShowImportModal(true)}
+                variant="secondary"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Upload className="h-4 w-4" aria-hidden="true" />
+                Import
+              </Button>
+              <Button
+                onClick={() => setShowCreateModal(true)}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                New character
+              </Button>
+            </div>
+          </div>
 
+          {error && (
+            <div className="mb-5 rounded-cozy border border-danger/25 bg-danger/5 p-3">
+              <p className="text-sm font-medium text-danger">{error}</p>
+            </div>
+          )}
 
-          {/* Create Character Section */}
-          <section>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-semibold text-moss-green font-heading">
-                Your Characters
-                {!loading && (
-                  <span className="text-lg text-warm-gray ml-2">
-                    ({characters.length})
-                  </span>
-                )}
-              </h2>
-              <div className="flex items-center gap-3">
-                <Button
-                  onClick={() => setShowImportModal(true)}
-                  variant="secondary" className="flex items-center gap-2"
-                >
-                  <Upload className="w-5 h-5" />
-                  Import
-                </Button>
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-16">
+              <Loader2 className="mb-3 h-7 w-7 animate-spin text-brand" />
+              <p className="text-sm text-ink-muted">Loading characters…</p>
+            </div>
+          )}
+
+          {!loading && characters.length === 0 && (
+            <EmptyState
+              title="No characters yet"
+              description="Create a character for a campaign or keep one ready for later."
+              action={
                 <Button
                   onClick={() => setShowCreateModal(true)}
-                  className="flex items-center gap-2"
+                  className="inline-flex items-center gap-2"
                 >
-                  <Plus className="w-5 h-5" />
-                  Create Character
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  New character
                 </Button>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div className="mb-6 bg-spirit-red/10 border border-spirit-red/30 rounded-lg p-4">
-                <p className="text-sm text-spirit-red font-medium">{error}</p>
-              </div>
-            )}
-
-            {/* Loading State */}
-            {loading && (
-              <div className="flex flex-col items-center justify-center py-16">
-                <Loader2 className="w-12 h-12 text-moss-green animate-spin mb-4" />
-                <p className="text-stone-gray">Loading your characters...</p>
-              </div>
-            )}
-
-            {/* Empty State */}
-            {!loading && characters.length === 0 && (
-              <EmptyState
-                title="No characters yet"
-                description="Create your first character to get started! You can create characters for any of your campaigns or prepare them for future adventures."
-                action={
-                  <Button
-                    onClick={() => setShowCreateModal(true)}
-                    className="inline-flex items-center gap-2"
-                  >
-                    <Plus className="w-5 h-5" />
-                    Create Your First Character
-                  </Button>
-                }
-              />
-            )}
-
-            {/* Character Grid */}
-            {!loading && characters.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {characters.map((character) => (
-                  <CharacterCard
-                    key={character.id}
-                    character={character}
-                    campaign={getCharacterCampaign(character)}
-                    onEdit={handleEdit}
-                    onCopy={handleCopy}
-                    onDelete={handleDeleteClick}
-                    onAssign={handleAssignClick}
-                    onExport={handleExport}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* Character Stats (if characters exist) */}
-          {!loading && characters.length > 0 && (
-            <section className="glass-panel p-6">
-              <h3 className="text-lg font-semibold text-moss-green mb-4">
-                Quick Stats
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="text-center p-4 rounded-lg bg-moss-green/5">
-                  <p className="text-3xl font-bold text-moss-green">
-                    {characters.filter((c) => c.campaignId).length}
-                  </p>
-                  <p className="text-sm text-warm-gray mt-1">Assigned to Campaigns</p>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-spirit-purple/5">
-                  <p className="text-3xl font-bold text-spirit-purple">
-                    {characters.filter((c) => !c.campaignId).length}
-                  </p>
-                  <p className="text-sm text-warm-gray mt-1">Unassigned</p>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-warm-amber/5">
-                  <p className="text-3xl font-bold text-warm-amber">
-                    {characters.filter((c) => c.gameSystem).length}
-                  </p>
-                  <p className="text-sm text-warm-gray mt-1">With Game System</p>
-                </div>
-              </div>
-            </section>
+              }
+            />
           )}
-        </div>
+
+          {!loading && characters.length > 0 && (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {characters.map((character) => (
+                <CharacterCard
+                  key={character.id}
+                  character={character}
+                  campaign={getCharacterCampaign(character)}
+                  onEdit={handleEdit}
+                  onCopy={handleCopy}
+                  onDelete={handleDeleteClick}
+                  onAssign={handleAssignClick}
+                  onExport={handleExport}
+                />
+              ))}
+            </div>
+          )}
+        </section>
       </main>
 
-      {/* Modals */}
       <NewCharacterModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -333,7 +319,9 @@ export default function CharactersPage() {
       <DeleteCharacterModal
         isOpen={showDeleteModal}
         character={selectedCharacter}
-        campaign={selectedCharacter ? getCharacterCampaign(selectedCharacter) : null}
+        campaign={
+          selectedCharacter ? getCharacterCampaign(selectedCharacter) : null
+        }
         onClose={() => {
           setShowDeleteModal(false);
           setSelectedCharacter(null);
@@ -344,7 +332,9 @@ export default function CharactersPage() {
       <AssignCharacterModal
         isOpen={showAssignModal}
         character={selectedCharacter}
-        currentCampaign={selectedCharacter ? getCharacterCampaign(selectedCharacter) : null}
+        currentCampaign={
+          selectedCharacter ? getCharacterCampaign(selectedCharacter) : null
+        }
         onClose={() => {
           setShowAssignModal(false);
           setSelectedCharacter(null);

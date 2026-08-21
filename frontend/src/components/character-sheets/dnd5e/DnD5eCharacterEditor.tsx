@@ -5,7 +5,7 @@
  * color customization, and token upload functionality.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Swords,
   Package,
@@ -13,23 +13,25 @@ import {
   User,
   BookOpen,
   Target,
-  Save,
-  X,
   Upload,
   Palette,
-} from 'lucide-react';
-import { Character, AssetType } from '../../../types';
-import { api } from '../../../services/api';
-import { useServerConfigQuery } from '@/hooks/queries';
-import { getUploadLimit, formatUploadLimit } from '@/utils/uploadLimits';
+} from "lucide-react";
+import { Character, AssetType } from "../../../types";
+import { api } from "../../../services/api";
+import { useServerConfigQuery } from "@/hooks/queries";
+import { getUploadLimit, formatUploadLimit } from "@/utils/uploadLimits";
 
 interface DnD5eCharacterEditorProps {
   character: Character;
-  onSave: (data: any, showToast?: boolean, tokenImageUrl?: string) => Promise<void>;
+  onSave: (
+    data: any,
+    showToast?: boolean,
+    tokenImageUrl?: string,
+  ) => Promise<void>;
   onCancel: () => void;
 }
 
-type TabId = 'stats' | 'combat' | 'spells' | 'inventory' | 'features' | 'bio';
+type TabId = "stats" | "combat" | "spells" | "inventory" | "features" | "bio";
 
 interface Tab {
   id: TabId;
@@ -38,28 +40,100 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-  { id: 'stats', label: 'Stats & Skills', icon: Target },
-  { id: 'combat', label: 'Combat', icon: Swords },
-  { id: 'spells', label: 'Spells', icon: Sparkles },
-  { id: 'inventory', label: 'Inventory', icon: Package },
-  { id: 'features', label: 'Features', icon: BookOpen },
-  { id: 'bio', label: 'Biography', icon: User },
+  { id: "stats", label: "Stats & Skills", icon: Target },
+  { id: "combat", label: "Combat", icon: Swords },
+  { id: "spells", label: "Spells", icon: Sparkles },
+  { id: "inventory", label: "Inventory", icon: Package },
+  { id: "features", label: "Features", icon: BookOpen },
+  { id: "bio", label: "Biography", icon: User },
 ];
 
 // D&D 5e color presets for character sheets
 const COLOR_PRESETS = [
-  { name: 'Classic Red', from: 'from-red-700', to: 'to-red-900', accent: 'red-700', hex: '#b91c1c' },
-  { name: 'Royal Blue', from: 'from-blue-700', to: 'to-blue-900', accent: 'blue-700', hex: '#1d4ed8' },
-  { name: 'Forest Green', from: 'from-green-700', to: 'to-green-900', accent: 'green-700', hex: '#15803d' },
-  { name: 'Deep Purple', from: 'from-purple-700', to: 'to-purple-900', accent: 'purple-700', hex: '#7e22ce' },
-  { name: 'Amber Gold', from: 'from-amber-600', to: 'to-amber-800', accent: 'amber-600', hex: '#d97706' },
-  { name: 'Slate Gray', from: 'from-slate-700', to: 'to-slate-900', accent: 'slate-700', hex: '#334155' },
-  { name: 'Crimson', from: 'from-rose-700', to: 'to-rose-900', accent: 'rose-700', hex: '#be123c' },
-  { name: 'Teal', from: 'from-teal-700', to: 'to-teal-900', accent: 'teal-700', hex: '#0f766e' },
-  { name: 'Indigo', from: 'from-indigo-700', to: 'to-indigo-900', accent: 'indigo-700', hex: '#4338ca' },
-  { name: 'Emerald', from: 'from-emerald-700', to: 'to-emerald-900', accent: 'emerald-700', hex: '#047857' },
-  { name: 'Orange', from: 'from-orange-700', to: 'to-orange-900', accent: 'orange-700', hex: '#c2410c' },
-  { name: 'Pink', from: 'from-pink-700', to: 'to-pink-900', accent: 'pink-700', hex: '#be185d' },
+  {
+    name: "Classic Red",
+    from: "from-red-700",
+    to: "to-red-900",
+    accent: "red-700",
+    hex: "#b91c1c",
+  },
+  {
+    name: "Royal Blue",
+    from: "from-blue-700",
+    to: "to-blue-900",
+    accent: "blue-700",
+    hex: "#1d4ed8",
+  },
+  {
+    name: "Forest Green",
+    from: "from-green-700",
+    to: "to-green-900",
+    accent: "green-700",
+    hex: "#15803d",
+  },
+  {
+    name: "Deep Purple",
+    from: "from-purple-700",
+    to: "to-purple-900",
+    accent: "purple-700",
+    hex: "#7e22ce",
+  },
+  {
+    name: "Amber Gold",
+    from: "from-amber-600",
+    to: "to-amber-800",
+    accent: "amber-600",
+    hex: "#d97706",
+  },
+  {
+    name: "Slate Gray",
+    from: "from-slate-700",
+    to: "to-slate-900",
+    accent: "slate-700",
+    hex: "#334155",
+  },
+  {
+    name: "Crimson",
+    from: "from-rose-700",
+    to: "to-rose-900",
+    accent: "rose-700",
+    hex: "#be123c",
+  },
+  {
+    name: "Teal",
+    from: "from-teal-700",
+    to: "to-teal-900",
+    accent: "teal-700",
+    hex: "#0f766e",
+  },
+  {
+    name: "Indigo",
+    from: "from-indigo-700",
+    to: "to-indigo-900",
+    accent: "indigo-700",
+    hex: "#4338ca",
+  },
+  {
+    name: "Emerald",
+    from: "from-emerald-700",
+    to: "to-emerald-900",
+    accent: "emerald-700",
+    hex: "#047857",
+  },
+  {
+    name: "Orange",
+    from: "from-orange-700",
+    to: "to-orange-900",
+    accent: "orange-700",
+    hex: "#c2410c",
+  },
+  {
+    name: "Pink",
+    from: "from-pink-700",
+    to: "to-pink-900",
+    accent: "pink-700",
+    hex: "#be185d",
+  },
 ];
 
 /**
@@ -82,7 +156,7 @@ const formatModifier = (mod: number): string => {
  */
 const shouldUseWhiteText = (hexColor: string): boolean => {
   // Remove # if present
-  const hex = hexColor.replace('#', '');
+  const hex = hexColor.replace("#", "");
 
   // Convert to RGB
   const r = parseInt(hex.substr(0, 2), 16);
@@ -104,7 +178,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
   onSave,
   onCancel,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabId>('stats');
+  const [activeTab, setActiveTab] = useState<TabId>("stats");
   const [isSaving, setIsSaving] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -123,7 +197,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
     hp: data.hp || { maximum: 0, current: 0, temporary: 0 },
     deathSaves: data.deathSaves || { successes: 0, failures: 0 },
     spellcasting: data.spellcasting || {
-      ability: '',
+      ability: "",
       spellSaveDC: 0,
       spellAttackBonus: 0,
       cantrips: [],
@@ -138,34 +212,44 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
     proficienciesAndLanguages: data.proficienciesAndLanguages || [],
     // Always use a structured object for proficiencies so the textarea fields work correctly.
     // If legacy data stored proficiencies as an array, ignore it and start with empty strings.
-    proficiencies: (data.proficiencies && !Array.isArray(data.proficiencies))
-      ? { armor: '', weapons: '', tools: '', languages: '', ...data.proficiencies }
-      : { armor: '', weapons: '', tools: '', languages: '' },
+    proficiencies:
+      data.proficiencies && !Array.isArray(data.proficiencies)
+        ? {
+            armor: "",
+            weapons: "",
+            tools: "",
+            languages: "",
+            ...data.proficiencies,
+          }
+        : { armor: "", weapons: "", tools: "", languages: "" },
     featuresAndTraits: data.featuresAndTraits || [],
     appearance: data.appearance || {},
     personality: data.personality || {},
-    alliesAndOrganizations: data.alliesAndOrganizations || { name: '', description: '' },
+    alliesAndOrganizations: data.alliesAndOrganizations || {
+      name: "",
+      description: "",
+    },
   }));
 
   // Token image state (file will be uploaded on save)
   const [tokenImageFile, setTokenImageFile] = useState<File | null>(null);
   const [tokenImagePreview, setTokenImagePreview] = useState<string | null>(
-    character.tokenImageUrl
+    character.tokenImageUrl,
   );
 
   // Color customization state
   const [selectedColor, setSelectedColor] = useState(COLOR_PRESETS[0]); // Default to Classic Red
-  const [customColorHex, setCustomColorHex] = useState('');
+  const [customColorHex, setCustomColorHex] = useState("");
   const [isCustomColor, setIsCustomColor] = useState(false);
 
   // Load saved color preference from character metadata
   useEffect(() => {
     if (data.themeColor) {
-      const savedColor = COLOR_PRESETS.find(c => c.name === data.themeColor);
+      const savedColor = COLOR_PRESETS.find((c) => c.name === data.themeColor);
       if (savedColor) {
         setSelectedColor(savedColor);
         setIsCustomColor(false);
-      } else if (data.themeColor.startsWith('#')) {
+      } else if (data.themeColor.startsWith("#")) {
         // Custom hex color
         setCustomColorHex(data.themeColor);
         setIsCustomColor(true);
@@ -180,7 +264,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
   };
 
   // Handle preset color selection
-  const handlePresetColorSelect = (color: typeof COLOR_PRESETS[0]) => {
+  const handlePresetColorSelect = (color: (typeof COLOR_PRESETS)[0]) => {
     setSelectedColor(color);
     setIsCustomColor(false);
     setShowColorPicker(false);
@@ -192,7 +276,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       const updatedStats = { ...formData.stats };
       let hasChanges = false;
 
-      Object.keys(updatedStats).forEach(ability => {
+      Object.keys(updatedStats).forEach((ability) => {
         const score = updatedStats[ability].score;
         const newModifier = calculateModifier(score);
         if (updatedStats[ability].modifier !== newModifier) {
@@ -216,14 +300,19 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
   // Auto-calculate saving throws when proficiency or stats change
   useEffect(() => {
-    if (formData.stats && formData.savingThrows && formData.proficiencyBonus !== undefined) {
+    if (
+      formData.stats &&
+      formData.savingThrows &&
+      formData.proficiencyBonus !== undefined
+    ) {
       const updatedSavingThrows = { ...formData.savingThrows };
       let hasChanges = false;
 
-      Object.keys(updatedSavingThrows).forEach(ability => {
+      Object.keys(updatedSavingThrows).forEach((ability) => {
         const abilityMod = formData.stats[ability]?.modifier || 0;
         const proficient = updatedSavingThrows[ability].proficient;
-        const newBonus = abilityMod + (proficient ? formData.proficiencyBonus : 0);
+        const newBonus =
+          abilityMod + (proficient ? formData.proficiencyBonus : 0);
 
         if (updatedSavingThrows[ability].bonus !== newBonus) {
           updatedSavingThrows[ability].bonus = newBonus;
@@ -232,7 +321,10 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       });
 
       if (hasChanges) {
-        setFormData((prev: any) => ({ ...prev, savingThrows: updatedSavingThrows }));
+        setFormData((prev: any) => ({
+          ...prev,
+          savingThrows: updatedSavingThrows,
+        }));
       }
     }
   }, [
@@ -253,24 +345,24 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
   // Skill-to-ability mapping
   const skillAbilities: Record<string, string> = {
-    acrobatics: 'dexterity',
-    animalHandling: 'wisdom',
-    arcana: 'intelligence',
-    athletics: 'strength',
-    deception: 'charisma',
-    history: 'intelligence',
-    insight: 'wisdom',
-    intimidation: 'charisma',
-    investigation: 'intelligence',
-    medicine: 'wisdom',
-    nature: 'intelligence',
-    perception: 'wisdom',
-    performance: 'charisma',
-    persuasion: 'charisma',
-    religion: 'intelligence',
-    sleightOfHand: 'dexterity',
-    stealth: 'dexterity',
-    survival: 'wisdom',
+    acrobatics: "dexterity",
+    animalHandling: "wisdom",
+    arcana: "intelligence",
+    athletics: "strength",
+    deception: "charisma",
+    history: "intelligence",
+    insight: "wisdom",
+    intimidation: "charisma",
+    investigation: "intelligence",
+    medicine: "wisdom",
+    nature: "intelligence",
+    perception: "wisdom",
+    performance: "charisma",
+    persuasion: "charisma",
+    religion: "intelligence",
+    sleightOfHand: "dexterity",
+    stealth: "dexterity",
+    survival: "wisdom",
   };
 
   // Initialize skills if they don't exist
@@ -281,7 +373,11 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
       Object.keys(skillAbilities).forEach((skill) => {
         if (!updatedSkills[skill]) {
-          updatedSkills[skill] = { proficient: false, expertise: false, bonus: 0 };
+          updatedSkills[skill] = {
+            proficient: false,
+            expertise: false,
+            bonus: 0,
+          };
           needsUpdate = true;
         }
       });
@@ -294,11 +390,15 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
   // Auto-calculate skill bonuses when ability scores, proficiency, or expertise change
   useEffect(() => {
-    if (formData.stats && formData.skills && formData.proficiencyBonus !== undefined) {
+    if (
+      formData.stats &&
+      formData.skills &&
+      formData.proficiencyBonus !== undefined
+    ) {
       const updatedSkills = { ...formData.skills };
       let hasChanges = false;
 
-      Object.keys(updatedSkills).forEach(skill => {
+      Object.keys(updatedSkills).forEach((skill) => {
         const ability = skillAbilities[skill];
         const abilityMod = formData.stats[ability]?.modifier || 0;
         const proficient = updatedSkills[skill].proficient;
@@ -330,7 +430,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
     formData.stats?.wisdom?.modifier,
     formData.stats?.charisma?.modifier,
     // Explicitly depend on each skill's proficient and expertise flags
-    ...Object.keys(skillAbilities).flatMap(skill => [
+    ...Object.keys(skillAbilities).flatMap((skill) => [
       formData.skills?.[skill]?.proficient,
       formData.skills?.[skill]?.expertise,
     ]),
@@ -341,18 +441,21 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setErrors({ ...errors, tokenImage: 'Please select an image file' });
+      if (!file.type.startsWith("image/")) {
+        setErrors({ ...errors, tokenImage: "Please select an image file" });
         return;
       }
       // Validate file size against the server's token limit
       const tokenLimit = getUploadLimit(serverConfig, AssetType.TOKEN);
       if (file.size > tokenLimit) {
-        setErrors({ ...errors, tokenImage: `Image must be smaller than ${formatUploadLimit(tokenLimit)}` });
+        setErrors({
+          ...errors,
+          tokenImage: `Image must be smaller than ${formatUploadLimit(tokenLimit)}`,
+        });
         return;
       }
       setTokenImageFile(file);
-      setErrors({ ...errors, tokenImage: '' });
+      setErrors({ ...errors, tokenImage: "" });
       // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -368,21 +471,24 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
     // Validate level (1-20)
     if (!formData.level || formData.level < 1 || formData.level > 20) {
-      newErrors.level = 'Level must be between 1 and 20';
+      newErrors.level = "Level must be between 1 and 20";
     }
 
     // Validate ability scores (1-30)
     if (formData.stats) {
-      Object.entries(formData.stats).forEach(([ability, data]: [string, any]) => {
-        if (!data.score || data.score < 1 || data.score > 30) {
-          newErrors[`stats.${ability}`] = 'Ability score must be between 1 and 30';
-        }
-      });
+      Object.entries(formData.stats).forEach(
+        ([ability, data]: [string, any]) => {
+          if (!data.score || data.score < 1 || data.score > 30) {
+            newErrors[`stats.${ability}`] =
+              "Ability score must be between 1 and 30";
+          }
+        },
+      );
     }
 
     // Validate character name
-    if (!formData.characterName || formData.characterName.trim() === '') {
-      newErrors.characterName = 'Character name is required';
+    if (!formData.characterName || formData.characterName.trim() === "") {
+      newErrors.characterName = "Character name is required";
     }
 
     setErrors(newErrors);
@@ -390,10 +496,15 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
   };
 
   // Parse comma-separated string into array
-  const parseCommaSeparated = (value: string | string[] | undefined): string[] => {
+  const parseCommaSeparated = (
+    value: string | string[] | undefined,
+  ): string[] => {
     if (Array.isArray(value)) return value;
-    if (!value || typeof value !== 'string') return [];
-    return value.split(',').map(i => i.trim()).filter(i => i);
+    if (!value || typeof value !== "string") return [];
+    return value
+      .split(",")
+      .map((i) => i.trim())
+      .filter((i) => i);
   };
 
   // Handle form submission
@@ -412,11 +523,18 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
       // Parse comma-separated strings into arrays for storage
       // Proficiencies
-      if (updatedData.proficiencies && typeof updatedData.proficiencies === 'object') {
+      if (
+        updatedData.proficiencies &&
+        typeof updatedData.proficiencies === "object"
+      ) {
         const armorArray = parseCommaSeparated(updatedData.proficiencies.armor);
-        const weaponsArray = parseCommaSeparated(updatedData.proficiencies.weapons);
+        const weaponsArray = parseCommaSeparated(
+          updatedData.proficiencies.weapons,
+        );
         const toolsArray = parseCommaSeparated(updatedData.proficiencies.tools);
-        const languagesArray = parseCommaSeparated(updatedData.proficiencies.languages);
+        const languagesArray = parseCommaSeparated(
+          updatedData.proficiencies.languages,
+        );
 
         // Flatten to backwards-compatible array
         updatedData.proficienciesAndLanguages = [
@@ -428,11 +546,15 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       }
 
       // Features & Traits
-      updatedData.featuresAndTraits = parseCommaSeparated(updatedData.featuresAndTraits);
+      updatedData.featuresAndTraits = parseCommaSeparated(
+        updatedData.featuresAndTraits,
+      );
 
       // Cantrips
       if (updatedData.spellcasting) {
-        updatedData.spellcasting.cantrips = parseCommaSeparated(updatedData.spellcasting.cantrips);
+        updatedData.spellcasting.cantrips = parseCommaSeparated(
+          updatedData.spellcasting.cantrips,
+        );
       }
 
       // Upload token image if a new one was selected
@@ -442,15 +564,18 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
           // File last: multer parses parts in order, so the server knows the
           // asset type even if it aborts an oversize file mid-stream.
           const assetFormData = new FormData();
-          assetFormData.append('type', 'TOKEN');
+          assetFormData.append("type", "TOKEN");
           if (character.campaignId) {
-            assetFormData.append('scope', 'CAMPAIGN');
-            assetFormData.append('campaignId', character.campaignId);
+            assetFormData.append("scope", "CAMPAIGN");
+            assetFormData.append("campaignId", character.campaignId);
           } else {
-            assetFormData.append('scope', 'USER');
+            assetFormData.append("scope", "USER");
           }
-          assetFormData.append('name', `${formData.characterName || 'Character'} Token`);
-          assetFormData.append('file', tokenImageFile);
+          assetFormData.append(
+            "name",
+            `${formData.characterName || "Character"} Token`,
+          );
+          assetFormData.append("file", tokenImageFile);
 
           const uploadResponse = await api.uploadAsset(assetFormData);
           const assetId = uploadResponse.asset.id;
@@ -458,8 +583,13 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
           // Store the new token URL to pass separately to onSave
           newTokenImageUrl = `/api/assets/tokens/${assetId}`;
         } catch (uploadError: any) {
-          console.error('Error uploading token image:', uploadError);
-          setErrors({ ...errors, tokenImage: uploadError.response?.data?.message || 'Failed to upload token image' });
+          console.error("Error uploading token image:", uploadError);
+          setErrors({
+            ...errors,
+            tokenImage:
+              uploadError.response?.data?.message ||
+              "Failed to upload token image",
+          });
           setIsSaving(false);
           return;
         }
@@ -468,8 +598,11 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       // Pass the tokenImageUrl as a separate parameter if it was uploaded
       await onSave(updatedData, true, newTokenImageUrl);
     } catch (error) {
-      console.error('Error saving character:', error);
-      setErrors({ ...errors, submit: 'Failed to save character. Please try again.' });
+      console.error("Error saving character:", error);
+      setErrors({
+        ...errors,
+        submit: "Failed to save character. Please try again.",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -479,13 +612,16 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
   const updateField = (path: string, value: any) => {
     setFormData((prev: any) => {
       const newData = { ...prev };
-      const keys = path.split('.');
+      const keys = path.split(".");
       let current = newData;
       for (let i = 0; i < keys.length - 1; i++) {
         // CRITICAL: Preserve array types when cloning nested structures
         if (Array.isArray(current[keys[i]])) {
           current[keys[i]] = [...current[keys[i]]];
-        } else if (typeof current[keys[i]] === 'object' && current[keys[i]] !== null) {
+        } else if (
+          typeof current[keys[i]] === "object" &&
+          current[keys[i]] !== null
+        ) {
           current[keys[i]] = { ...current[keys[i]] };
         } else {
           current[keys[i]] = {};
@@ -500,44 +636,43 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
   // Render character header with token upload and color picker
   const renderHeader = () => {
     // Determine the current background style
-    const headerStyle = isCustomColor
-      ? { background: `linear-gradient(to right, ${customColorHex}, ${customColorHex}dd)` }
-      : {};
+    const headerStyle = {
+      backgroundColor: isCustomColor ? customColorHex : selectedColor.hex,
+    };
 
     // Determine text color based on background luminance
     const headerTextColor = isCustomColor
-      ? (shouldUseWhiteText(customColorHex) ? 'text-white' : 'text-stone-900')
-      : (shouldUseWhiteText(selectedColor.hex) ? 'text-white' : 'text-stone-900');
+      ? shouldUseWhiteText(customColorHex)
+        ? "text-white"
+        : "text-stone-900"
+      : shouldUseWhiteText(selectedColor.hex)
+        ? "text-white"
+        : "text-stone-900";
 
-    const headerClasses = isCustomColor
-      ? `${headerTextColor} p-6 rounded-t-lg relative`
-      : `bg-gradient-to-r ${selectedColor.from} ${selectedColor.to} ${headerTextColor} p-6 rounded-t-lg relative`;
+    const headerClasses = `${headerTextColor} relative p-4 sm:p-6`;
 
     return (
       <div className={headerClasses} style={headerStyle}>
-        {/* Save and Cancel Buttons */}
-        <div className="absolute top-4 right-16 flex items-center space-x-2">
+        <div className="mb-4 flex items-center justify-end gap-2 pr-11 sm:mb-5">
           <button
             onClick={handleSubmit}
             disabled={isSaving}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center space-x-2 font-medium shadow-lg disabled:opacity-50"
+            className="rounded-cozy bg-white/90 px-3 py-1.5 text-sm font-semibold text-stone-900 transition-colors hover:bg-white disabled:opacity-50"
           >
-            <Save className="w-4 h-4" />
-            <span>{isSaving ? 'Saving...' : 'Save'}</span>
+            {isSaving ? "Saving…" : "Save character"}
           </button>
           <button
             onClick={onCancel}
-            className="px-4 py-2 bg-red-600/80 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center space-x-2 font-medium shadow-lg"
+            className="rounded-cozy border border-white/35 bg-black/15 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-black/25"
           >
-            <X className="w-4 h-4" />
-            <span>Cancel</span>
+            Cancel
           </button>
         </div>
 
         {/* Color Picker Button */}
         <button
           onClick={() => setShowColorPicker(!showColorPicker)}
-          className="absolute top-4 right-4 p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+          className="absolute right-4 top-4 rounded-cozy bg-black/15 p-2 transition-colors hover:bg-black/25"
           title="Change theme color"
         >
           <Palette className="w-5 h-5" />
@@ -545,7 +680,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
         {/* Color Picker Dropdown */}
         {showColorPicker && (
-          <div className="absolute top-16 right-4 bg-white text-stone-800 rounded-lg shadow-xl p-4 z-10 border-2 border-stone-200 max-w-md">
+          <div className="absolute right-3 top-16 z-20 w-[min(22rem,calc(100vw-2.5rem))] rounded-cozy border border-stone-200 bg-white p-4 text-stone-800 shadow-xl sm:right-4">
             <h4 className="font-semibold mb-3">Theme Color</h4>
 
             {/* Preset Colors */}
@@ -556,11 +691,14 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                   onClick={() => handlePresetColorSelect(color)}
                   className={`px-2 py-2 rounded-lg text-sm font-medium transition-all ${
                     !isCustomColor && selectedColor.name === color.name
-                      ? 'ring-2 ring-stone-400 bg-stone-100'
-                      : 'hover:bg-stone-50'
+                      ? "ring-2 ring-stone-400 bg-stone-100"
+                      : "hover:bg-stone-50"
                   }`}
                 >
-                  <div className={`w-full h-6 rounded mb-1 bg-gradient-to-r ${color.from} ${color.to}`} />
+                  <div
+                    className="mb-1 h-6 w-full rounded"
+                    style={{ backgroundColor: color.hex }}
+                  />
                   <div className="text-xs">{color.name}</div>
                 </button>
               ))}
@@ -568,13 +706,15 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
             {/* Custom Color Section */}
             <div className="border-t pt-4 space-y-3">
-              <h5 className="text-sm font-semibold text-stone-700">Custom Color</h5>
+              <h5 className="text-sm font-semibold text-stone-700">
+                Custom Color
+              </h5>
 
               <div className="flex items-center space-x-2">
                 {/* Native Color Picker */}
                 <input
                   type="color"
-                  value={customColorHex || '#b91c1c'}
+                  value={customColorHex || "#b91c1c"}
                   onChange={(e) => handleCustomColorChange(e.target.value)}
                   className="w-12 h-12 rounded cursor-pointer border-2 border-stone-300"
                   title="Pick a custom color"
@@ -588,143 +728,153 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                     onChange={(e) => {
                       const hex = e.target.value;
                       // Validate hex format
-                      if (hex === '' || /^#[0-9A-Fa-f]{0,6}$/.test(hex)) {
+                      if (hex === "" || /^#[0-9A-Fa-f]{0,6}$/.test(hex)) {
                         handleCustomColorChange(hex);
                       }
                     }}
                     placeholder="#b91c1c"
                     className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <div className="text-xs text-stone-500 mt-1">Enter hex code (e.g., #b91c1c)</div>
+                  <div className="text-xs text-stone-500 mt-1">
+                    Enter hex code (e.g., #b91c1c)
+                  </div>
                 </div>
               </div>
 
               {/* Custom Color Preview */}
-              {isCustomColor && customColorHex && /^#[0-9A-Fa-f]{6}$/.test(customColorHex) && (
-                <div className="flex items-center space-x-2 p-2 bg-stone-50 rounded">
-                  <div
-                    className="w-8 h-8 rounded"
-                    style={{ background: `linear-gradient(to right, ${customColorHex}, ${customColorHex}dd)` }}
-                  />
-                  <span className="text-sm font-medium">Custom: {customColorHex}</span>
-                </div>
-              )}
+              {isCustomColor &&
+                customColorHex &&
+                /^#[0-9A-Fa-f]{6}$/.test(customColorHex) && (
+                  <div className="flex items-center space-x-2 p-2 bg-stone-50 rounded">
+                    <div
+                      className="w-8 h-8 rounded"
+                      style={{ backgroundColor: customColorHex }}
+                    />
+                    <span className="text-sm font-medium">
+                      Custom: {customColorHex}
+                    </span>
+                  </div>
+                )}
             </div>
           </div>
         )}
 
-      <div className="flex items-start justify-between">
-        <div className="flex items-start space-x-4">
-          {/* Token Image Upload */}
-          <div className="flex-shrink-0 relative group">
-            <input
-              type="file"
-              id="token-upload"
-              accept="image/*"
-              onChange={handleTokenImageChange}
-              className="hidden"
-            />
-            <label
-              htmlFor="token-upload"
-              className="cursor-pointer block relative"
-            >
-              {tokenImagePreview ? (
-                <img
-                  src={tokenImagePreview}
-                  alt={formData.characterName || 'Character'}
-                  className="w-40 h-40 rounded-full border-4 border-white/20 object-cover"
-                />
-              ) : (
-                <div className="w-40 h-40 rounded-full border-4 border-white/20 bg-stone-800 flex items-center justify-center">
-                  <User className="w-20 h-20 text-white/40" />
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start">
+            {/* Token Image Upload */}
+            <div className="flex-shrink-0 relative group">
+              <input
+                type="file"
+                id="token-upload"
+                accept="image/*"
+                onChange={handleTokenImageChange}
+                className="hidden"
+              />
+              <label
+                htmlFor="token-upload"
+                className="cursor-pointer block relative"
+              >
+                {tokenImagePreview ? (
+                  <img
+                    src={tokenImagePreview}
+                    alt={formData.characterName || "Character"}
+                    className="h-20 w-20 rounded-cozy border border-white/25 object-cover sm:h-28 sm:w-28"
+                  />
+                ) : (
+                  <div className="flex h-20 w-20 items-center justify-center rounded-cozy border border-white/25 bg-stone-900/70 sm:h-28 sm:w-28">
+                    <User className="h-10 w-10 text-white/45 sm:h-14 sm:w-14" />
+                  </div>
+                )}
+                <div className="absolute inset-0 flex items-center justify-center rounded-cozy bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                  <Upload className="h-7 w-7 text-white" />
+                </div>
+              </label>
+              {errors.tokenImage && (
+                <div className="absolute top-full mt-1 text-xs text-red-200 whitespace-nowrap">
+                  {errors.tokenImage}
                 </div>
               )}
-              <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Upload className="w-12 h-12 text-white" />
-              </div>
-            </label>
-            {errors.tokenImage && (
-              <div className="absolute top-full mt-1 text-xs text-red-200 whitespace-nowrap">
-                {errors.tokenImage}
-              </div>
-            )}
-            {!character.campaignId && (
-              <div className="absolute top-full mt-1 text-xs text-amber-200 whitespace-nowrap">
-                Saves as personal token
-              </div>
-            )}
-          </div>
+              {!character.campaignId && (
+                <div className="absolute top-full mt-1 text-xs text-amber-200 whitespace-nowrap">
+                  Saves as personal token
+                </div>
+              )}
+            </div>
 
-          {/* Character Info */}
-          <div className="space-y-2">
-            <input
-              type="text"
-              value={formData.characterName || ''}
-              onChange={(e) => updateField('characterName', e.target.value)}
-              placeholder="Character Name"
-              className={`text-3xl font-bold bg-white/10 border-2 ${
-                errors.characterName ? 'border-red-300' : 'border-white/20'
-              } rounded px-3 py-1 ${headerTextColor} placeholder-current/50 focus:outline-none focus:border-white/40`}
-            />
-            <div className={`flex items-center space-x-3 opacity-80`}>
+            {/* Character Info */}
+            <div className="min-w-0 flex-1 space-y-2">
               <input
                 type="text"
-                value={formData.playerName || ''}
-                onChange={(e) => updateField('playerName', e.target.value)}
-                placeholder="Player Name"
-                className={`bg-white/10 border border-white/20 rounded px-2 py-0.5 text-sm ${headerTextColor} placeholder-current/50 focus:outline-none focus:border-white/40`}
+                value={formData.characterName || ""}
+                onChange={(e) => updateField("characterName", e.target.value)}
+                placeholder="Character Name"
+                className={`w-full rounded-cozy border bg-black/10 px-3 py-1.5 text-2xl font-bold sm:text-3xl ${
+                  errors.characterName ? "border-red-300" : "border-white/20"
+                } ${headerTextColor} placeholder-current/50 focus:outline-none focus:border-white/50`}
               />
-            </div>
-            <div className={`flex items-center flex-wrap gap-2 opacity-80`}>
-              <div className="flex items-center space-x-2">
-                <span className="text-xs">Level</span>
+              <div className="opacity-85">
                 <input
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={formData.level || 1}
-                  onChange={(e) => updateField('level', parseInt(e.target.value) || 1)}
-                  className={`w-16 bg-white/10 border ${
-                    errors.level ? 'border-red-300' : 'border-white/20'
-                  } rounded px-2 py-0.5 text-sm ${headerTextColor} focus:outline-none focus:border-white/40`}
+                  type="text"
+                  value={formData.playerName || ""}
+                  onChange={(e) => updateField("playerName", e.target.value)}
+                  placeholder="Player Name"
+                  className={`w-full rounded-cozy border border-white/20 bg-black/10 px-2 py-1 text-sm ${headerTextColor} placeholder-current/50 focus:outline-none focus:border-white/50`}
                 />
               </div>
-              <input
-                type="text"
-                value={formData.race || ''}
-                onChange={(e) => updateField('race', e.target.value)}
-                placeholder="Race"
-                className={`bg-white/10 border border-white/20 rounded px-2 py-0.5 text-sm ${headerTextColor} placeholder-current/50 focus:outline-none focus:border-white/40`}
-              />
-              <input
-                type="text"
-                value={formData.class || ''}
-                onChange={(e) => updateField('class', e.target.value)}
-                placeholder="Class"
-                className={`bg-white/10 border border-white/20 rounded px-2 py-0.5 text-sm ${headerTextColor} placeholder-current/50 focus:outline-none focus:border-white/40`}
-              />
+              <div className="grid grid-cols-2 gap-2 opacity-85 sm:flex sm:flex-wrap sm:items-center">
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs">Level</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={formData.level || 1}
+                    onChange={(e) =>
+                      updateField("level", parseInt(e.target.value) || 1)
+                    }
+                    className={`w-16 rounded-cozy border bg-black/10 px-2 py-1 text-sm ${
+                      errors.level ? "border-red-300" : "border-white/20"
+                    } ${headerTextColor} focus:outline-none focus:border-white/50`}
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={formData.race || ""}
+                  onChange={(e) => updateField("race", e.target.value)}
+                  placeholder="Race"
+                  className={`min-w-0 rounded-cozy border border-white/20 bg-black/10 px-2 py-1 text-sm ${headerTextColor} placeholder-current/50 focus:outline-none focus:border-white/50`}
+                />
+                <input
+                  type="text"
+                  value={formData.class || ""}
+                  onChange={(e) => updateField("class", e.target.value)}
+                  placeholder="Class"
+                  className={`min-w-0 rounded-cozy border border-white/20 bg-black/10 px-2 py-1 text-sm ${headerTextColor} placeholder-current/50 focus:outline-none focus:border-white/50`}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="text-right space-y-1">
-          <div className={`text-xs opacity-70`}>Experience Points</div>
-          <input
-            type="number"
-            min="0"
-            value={formData.experiencePoints || 0}
-            onChange={(e) => updateField('experiencePoints', parseInt(e.target.value) || 0)}
-            className={`w-24 text-xl font-bold bg-white/10 border border-white/20 rounded px-2 py-1 ${headerTextColor} text-right focus:outline-none focus:border-white/40`}
-          />
+          <div className="space-y-1 text-left sm:text-right">
+            <div className="text-xs opacity-70">Experience points</div>
+            <input
+              type="number"
+              min="0"
+              value={formData.experiencePoints || 0}
+              onChange={(e) =>
+                updateField("experiencePoints", parseInt(e.target.value) || 0)
+              }
+              className={`w-28 rounded-cozy border border-white/20 bg-black/10 px-2 py-1 text-lg font-bold ${headerTextColor} text-left focus:outline-none focus:border-white/50 sm:text-right`}
+            />
+          </div>
         </div>
       </div>
-    </div>
     );
   };
 
   // Render tabs
   const renderTabs = () => (
-    <div className="flex space-x-1 border-b-2 border-stone-200 bg-stone-50 px-4">
+    <div className="scrollbar-none flex max-w-full gap-1 overflow-x-auto overflow-y-hidden border-b border-stone-200 bg-stone-50 px-2 sm:px-4">
       {TABS.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;
@@ -733,10 +883,11 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`
-              flex items-center space-x-2 px-4 py-3 font-medium transition-colors
-              ${isActive
-                ? `text-${selectedColor.accent} border-b-2 border-${selectedColor.accent} -mb-0.5 bg-white`
-                : 'text-stone-600 hover:text-stone-800 hover:bg-stone-100'
+              flex flex-none items-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors
+              ${
+                isActive
+                  ? `text-${selectedColor.accent} border-b-2 border-${selectedColor.accent} -mb-0.5 bg-white`
+                  : "text-stone-600 hover:text-stone-800 hover:bg-stone-100"
               }
             `}
           >
@@ -754,21 +905,25 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       {/* Character Details */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-1">Alignment</label>
+          <label className="block text-sm font-semibold text-stone-700 mb-1">
+            Alignment
+          </label>
           <input
             type="text"
-            value={formData.alignment || ''}
-            onChange={(e) => updateField('alignment', e.target.value)}
+            value={formData.alignment || ""}
+            onChange={(e) => updateField("alignment", e.target.value)}
             placeholder="e.g., Lawful Good"
             className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-1">Background</label>
+          <label className="block text-sm font-semibold text-stone-700 mb-1">
+            Background
+          </label>
           <input
             type="text"
-            value={formData.background || ''}
-            onChange={(e) => updateField('background', e.target.value)}
+            value={formData.background || ""}
+            onChange={(e) => updateField("background", e.target.value)}
             placeholder="e.g., Sage"
             className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
           />
@@ -778,13 +933,17 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       {/* Proficiency Bonus and Inspiration */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-1">Proficiency Bonus</label>
+          <label className="block text-sm font-semibold text-stone-700 mb-1">
+            Proficiency Bonus
+          </label>
           <input
             type="number"
             min="2"
             max="6"
             value={formData.proficiencyBonus || 2}
-            onChange={(e) => updateField('proficiencyBonus', parseInt(e.target.value) || 2)}
+            onChange={(e) =>
+              updateField("proficiencyBonus", parseInt(e.target.value) || 2)
+            }
             className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
           />
         </div>
@@ -793,10 +952,13 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
             type="checkbox"
             id="inspiration"
             checked={formData.inspiration || false}
-            onChange={(e) => updateField('inspiration', e.target.checked)}
+            onChange={(e) => updateField("inspiration", e.target.checked)}
             className="w-5 h-5 text-red-700 border-stone-300 rounded focus:ring-2 focus:ring-red-500"
           />
-          <label htmlFor="inspiration" className="text-sm font-semibold text-stone-700">
+          <label
+            htmlFor="inspiration"
+            className="text-sm font-semibold text-stone-700"
+          >
             Inspiration
           </label>
         </div>
@@ -804,35 +966,59 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
       {/* Ability Scores */}
       <div className="bg-stone-50 border-2 border-stone-300 rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-stone-800 mb-4">Ability Scores</h3>
+        <h3 className="text-lg font-semibold text-stone-800 mb-4">
+          Ability Scores
+        </h3>
         <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-          {['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'].map((ability) => {
-            const abilityData = formData.stats?.[ability] || { score: 10, modifier: 0 };
+          {[
+            "strength",
+            "dexterity",
+            "constitution",
+            "intelligence",
+            "wisdom",
+            "charisma",
+          ].map((ability) => {
+            const abilityData = formData.stats?.[ability] || {
+              score: 10,
+              modifier: 0,
+            };
             const error = errors[`stats.${ability}`];
 
             // Determine circle style and text color
             const circleStyle = isCustomColor
-              ? { background: `linear-gradient(to bottom right, ${customColorHex}, ${customColorHex}dd)` }
+              ? {
+                  background: `linear-gradient(to bottom right, ${customColorHex}, ${customColorHex}dd)`,
+                }
               : {};
             const circleClasses = isCustomColor
-              ? 'w-12 h-12 rounded-full flex items-center justify-center shadow-lg border-2'
+              ? "w-12 h-12 rounded-full flex items-center justify-center shadow-lg border-2"
               : `w-12 h-12 rounded-full bg-gradient-to-br ${selectedColor.from} ${selectedColor.to} flex items-center justify-center shadow-lg border-2`;
 
             // Determine border color based on theme
-            const borderColor = isCustomColor ? customColorHex : selectedColor.hex;
+            const borderColor = isCustomColor
+              ? customColorHex
+              : selectedColor.hex;
             const borderStyle = { borderColor: borderColor };
 
             // Determine text color based on background luminance
             const textColor = isCustomColor
-              ? (shouldUseWhiteText(customColorHex) ? 'text-white' : 'text-stone-900')
-              : 'text-white';
+              ? shouldUseWhiteText(customColorHex)
+                ? "text-white"
+                : "text-stone-900"
+              : "text-white";
 
             return (
-              <div key={ability} className="flex flex-col items-center space-y-1">
+              <div
+                key={ability}
+                className="flex flex-col items-center space-y-1"
+              >
                 <div className="text-xs font-semibold text-stone-600 uppercase tracking-wide">
                   {ability.slice(0, 3)}
                 </div>
-                <div className={circleClasses} style={{ ...circleStyle, ...borderStyle }}>
+                <div
+                  className={circleClasses}
+                  style={{ ...circleStyle, ...borderStyle }}
+                >
                   <span className={`text-xl font-bold ${textColor}`}>
                     {formatModifier(abilityData.modifier)}
                   </span>
@@ -843,10 +1029,13 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                   max="30"
                   value={abilityData.score}
                   onChange={(e) =>
-                    updateField(`stats.${ability}.score`, parseInt(e.target.value) || 10)
+                    updateField(
+                      `stats.${ability}.score`,
+                      parseInt(e.target.value) || 10,
+                    )
                   }
                   className={`w-16 px-2 py-1 text-center font-semibold border-2 ${
-                    error ? 'border-red-500' : 'border-stone-300'
+                    error ? "border-red-500" : "border-stone-300"
                   } rounded focus:outline-none focus:ring-2 focus:ring-red-500`}
                 />
                 {error && <div className="text-xs text-red-600">{error}</div>}
@@ -858,27 +1047,50 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
       {/* Saving Throws */}
       <div className="bg-stone-50 border border-stone-200 rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-stone-800 mb-3">Saving Throws</h3>
+        <h3 className="text-lg font-semibold text-stone-800 mb-3">
+          Saving Throws
+        </h3>
         <div className="grid grid-cols-2 gap-2">
-          {['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'].map((ability) => {
-            const saveData = formData.savingThrows?.[ability] || { proficient: false, bonus: 0 };
+          {[
+            "strength",
+            "dexterity",
+            "constitution",
+            "intelligence",
+            "wisdom",
+            "charisma",
+          ].map((ability) => {
+            const saveData = formData.savingThrows?.[ability] || {
+              proficient: false,
+              bonus: 0,
+            };
             return (
-              <div key={ability} className="flex items-center justify-between p-2 hover:bg-stone-100 rounded">
+              <div
+                key={ability}
+                className="flex items-center justify-between p-2 hover:bg-stone-100 rounded"
+              >
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
                     id={`save-${ability}`}
                     checked={saveData.proficient}
                     onChange={(e) =>
-                      updateField(`savingThrows.${ability}.proficient`, e.target.checked)
+                      updateField(
+                        `savingThrows.${ability}.proficient`,
+                        e.target.checked,
+                      )
                     }
                     className="w-4 h-4 text-red-700 border-stone-300 rounded focus:ring-2 focus:ring-red-500"
                   />
-                  <label htmlFor={`save-${ability}`} className="text-sm font-medium text-stone-800 capitalize">
+                  <label
+                    htmlFor={`save-${ability}`}
+                    className="text-sm font-medium text-stone-800 capitalize"
+                  >
                     {ability}
                   </label>
                 </div>
-                <span className={`text-sm font-semibold ${saveData.proficient ? 'text-red-700' : 'text-stone-600'}`}>
+                <span
+                  className={`text-sm font-semibold ${saveData.proficient ? "text-red-700" : "text-stone-600"}`}
+                >
                   {formatModifier(saveData.bonus)}
                 </span>
               </div>
@@ -892,16 +1104,23 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
         <h3 className="text-lg font-semibold text-stone-800 mb-3">Skills</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
           {Object.keys(skillAbilities).map((skill) => {
-            const skillData = formData.skills?.[skill] || { proficient: false, expertise: false, bonus: 0 };
+            const skillData = formData.skills?.[skill] || {
+              proficient: false,
+              expertise: false,
+              bonus: 0,
+            };
             const skillLabel = skill
-              .replace(/([A-Z])/g, ' $1')
+              .replace(/([A-Z])/g, " $1")
               .replace(/^./, (str) => str.toUpperCase())
               .trim();
             const ability = skillAbilities[skill];
             const abilityAbbr = ability.slice(0, 3).toUpperCase();
 
             return (
-              <div key={skill} className="flex items-center justify-between p-2 hover:bg-stone-100 rounded">
+              <div
+                key={skill}
+                className="flex items-center justify-between p-2 hover:bg-stone-100 rounded"
+              >
                 <div className="flex items-center space-x-2">
                   {/* Proficiency Checkbox */}
                   <input
@@ -909,7 +1128,10 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                     id={`skill-prof-${skill}`}
                     checked={skillData.proficient}
                     onChange={(e) => {
-                      updateField(`skills.${skill}.proficient`, e.target.checked);
+                      updateField(
+                        `skills.${skill}.proficient`,
+                        e.target.checked,
+                      );
                       // If unchecking proficiency, also uncheck expertise
                       if (!e.target.checked) {
                         updateField(`skills.${skill}.expertise`, false);
@@ -923,7 +1145,9 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                     id={`skill-exp-${skill}`}
                     checked={skillData.expertise}
                     disabled={!skillData.proficient}
-                    onChange={(e) => updateField(`skills.${skill}.expertise`, e.target.checked)}
+                    onChange={(e) =>
+                      updateField(`skills.${skill}.expertise`, e.target.checked)
+                    }
                     className="w-4 h-4 text-red-700 border-stone-300 rounded-full focus:ring-2 focus:ring-red-500 disabled:opacity-30"
                     title="Expertise (double proficiency)"
                   />
@@ -932,16 +1156,18 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                     className="text-sm font-medium text-stone-800 cursor-pointer"
                   >
                     {skillLabel}
-                    <span className="text-xs text-stone-500 ml-1">({abilityAbbr})</span>
+                    <span className="text-xs text-stone-500 ml-1">
+                      ({abilityAbbr})
+                    </span>
                   </label>
                 </div>
                 <span
                   className={`text-sm font-semibold ${
                     skillData.expertise
-                      ? 'text-purple-700'
+                      ? "text-purple-700"
                       : skillData.proficient
-                      ? 'text-red-700'
-                      : 'text-stone-600'
+                        ? "text-red-700"
+                        : "text-stone-600"
                   }`}
                 >
                   {formatModifier(skillData.bonus)}
@@ -954,7 +1180,9 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
       {/* Passive Perception */}
       <div className="bg-stone-50 border border-stone-200 rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-stone-800 mb-2">Passive Perception</h3>
+        <h3 className="text-lg font-semibold text-stone-800 mb-2">
+          Passive Perception
+        </h3>
         <div className="text-2xl font-bold text-stone-800">
           {10 + (formData.skills?.perception?.bonus || 0)}
         </div>
@@ -964,9 +1192,21 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
   // D&D 5e conditions list
   const conditions = [
-    'Blinded', 'Charmed', 'Deafened', 'Exhausted', 'Frightened', 'Grappled',
-    'Incapacitated', 'Invisible', 'Paralyzed', 'Petrified', 'Poisoned',
-    'Prone', 'Restrained', 'Stunned', 'Unconscious'
+    "Blinded",
+    "Charmed",
+    "Deafened",
+    "Exhausted",
+    "Frightened",
+    "Grappled",
+    "Incapacitated",
+    "Invisible",
+    "Paralyzed",
+    "Petrified",
+    "Poisoned",
+    "Prone",
+    "Restrained",
+    "Stunned",
+    "Unconscious",
   ];
 
   // Render Combat tab
@@ -975,31 +1215,43 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       {/* Combat Stats */}
       <div className="grid grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-1">Armor Class</label>
+          <label className="block text-sm font-semibold text-stone-700 mb-1">
+            Armor Class
+          </label>
           <input
             type="number"
             min="0"
             value={formData.armorClass || 10}
-            onChange={(e) => updateField('armorClass', parseInt(e.target.value) || 10)}
+            onChange={(e) =>
+              updateField("armorClass", parseInt(e.target.value) || 10)
+            }
             className="w-full px-3 py-2 border border-stone-300 rounded-lg text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-red-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-1">Initiative</label>
+          <label className="block text-sm font-semibold text-stone-700 mb-1">
+            Initiative
+          </label>
           <input
             type="number"
             value={formData.initiative || 0}
-            onChange={(e) => updateField('initiative', parseInt(e.target.value) || 0)}
+            onChange={(e) =>
+              updateField("initiative", parseInt(e.target.value) || 0)
+            }
             className="w-full px-3 py-2 border border-stone-300 rounded-lg text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-red-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-1">Speed (ft)</label>
+          <label className="block text-sm font-semibold text-stone-700 mb-1">
+            Speed (ft)
+          </label>
           <input
             type="number"
             min="0"
             value={formData.speed || 30}
-            onChange={(e) => updateField('speed', parseInt(e.target.value) || 30)}
+            onChange={(e) =>
+              updateField("speed", parseInt(e.target.value) || 30)
+            }
             className="w-full px-3 py-2 border border-stone-300 rounded-lg text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-red-500"
           />
         </div>
@@ -1007,35 +1259,49 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
       {/* Hit Points */}
       <div className="bg-stone-50 border-2 border-stone-300 rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-stone-800 mb-3">Hit Points</h3>
+        <h3 className="text-lg font-semibold text-stone-800 mb-3">
+          Hit Points
+        </h3>
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1">Maximum</label>
+            <label className="block text-xs font-semibold text-stone-600 mb-1">
+              Maximum
+            </label>
             <input
               type="number"
               min="0"
               value={formData.hp?.maximum || 0}
-              onChange={(e) => updateField('hp.maximum', parseInt(e.target.value) || 0)}
+              onChange={(e) =>
+                updateField("hp.maximum", parseInt(e.target.value) || 0)
+              }
               className="w-full px-3 py-2 border border-stone-300 rounded-lg text-center text-lg font-bold focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1">Current</label>
+            <label className="block text-xs font-semibold text-stone-600 mb-1">
+              Current
+            </label>
             <input
               type="number"
               min="0"
               value={formData.hp?.current || 0}
-              onChange={(e) => updateField('hp.current', parseInt(e.target.value) || 0)}
+              onChange={(e) =>
+                updateField("hp.current", parseInt(e.target.value) || 0)
+              }
               className="w-full px-3 py-2 border border-stone-300 rounded-lg text-center text-lg font-bold text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1">Temporary</label>
+            <label className="block text-xs font-semibold text-stone-600 mb-1">
+              Temporary
+            </label>
             <input
               type="number"
               min="0"
               value={formData.hp?.temporary || 0}
-              onChange={(e) => updateField('hp.temporary', parseInt(e.target.value) || 0)}
+              onChange={(e) =>
+                updateField("hp.temporary", parseInt(e.target.value) || 0)
+              }
               className="w-full px-3 py-2 border border-stone-300 rounded-lg text-center text-lg font-bold text-blue-700 focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
@@ -1050,9 +1316,9 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
             onClick={() => {
               const newHitDice = [
                 ...(formData.hitDice || []),
-                { class: '', total: '1d6', remaining: 1 },
+                { class: "", total: "1d6", remaining: 1 },
               ];
-              updateField('hitDice', newHitDice);
+              updateField("hitDice", newHitDice);
             }}
             className="px-3 py-1 text-sm font-medium text-white bg-red-700 hover:bg-red-800 rounded-lg transition-colors"
           >
@@ -1064,15 +1330,19 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
             <div key={index} className="flex items-center space-x-2">
               <input
                 type="text"
-                value={die.class || ''}
-                onChange={(e) => updateField(`hitDice.${index}.class`, e.target.value)}
+                value={die.class || ""}
+                onChange={(e) =>
+                  updateField(`hitDice.${index}.class`, e.target.value)
+                }
                 placeholder="Class"
                 className="flex-1 px-2 py-1 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
               />
               <input
                 type="text"
-                value={die.total || ''}
-                onChange={(e) => updateField(`hitDice.${index}.total`, e.target.value)}
+                value={die.total || ""}
+                onChange={(e) =>
+                  updateField(`hitDice.${index}.total`, e.target.value)
+                }
                 placeholder="e.g., 5d8"
                 className="w-24 px-2 py-1 border border-stone-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-red-500"
               />
@@ -1080,14 +1350,21 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                 type="number"
                 min="0"
                 value={die.remaining || 0}
-                onChange={(e) => updateField(`hitDice.${index}.remaining`, parseInt(e.target.value) || 0)}
+                onChange={(e) =>
+                  updateField(
+                    `hitDice.${index}.remaining`,
+                    parseInt(e.target.value) || 0,
+                  )
+                }
                 placeholder="Remaining"
                 className="w-20 px-2 py-1 border border-stone-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-red-500"
               />
               <button
                 onClick={() => {
-                  const newHitDice = formData.hitDice.filter((_: any, i: number) => i !== index);
-                  updateField('hitDice', newHitDice);
+                  const newHitDice = formData.hitDice.filter(
+                    (_: any, i: number) => i !== index,
+                  );
+                  updateField("hitDice", newHitDice);
                 }}
                 className="px-2 py-1 text-red-600 hover:text-red-800 font-bold"
               >
@@ -1096,17 +1373,23 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
             </div>
           ))}
           {(!formData.hitDice || formData.hitDice.length === 0) && (
-            <div className="text-sm text-stone-500 italic">No hit dice added yet</div>
+            <div className="text-sm text-stone-500 italic">
+              No hit dice added yet
+            </div>
           )}
         </div>
       </div>
 
       {/* Death Saves */}
       <div className="bg-stone-50 border border-stone-200 rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-stone-800 mb-3">Death Saves</h3>
+        <h3 className="text-lg font-semibold text-stone-800 mb-3">
+          Death Saves
+        </h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-green-700 mb-2">Successes</label>
+            <label className="block text-sm font-semibold text-green-700 mb-2">
+              Successes
+            </label>
             <div className="flex space-x-2">
               {[1, 2, 3].map((i) => (
                 <input
@@ -1115,9 +1398,9 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                   checked={(formData.deathSaves?.successes || 0) >= i}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      updateField('deathSaves.successes', i);
+                      updateField("deathSaves.successes", i);
                     } else {
-                      updateField('deathSaves.successes', i - 1);
+                      updateField("deathSaves.successes", i - 1);
                     }
                   }}
                   className="w-6 h-6 text-green-700 border-stone-300 rounded focus:ring-2 focus:ring-green-500"
@@ -1126,7 +1409,9 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
             </div>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-red-700 mb-2">Failures</label>
+            <label className="block text-sm font-semibold text-red-700 mb-2">
+              Failures
+            </label>
             <div className="flex space-x-2">
               {[1, 2, 3].map((i) => (
                 <input
@@ -1135,9 +1420,9 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                   checked={(formData.deathSaves?.failures || 0) >= i}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      updateField('deathSaves.failures', i);
+                      updateField("deathSaves.failures", i);
                     } else {
-                      updateField('deathSaves.failures', i - 1);
+                      updateField("deathSaves.failures", i - 1);
                     }
                   }}
                   className="w-6 h-6 text-red-700 border-stone-300 rounded focus:ring-2 focus:ring-red-500"
@@ -1150,19 +1435,34 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
       {/* Conditions */}
       <div className="bg-stone-50 border border-stone-200 rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-stone-800 mb-3">Conditions</h3>
+        <h3 className="text-lg font-semibold text-stone-800 mb-3">
+          Conditions
+        </h3>
         <div className="grid grid-cols-3 gap-2">
           {conditions.map((condition) => (
-            <label key={condition} className="flex items-center space-x-2 cursor-pointer hover:bg-stone-100 p-1 rounded">
+            <label
+              key={condition}
+              className="flex items-center space-x-2 cursor-pointer hover:bg-stone-100 p-1 rounded"
+            >
               <input
                 type="checkbox"
-                checked={(formData.conditions || []).includes(condition.toLowerCase())}
+                checked={(formData.conditions || []).includes(
+                  condition.toLowerCase(),
+                )}
                 onChange={(e) => {
                   const currentConditions = formData.conditions || [];
                   if (e.target.checked) {
-                    updateField('conditions', [...currentConditions, condition.toLowerCase()]);
+                    updateField("conditions", [
+                      ...currentConditions,
+                      condition.toLowerCase(),
+                    ]);
                   } else {
-                    updateField('conditions', currentConditions.filter((c: string) => c !== condition.toLowerCase()));
+                    updateField(
+                      "conditions",
+                      currentConditions.filter(
+                        (c: string) => c !== condition.toLowerCase(),
+                      ),
+                    );
                   }
                 }}
                 className="w-4 h-4 text-red-700 border-stone-300 rounded focus:ring-2 focus:ring-red-500"
@@ -1176,14 +1476,24 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       {/* Attacks */}
       <div className="bg-stone-50 border-2 border-stone-300 rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-stone-800">Attacks & Spellcasting</h3>
+          <h3 className="text-lg font-semibold text-stone-800">
+            Attacks & Spellcasting
+          </h3>
           <button
             onClick={() => {
               const newAttacks = [
                 ...(formData.attacks || []),
-                { name: '', attackBonus: 0, damageRoll: '', damageType: '', range: 0, properties: [], notes: '' },
+                {
+                  name: "",
+                  attackBonus: 0,
+                  damageRoll: "",
+                  damageType: "",
+                  range: 0,
+                  properties: [],
+                  notes: "",
+                },
               ];
-              updateField('attacks', newAttacks);
+              updateField("attacks", newAttacks);
             }}
             className="px-3 py-1 text-sm font-medium text-white bg-red-700 hover:bg-red-800 rounded-lg transition-colors"
           >
@@ -1192,19 +1502,26 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
         </div>
         <div className="space-y-4">
           {(formData.attacks || []).map((attack: any, index: number) => (
-            <div key={index} className="bg-white border border-stone-300 rounded-lg p-3 space-y-2">
+            <div
+              key={index}
+              className="bg-white border border-stone-300 rounded-lg p-3 space-y-2"
+            >
               <div className="flex items-start justify-between">
                 <input
                   type="text"
-                  value={attack.name || ''}
-                  onChange={(e) => updateField(`attacks.${index}.name`, e.target.value)}
+                  value={attack.name || ""}
+                  onChange={(e) =>
+                    updateField(`attacks.${index}.name`, e.target.value)
+                  }
                   placeholder="Attack Name"
                   className="flex-1 px-2 py-1 border border-stone-300 rounded font-semibold focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
                 <button
                   onClick={() => {
-                    const newAttacks = formData.attacks.filter((_: any, i: number) => i !== index);
-                    updateField('attacks', newAttacks);
+                    const newAttacks = formData.attacks.filter(
+                      (_: any, i: number) => i !== index,
+                    );
+                    updateField("attacks", newAttacks);
                   }}
                   className="ml-2 px-2 py-1 text-red-600 hover:text-red-800 font-bold"
                 >
@@ -1213,51 +1530,77 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-semibold text-stone-600 mb-1">Attack Bonus</label>
+                  <label className="block text-xs font-semibold text-stone-600 mb-1">
+                    Attack Bonus
+                  </label>
                   <input
                     type="number"
                     value={attack.attackBonus || 0}
-                    onChange={(e) => updateField(`attacks.${index}.attackBonus`, parseInt(e.target.value) || 0)}
+                    onChange={(e) =>
+                      updateField(
+                        `attacks.${index}.attackBonus`,
+                        parseInt(e.target.value) || 0,
+                      )
+                    }
                     className="w-full px-2 py-1 border border-stone-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-stone-600 mb-1">Damage Roll</label>
+                  <label className="block text-xs font-semibold text-stone-600 mb-1">
+                    Damage Roll
+                  </label>
                   <input
                     type="text"
-                    value={attack.damageRoll || ''}
-                    onChange={(e) => updateField(`attacks.${index}.damageRoll`, e.target.value)}
+                    value={attack.damageRoll || ""}
+                    onChange={(e) =>
+                      updateField(`attacks.${index}.damageRoll`, e.target.value)
+                    }
                     placeholder="e.g., 1d8+3"
                     className="w-full px-2 py-1 border border-stone-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-stone-600 mb-1">Damage Type</label>
+                  <label className="block text-xs font-semibold text-stone-600 mb-1">
+                    Damage Type
+                  </label>
                   <input
                     type="text"
-                    value={attack.damageType || ''}
-                    onChange={(e) => updateField(`attacks.${index}.damageType`, e.target.value)}
+                    value={attack.damageType || ""}
+                    onChange={(e) =>
+                      updateField(`attacks.${index}.damageType`, e.target.value)
+                    }
                     placeholder="e.g., slashing"
                     className="w-full px-2 py-1 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-stone-600 mb-1">Range (ft)</label>
+                  <label className="block text-xs font-semibold text-stone-600 mb-1">
+                    Range (ft)
+                  </label>
                   <input
                     type="number"
                     min="0"
                     value={attack.range || 0}
-                    onChange={(e) => updateField(`attacks.${index}.range`, parseInt(e.target.value) || 0)}
+                    onChange={(e) =>
+                      updateField(
+                        `attacks.${index}.range`,
+                        parseInt(e.target.value) || 0,
+                      )
+                    }
                     className="w-full px-2 py-1 border border-stone-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-1">Properties/Notes</label>
+                <label className="block text-xs font-semibold text-stone-600 mb-1">
+                  Properties/Notes
+                </label>
                 <input
                   type="text"
-                  value={attack.notes || ''}
-                  onChange={(e) => updateField(`attacks.${index}.notes`, e.target.value)}
+                  value={attack.notes || ""}
+                  onChange={(e) =>
+                    updateField(`attacks.${index}.notes`, e.target.value)
+                  }
                   placeholder="e.g., Versatile, Finesse"
                   className="w-full px-2 py-1 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
@@ -1265,7 +1608,9 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
             </div>
           ))}
           {(!formData.attacks || formData.attacks.length === 0) && (
-            <div className="text-sm text-stone-500 italic">No attacks added yet</div>
+            <div className="text-sm text-stone-500 italic">
+              No attacks added yet
+            </div>
           )}
         </div>
       </div>
@@ -1278,31 +1623,49 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       {/* Spellcasting Ability */}
       <div className="grid grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-1">Spellcasting Ability</label>
+          <label className="block text-sm font-semibold text-stone-700 mb-1">
+            Spellcasting Ability
+          </label>
           <input
             type="text"
-            value={formData.spellcasting?.ability || ''}
-            onChange={(e) => updateField('spellcasting.ability', e.target.value)}
+            value={formData.spellcasting?.ability || ""}
+            onChange={(e) =>
+              updateField("spellcasting.ability", e.target.value)
+            }
             placeholder="e.g., Intelligence"
             className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-1">Spell Save DC</label>
+          <label className="block text-sm font-semibold text-stone-700 mb-1">
+            Spell Save DC
+          </label>
           <input
             type="number"
             min="0"
             value={formData.spellcasting?.spellSaveDC || 0}
-            onChange={(e) => updateField('spellcasting.spellSaveDC', parseInt(e.target.value) || 0)}
+            onChange={(e) =>
+              updateField(
+                "spellcasting.spellSaveDC",
+                parseInt(e.target.value) || 0,
+              )
+            }
             className="w-full px-3 py-2 border border-stone-300 rounded-lg text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-red-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-1">Spell Attack Bonus</label>
+          <label className="block text-sm font-semibold text-stone-700 mb-1">
+            Spell Attack Bonus
+          </label>
           <input
             type="number"
             value={formData.spellcasting?.spellAttackBonus || 0}
-            onChange={(e) => updateField('spellcasting.spellAttackBonus', parseInt(e.target.value) || 0)}
+            onChange={(e) =>
+              updateField(
+                "spellcasting.spellAttackBonus",
+                parseInt(e.target.value) || 0,
+              )
+            }
             className="w-full px-3 py-2 border border-stone-300 rounded-lg text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-red-500"
           />
         </div>
@@ -1312,10 +1675,12 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       <div className="bg-stone-50 border border-stone-200 rounded-lg p-4">
         <h3 className="text-lg font-semibold text-stone-800 mb-3">Cantrips</h3>
         <textarea
-          value={typeof formData.spellcasting?.cantrips === 'string'
-            ? formData.spellcasting.cantrips
-            : (formData.spellcasting?.cantrips || []).join(', ')}
-          onChange={(e) => updateField('spellcasting.cantrips', e.target.value)}
+          value={
+            typeof formData.spellcasting?.cantrips === "string"
+              ? formData.spellcasting.cantrips
+              : (formData.spellcasting?.cantrips || []).join(", ")
+          }
+          onChange={(e) => updateField("spellcasting.cantrips", e.target.value)}
           placeholder="Enter cantrips separated by commas (e.g., Fire Bolt, Mage Hand, Prestidigitation)"
           rows={2}
           className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -1324,31 +1689,55 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
       {/* Spell Slots */}
       <div className="bg-stone-50 border-2 border-stone-300 rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-stone-800 mb-3">Spell Slots</h3>
+        <h3 className="text-lg font-semibold text-stone-800 mb-3">
+          Spell Slots
+        </h3>
         <div className="grid grid-cols-3 gap-3">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => {
-            const slotData = formData.spellcasting?.slots?.[level] || { total: 0, expended: 0 };
+            const slotData = formData.spellcasting?.slots?.[level] || {
+              total: 0,
+              expended: 0,
+            };
             return (
-              <div key={level} className="bg-white border border-stone-300 rounded-lg p-3">
-                <div className="text-sm font-semibold text-stone-700 mb-2 text-center">Level {level}</div>
+              <div
+                key={level}
+                className="bg-white border border-stone-300 rounded-lg p-3"
+              >
+                <div className="text-sm font-semibold text-stone-700 mb-2 text-center">
+                  Level {level}
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs text-stone-600 mb-1">Total</label>
+                    <label className="block text-xs text-stone-600 mb-1">
+                      Total
+                    </label>
                     <input
                       type="number"
                       min="0"
                       value={slotData.total || 0}
-                      onChange={(e) => updateField(`spellcasting.slots.${level}.total`, parseInt(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateField(
+                          `spellcasting.slots.${level}.total`,
+                          parseInt(e.target.value) || 0,
+                        )
+                      }
                       className="w-full px-2 py-1 border border-stone-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-stone-600 mb-1">Used</label>
+                    <label className="block text-xs text-stone-600 mb-1">
+                      Used
+                    </label>
                     <input
                       type="number"
                       min="0"
                       value={slotData.expended || 0}
-                      onChange={(e) => updateField(`spellcasting.slots.${level}.expended`, parseInt(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateField(
+                          `spellcasting.slots.${level}.expended`,
+                          parseInt(e.target.value) || 0,
+                        )
+                      }
                       className="w-full px-2 py-1 border border-stone-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
                   </div>
@@ -1367,9 +1756,15 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
             onClick={() => {
               const newSpells = [
                 ...(formData.spellcasting?.spells || []),
-                { level: 1, name: '', prepared: false, ritual: false, concentration: false },
+                {
+                  level: 1,
+                  name: "",
+                  prepared: false,
+                  ritual: false,
+                  concentration: false,
+                },
               ];
-              updateField('spellcasting.spells', newSpells);
+              updateField("spellcasting.spells", newSpells);
             }}
             className="px-3 py-1 text-sm font-medium text-white bg-red-700 hover:bg-red-800 rounded-lg transition-colors"
           >
@@ -1377,64 +1772,108 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
           </button>
         </div>
         <div className="space-y-2">
-          {(formData.spellcasting?.spells || []).map((spell: any, index: number) => (
-            <div key={index} className="bg-white border border-stone-300 rounded-lg p-3 flex items-center space-x-3">
-              <input
-                type="number"
-                min="1"
-                max="9"
-                value={spell.level || 1}
-                onChange={(e) => updateField(`spellcasting.spells.${index}.level`, parseInt(e.target.value) || 1)}
-                className="w-14 px-2 py-1 border border-stone-300 rounded text-center font-semibold focus:outline-none focus:ring-2 focus:ring-red-500"
-                title="Spell Level"
-              />
-              <input
-                type="text"
-                value={spell.name || ''}
-                onChange={(e) => updateField(`spellcasting.spells.${index}.name`, e.target.value)}
-                placeholder="Spell Name"
-                className="flex-1 px-2 py-1 border border-stone-300 rounded font-medium focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
-              <label className="flex items-center space-x-1 cursor-pointer" title="Prepared">
-                <input
-                  type="checkbox"
-                  checked={spell.prepared || false}
-                  onChange={(e) => updateField(`spellcasting.spells.${index}.prepared`, e.target.checked)}
-                  className="w-4 h-4 text-red-700 border-stone-300 rounded focus:ring-2 focus:ring-red-500"
-                />
-                <span className="text-xs text-stone-600">Prep</span>
-              </label>
-              <label className="flex items-center space-x-1 cursor-pointer" title="Ritual">
-                <input
-                  type="checkbox"
-                  checked={spell.ritual || false}
-                  onChange={(e) => updateField(`spellcasting.spells.${index}.ritual`, e.target.checked)}
-                  className="w-4 h-4 text-blue-700 border-stone-300 rounded focus:ring-2 focus:ring-blue-500"
-                />
-                <span className="text-xs text-stone-600">Rit</span>
-              </label>
-              <label className="flex items-center space-x-1 cursor-pointer" title="Concentration">
-                <input
-                  type="checkbox"
-                  checked={spell.concentration || false}
-                  onChange={(e) => updateField(`spellcasting.spells.${index}.concentration`, e.target.checked)}
-                  className="w-4 h-4 text-purple-700 border-stone-300 rounded focus:ring-2 focus:ring-purple-500"
-                />
-                <span className="text-xs text-stone-600">Con</span>
-              </label>
-              <button
-                onClick={() => {
-                  const newSpells = formData.spellcasting.spells.filter((_: any, i: number) => i !== index);
-                  updateField('spellcasting.spells', newSpells);
-                }}
-                className="px-2 py-1 text-red-600 hover:text-red-800 font-bold"
+          {(formData.spellcasting?.spells || []).map(
+            (spell: any, index: number) => (
+              <div
+                key={index}
+                className="bg-white border border-stone-300 rounded-lg p-3 flex items-center space-x-3"
               >
-                ×
-              </button>
+                <input
+                  type="number"
+                  min="1"
+                  max="9"
+                  value={spell.level || 1}
+                  onChange={(e) =>
+                    updateField(
+                      `spellcasting.spells.${index}.level`,
+                      parseInt(e.target.value) || 1,
+                    )
+                  }
+                  className="w-14 px-2 py-1 border border-stone-300 rounded text-center font-semibold focus:outline-none focus:ring-2 focus:ring-red-500"
+                  title="Spell Level"
+                />
+                <input
+                  type="text"
+                  value={spell.name || ""}
+                  onChange={(e) =>
+                    updateField(
+                      `spellcasting.spells.${index}.name`,
+                      e.target.value,
+                    )
+                  }
+                  placeholder="Spell Name"
+                  className="flex-1 px-2 py-1 border border-stone-300 rounded font-medium focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+                <label
+                  className="flex items-center space-x-1 cursor-pointer"
+                  title="Prepared"
+                >
+                  <input
+                    type="checkbox"
+                    checked={spell.prepared || false}
+                    onChange={(e) =>
+                      updateField(
+                        `spellcasting.spells.${index}.prepared`,
+                        e.target.checked,
+                      )
+                    }
+                    className="w-4 h-4 text-red-700 border-stone-300 rounded focus:ring-2 focus:ring-red-500"
+                  />
+                  <span className="text-xs text-stone-600">Prep</span>
+                </label>
+                <label
+                  className="flex items-center space-x-1 cursor-pointer"
+                  title="Ritual"
+                >
+                  <input
+                    type="checkbox"
+                    checked={spell.ritual || false}
+                    onChange={(e) =>
+                      updateField(
+                        `spellcasting.spells.${index}.ritual`,
+                        e.target.checked,
+                      )
+                    }
+                    className="w-4 h-4 text-blue-700 border-stone-300 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-xs text-stone-600">Rit</span>
+                </label>
+                <label
+                  className="flex items-center space-x-1 cursor-pointer"
+                  title="Concentration"
+                >
+                  <input
+                    type="checkbox"
+                    checked={spell.concentration || false}
+                    onChange={(e) =>
+                      updateField(
+                        `spellcasting.spells.${index}.concentration`,
+                        e.target.checked,
+                      )
+                    }
+                    className="w-4 h-4 text-purple-700 border-stone-300 rounded focus:ring-2 focus:ring-purple-500"
+                  />
+                  <span className="text-xs text-stone-600">Con</span>
+                </label>
+                <button
+                  onClick={() => {
+                    const newSpells = formData.spellcasting.spells.filter(
+                      (_: any, i: number) => i !== index,
+                    );
+                    updateField("spellcasting.spells", newSpells);
+                  }}
+                  className="px-2 py-1 text-red-600 hover:text-red-800 font-bold"
+                >
+                  ×
+                </button>
+              </div>
+            ),
+          )}
+          {(!formData.spellcasting?.spells ||
+            formData.spellcasting.spells.length === 0) && (
+            <div className="text-sm text-stone-500 italic">
+              No spells added yet
             </div>
-          ))}
-          {(!formData.spellcasting?.spells || formData.spellcasting.spells.length === 0) && (
-            <div className="text-sm text-stone-500 italic">No spells added yet</div>
           )}
         </div>
       </div>
@@ -1449,21 +1888,28 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
         <h3 className="text-lg font-semibold text-stone-800 mb-3">Currency</h3>
         <div className="grid grid-cols-5 gap-3">
           {[
-            { key: 'cp', label: 'Copper (CP)', color: 'text-amber-700' },
-            { key: 'sp', label: 'Silver (SP)', color: 'text-stone-400' },
-            { key: 'ep', label: 'Electrum (EP)', color: 'text-green-600' },
-            { key: 'gp', label: 'Gold (GP)', color: 'text-yellow-600' },
-            { key: 'pp', label: 'Platinum (PP)', color: 'text-slate-300' },
+            { key: "cp", label: "Copper (CP)", color: "text-amber-700" },
+            { key: "sp", label: "Silver (SP)", color: "text-stone-400" },
+            { key: "ep", label: "Electrum (EP)", color: "text-green-600" },
+            { key: "gp", label: "Gold (GP)", color: "text-yellow-600" },
+            { key: "pp", label: "Platinum (PP)", color: "text-slate-300" },
           ].map((currency) => (
             <div key={currency.key}>
-              <label className={`block text-xs font-semibold ${currency.color} mb-1`}>
+              <label
+                className={`block text-xs font-semibold ${currency.color} mb-1`}
+              >
                 {currency.label}
               </label>
               <input
                 type="number"
                 min="0"
                 value={formData.currency?.[currency.key] || 0}
-                onChange={(e) => updateField(`currency.${currency.key}`, parseInt(e.target.value) || 0)}
+                onChange={(e) =>
+                  updateField(
+                    `currency.${currency.key}`,
+                    parseInt(e.target.value) || 0,
+                  )
+                }
                 className="w-full px-2 py-2 border border-stone-300 rounded-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-red-500"
               />
             </div>
@@ -1480,10 +1926,10 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
               const newInventory = [
                 ...(formData.inventory || []),
                 {
-                  name: '',
+                  name: "",
                   quantity: 1,
                   weight: 0,
-                  notes: '',
+                  notes: "",
                   equippable: false,
                   equipped: false,
                   requiresAttunement: false,
@@ -1491,7 +1937,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                   value: 0,
                 },
               ];
-              updateField('inventory', newInventory);
+              updateField("inventory", newInventory);
             }}
             className="px-3 py-1 text-sm font-medium text-white bg-red-700 hover:bg-red-800 rounded-lg transition-colors"
           >
@@ -1500,19 +1946,26 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
         </div>
         <div className="space-y-3">
           {(formData.inventory || []).map((item: any, index: number) => (
-            <div key={index} className="bg-white border border-stone-300 rounded-lg p-3 space-y-2">
+            <div
+              key={index}
+              className="bg-white border border-stone-300 rounded-lg p-3 space-y-2"
+            >
               <div className="flex items-start justify-between">
                 <input
                   type="text"
-                  value={item.name || ''}
-                  onChange={(e) => updateField(`inventory.${index}.name`, e.target.value)}
+                  value={item.name || ""}
+                  onChange={(e) =>
+                    updateField(`inventory.${index}.name`, e.target.value)
+                  }
                   placeholder="Item Name"
                   className="flex-1 px-2 py-1 border border-stone-300 rounded font-semibold focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
                 <button
                   onClick={() => {
-                    const newInventory = formData.inventory.filter((_: any, i: number) => i !== index);
-                    updateField('inventory', newInventory);
+                    const newInventory = formData.inventory.filter(
+                      (_: any, i: number) => i !== index,
+                    );
+                    updateField("inventory", newInventory);
                   }}
                   className="ml-2 px-2 py-1 text-red-600 hover:text-red-800 font-bold"
                 >
@@ -1521,43 +1974,68 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-xs font-semibold text-stone-600 mb-1">Quantity</label>
+                  <label className="block text-xs font-semibold text-stone-600 mb-1">
+                    Quantity
+                  </label>
                   <input
                     type="number"
                     min="0"
                     value={item.quantity || 1}
-                    onChange={(e) => updateField(`inventory.${index}.quantity`, parseInt(e.target.value) || 1)}
+                    onChange={(e) =>
+                      updateField(
+                        `inventory.${index}.quantity`,
+                        parseInt(e.target.value) || 1,
+                      )
+                    }
                     className="w-full px-2 py-1 border border-stone-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-stone-600 mb-1">Weight (lb)</label>
+                  <label className="block text-xs font-semibold text-stone-600 mb-1">
+                    Weight (lb)
+                  </label>
                   <input
                     type="number"
                     min="0"
                     step="0.1"
                     value={item.weight || 0}
-                    onChange={(e) => updateField(`inventory.${index}.weight`, parseFloat(e.target.value) || 0)}
+                    onChange={(e) =>
+                      updateField(
+                        `inventory.${index}.weight`,
+                        parseFloat(e.target.value) || 0,
+                      )
+                    }
                     className="w-full px-2 py-1 border border-stone-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-stone-600 mb-1">Value (gp)</label>
+                  <label className="block text-xs font-semibold text-stone-600 mb-1">
+                    Value (gp)
+                  </label>
                   <input
                     type="number"
                     min="0"
                     value={item.value || 0}
-                    onChange={(e) => updateField(`inventory.${index}.value`, parseInt(e.target.value) || 0)}
+                    onChange={(e) =>
+                      updateField(
+                        `inventory.${index}.value`,
+                        parseInt(e.target.value) || 0,
+                      )
+                    }
                     className="w-full px-2 py-1 border border-stone-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-1">Notes</label>
+                <label className="block text-xs font-semibold text-stone-600 mb-1">
+                  Notes
+                </label>
                 <input
                   type="text"
-                  value={item.notes || ''}
-                  onChange={(e) => updateField(`inventory.${index}.notes`, e.target.value)}
+                  value={item.notes || ""}
+                  onChange={(e) =>
+                    updateField(`inventory.${index}.notes`, e.target.value)
+                  }
                   placeholder="Item description or notes"
                   className="w-full px-2 py-1 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
@@ -1567,7 +2045,12 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                   <input
                     type="checkbox"
                     checked={item.equipped || false}
-                    onChange={(e) => updateField(`inventory.${index}.equipped`, e.target.checked)}
+                    onChange={(e) =>
+                      updateField(
+                        `inventory.${index}.equipped`,
+                        e.target.checked,
+                      )
+                    }
                     className="w-4 h-4 text-red-700 border-stone-300 rounded focus:ring-2 focus:ring-red-500"
                   />
                   <span className="text-stone-700">Equipped</span>
@@ -1576,7 +2059,12 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                   <input
                     type="checkbox"
                     checked={item.requiresAttunement || false}
-                    onChange={(e) => updateField(`inventory.${index}.requiresAttunement`, e.target.checked)}
+                    onChange={(e) =>
+                      updateField(
+                        `inventory.${index}.requiresAttunement`,
+                        e.target.checked,
+                      )
+                    }
                     className="w-4 h-4 text-purple-700 border-stone-300 rounded focus:ring-2 focus:ring-purple-500"
                   />
                   <span className="text-stone-700">Requires Attunement</span>
@@ -1586,7 +2074,12 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                     <input
                       type="checkbox"
                       checked={item.attuned || false}
-                      onChange={(e) => updateField(`inventory.${index}.attuned`, e.target.checked)}
+                      onChange={(e) =>
+                        updateField(
+                          `inventory.${index}.attuned`,
+                          e.target.checked,
+                        )
+                      }
                       className="w-4 h-4 text-purple-700 border-stone-300 rounded focus:ring-2 focus:ring-purple-500"
                     />
                     <span className="text-stone-700">Attuned</span>
@@ -1596,7 +2089,9 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
             </div>
           ))}
           {(!formData.inventory || formData.inventory.length === 0) && (
-            <div className="text-sm text-stone-500 italic">No items in inventory yet</div>
+            <div className="text-sm text-stone-500 italic">
+              No items in inventory yet
+            </div>
           )}
         </div>
       </div>
@@ -1606,31 +2101,80 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
   // Helper to get proficiencies by category from flat array (backwards compatibility)
   const getProficienciesByCategory = () => {
     // If using new structured format with strings (not arrays)
-    if (formData.proficiencies && typeof formData.proficiencies === 'object' && !Array.isArray(formData.proficiencies)) {
+    if (
+      formData.proficiencies &&
+      typeof formData.proficiencies === "object" &&
+      !Array.isArray(formData.proficiencies)
+    ) {
       return {
-        armor: formData.proficiencies.armor || '',
-        weapons: formData.proficiencies.weapons || '',
-        tools: formData.proficiencies.tools || '',
-        languages: formData.proficiencies.languages || '',
+        armor: formData.proficiencies.armor || "",
+        weapons: formData.proficiencies.weapons || "",
+        tools: formData.proficiencies.tools || "",
+        languages: formData.proficiencies.languages || "",
       };
     }
 
     // Backwards compatibility: parse from flat array
     const all = formData.proficienciesAndLanguages || [];
-    const languages = ['Common', 'Elvish', 'Dwarvish', 'Draconic', 'Giant', 'Gnomish', 'Goblin', 'Halfling', 'Orc', 'Abyssal', 'Celestial', 'Deep Speech', 'Infernal', 'Primordial', 'Sylvan', 'Undercommon'];
-    const armorKeywords = ['Armor', 'Shield'];
-    const toolKeywords = ['Tools', 'Supplies', 'Kit', 'Instruments', 'Vehicles', 'Vehicle'];
+    const languages = [
+      "Common",
+      "Elvish",
+      "Dwarvish",
+      "Draconic",
+      "Giant",
+      "Gnomish",
+      "Goblin",
+      "Halfling",
+      "Orc",
+      "Abyssal",
+      "Celestial",
+      "Deep Speech",
+      "Infernal",
+      "Primordial",
+      "Sylvan",
+      "Undercommon",
+    ];
+    const armorKeywords = ["Armor", "Shield"];
+    const toolKeywords = [
+      "Tools",
+      "Supplies",
+      "Kit",
+      "Instruments",
+      "Vehicles",
+      "Vehicle",
+    ];
 
-    const armorList = all.filter((p: string) => armorKeywords.some(k => p.includes(k)));
-    const weaponsList = all.filter((p: string) => !armorKeywords.some(k => p.includes(k)) && !toolKeywords.some(k => p.includes(k)) && !languages.includes(p) && (p.includes('Weapon') || ['Dagger', 'Sword', 'Bow', 'Axe', 'Mace', 'Staff', 'Crossbow', 'Spear', 'Hammer'].some(w => p.includes(w))));
-    const toolsList = all.filter((p: string) => toolKeywords.some(k => p.includes(k)));
+    const armorList = all.filter((p: string) =>
+      armorKeywords.some((k) => p.includes(k)),
+    );
+    const weaponsList = all.filter(
+      (p: string) =>
+        !armorKeywords.some((k) => p.includes(k)) &&
+        !toolKeywords.some((k) => p.includes(k)) &&
+        !languages.includes(p) &&
+        (p.includes("Weapon") ||
+          [
+            "Dagger",
+            "Sword",
+            "Bow",
+            "Axe",
+            "Mace",
+            "Staff",
+            "Crossbow",
+            "Spear",
+            "Hammer",
+          ].some((w) => p.includes(w))),
+    );
+    const toolsList = all.filter((p: string) =>
+      toolKeywords.some((k) => p.includes(k)),
+    );
     const languagesList = all.filter((p: string) => languages.includes(p));
 
     return {
-      armor: armorList.join(', '),
-      weapons: weaponsList.join(', '),
-      tools: toolsList.join(', '),
-      languages: languagesList.join(', '),
+      armor: armorList.join(", "),
+      weapons: weaponsList.join(", "),
+      tools: toolsList.join(", "),
+      languages: languagesList.join(", "),
     };
   };
 
@@ -1642,15 +2186,21 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       <div className="space-y-6">
         {/* Proficiencies */}
         <div className="bg-stone-50 border-2 border-stone-300 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-stone-800 mb-4">Proficiencies & Training</h3>
+          <h3 className="text-lg font-semibold text-stone-800 mb-4">
+            Proficiencies & Training
+          </h3>
 
           <div className="space-y-4">
             {/* Armor */}
             <div>
-              <label className="block text-sm font-bold text-stone-700 mb-2 uppercase tracking-wide">Armor</label>
+              <label className="block text-sm font-bold text-stone-700 mb-2 uppercase tracking-wide">
+                Armor
+              </label>
               <textarea
                 value={profs.armor}
-                onChange={(e) => updateField('proficiencies.armor', e.target.value)}
+                onChange={(e) =>
+                  updateField("proficiencies.armor", e.target.value)
+                }
                 placeholder="Light Armor, Medium Armor, Shields"
                 rows={2}
                 className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
@@ -1659,10 +2209,14 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
             {/* Weapons */}
             <div>
-              <label className="block text-sm font-bold text-stone-700 mb-2 uppercase tracking-wide">Weapons</label>
+              <label className="block text-sm font-bold text-stone-700 mb-2 uppercase tracking-wide">
+                Weapons
+              </label>
               <textarea
                 value={profs.weapons}
-                onChange={(e) => updateField('proficiencies.weapons', e.target.value)}
+                onChange={(e) =>
+                  updateField("proficiencies.weapons", e.target.value)
+                }
                 placeholder="Simple Weapons, Martial Weapons, or specific weapons (Daggers, Longswords, Shortbows)"
                 rows={2}
                 className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
@@ -1671,10 +2225,14 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
             {/* Tools */}
             <div>
-              <label className="block text-sm font-bold text-stone-700 mb-2 uppercase tracking-wide">Tools</label>
+              <label className="block text-sm font-bold text-stone-700 mb-2 uppercase tracking-wide">
+                Tools
+              </label>
               <textarea
                 value={profs.tools}
-                onChange={(e) => updateField('proficiencies.tools', e.target.value)}
+                onChange={(e) =>
+                  updateField("proficiencies.tools", e.target.value)
+                }
                 placeholder="Thieves' Tools, Smith's Tools, Calligrapher's Supplies, Musical Instruments, Vehicles (Land/Water)"
                 rows={2}
                 className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
@@ -1683,10 +2241,14 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
             {/* Languages */}
             <div>
-              <label className="block text-sm font-bold text-stone-700 mb-2 uppercase tracking-wide">Languages</label>
+              <label className="block text-sm font-bold text-stone-700 mb-2 uppercase tracking-wide">
+                Languages
+              </label>
               <textarea
                 value={profs.languages}
-                onChange={(e) => updateField('proficiencies.languages', e.target.value)}
+                onChange={(e) =>
+                  updateField("proficiencies.languages", e.target.value)
+                }
                 placeholder="Common, Elvish, Dwarvish, Draconic"
                 rows={2}
                 className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
@@ -1697,13 +2259,19 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
         {/* Features & Traits */}
         <div className="bg-stone-50 border-2 border-stone-300 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-stone-800 mb-3">Features & Traits</h3>
-          <p className="text-xs text-stone-600 mb-3">Class features, racial traits, and feats (comma-separated)</p>
+          <h3 className="text-lg font-semibold text-stone-800 mb-3">
+            Features & Traits
+          </h3>
+          <p className="text-xs text-stone-600 mb-3">
+            Class features, racial traits, and feats (comma-separated)
+          </p>
           <textarea
-            value={typeof formData.featuresAndTraits === 'string'
-              ? formData.featuresAndTraits
-              : (formData.featuresAndTraits || []).join(', ')}
-            onChange={(e) => updateField('featuresAndTraits', e.target.value)}
+            value={
+              typeof formData.featuresAndTraits === "string"
+                ? formData.featuresAndTraits
+                : (formData.featuresAndTraits || []).join(", ")
+            }
+            onChange={(e) => updateField("featuresAndTraits", e.target.value)}
             placeholder="Darkvision, Fey Ancestry, Sneak Attack, Rage, Spellcasting, Action Surge"
             rows={5}
             className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -1712,11 +2280,17 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
         {/* Additional Features & Traits */}
         <div className="bg-stone-50 border border-stone-200 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-stone-800 mb-3">Additional Features & Traits</h3>
-          <p className="text-xs text-stone-600 mb-3">Detailed descriptions of features, special abilities, or notes</p>
+          <h3 className="text-lg font-semibold text-stone-800 mb-3">
+            Additional Features & Traits
+          </h3>
+          <p className="text-xs text-stone-600 mb-3">
+            Detailed descriptions of features, special abilities, or notes
+          </p>
           <textarea
-            value={formData.additionalFeaturesAndTraits || ''}
-            onChange={(e) => updateField('additionalFeaturesAndTraits', e.target.value)}
+            value={formData.additionalFeaturesAndTraits || ""}
+            onChange={(e) =>
+              updateField("additionalFeaturesAndTraits", e.target.value)
+            }
             placeholder="Describe any additional features, traits, or special abilities in detail..."
             rows={8}
             className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -1731,61 +2305,75 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
     <div className="space-y-6">
       {/* Appearance */}
       <div className="bg-stone-50 border-2 border-stone-300 rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-stone-800 mb-3">Appearance</h3>
+        <h3 className="text-lg font-semibold text-stone-800 mb-3">
+          Appearance
+        </h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1">Age</label>
+            <label className="block text-xs font-semibold text-stone-600 mb-1">
+              Age
+            </label>
             <input
               type="text"
-              value={formData.appearance?.age || ''}
-              onChange={(e) => updateField('appearance.age', e.target.value)}
+              value={formData.appearance?.age || ""}
+              onChange={(e) => updateField("appearance.age", e.target.value)}
               className="w-full px-2 py-1 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1">Height</label>
+            <label className="block text-xs font-semibold text-stone-600 mb-1">
+              Height
+            </label>
             <input
               type="text"
-              value={formData.appearance?.height || ''}
-              onChange={(e) => updateField('appearance.height', e.target.value)}
+              value={formData.appearance?.height || ""}
+              onChange={(e) => updateField("appearance.height", e.target.value)}
               placeholder="e.g., 5'7&quot;"
               className="w-full px-2 py-1 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1">Weight</label>
+            <label className="block text-xs font-semibold text-stone-600 mb-1">
+              Weight
+            </label>
             <input
               type="text"
-              value={formData.appearance?.weight || ''}
-              onChange={(e) => updateField('appearance.weight', e.target.value)}
+              value={formData.appearance?.weight || ""}
+              onChange={(e) => updateField("appearance.weight", e.target.value)}
               placeholder="e.g., 130 lbs"
               className="w-full px-2 py-1 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1">Eyes</label>
+            <label className="block text-xs font-semibold text-stone-600 mb-1">
+              Eyes
+            </label>
             <input
               type="text"
-              value={formData.appearance?.eyes || ''}
-              onChange={(e) => updateField('appearance.eyes', e.target.value)}
+              value={formData.appearance?.eyes || ""}
+              onChange={(e) => updateField("appearance.eyes", e.target.value)}
               className="w-full px-2 py-1 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1">Skin</label>
+            <label className="block text-xs font-semibold text-stone-600 mb-1">
+              Skin
+            </label>
             <input
               type="text"
-              value={formData.appearance?.skin || ''}
-              onChange={(e) => updateField('appearance.skin', e.target.value)}
+              value={formData.appearance?.skin || ""}
+              onChange={(e) => updateField("appearance.skin", e.target.value)}
               className="w-full px-2 py-1 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1">Hair</label>
+            <label className="block text-xs font-semibold text-stone-600 mb-1">
+              Hair
+            </label>
             <input
               type="text"
-              value={formData.appearance?.hair || ''}
-              onChange={(e) => updateField('appearance.hair', e.target.value)}
+              value={formData.appearance?.hair || ""}
+              onChange={(e) => updateField("appearance.hair", e.target.value)}
               className="w-full px-2 py-1 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
@@ -1794,43 +2382,57 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
       {/* Personality */}
       <div className="bg-stone-50 border-2 border-stone-300 rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-stone-800 mb-3">Personality</h3>
+        <h3 className="text-lg font-semibold text-stone-800 mb-3">
+          Personality
+        </h3>
         <div className="space-y-3">
           <div>
-            <label className="block text-sm font-semibold text-stone-700 mb-1">Personality Traits</label>
+            <label className="block text-sm font-semibold text-stone-700 mb-1">
+              Personality Traits
+            </label>
             <textarea
-              value={formData.personality?.traits || ''}
-              onChange={(e) => updateField('personality.traits', e.target.value)}
+              value={formData.personality?.traits || ""}
+              onChange={(e) =>
+                updateField("personality.traits", e.target.value)
+              }
               placeholder="Describe your character's personality traits..."
               rows={2}
               className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-stone-700 mb-1">Ideals</label>
+            <label className="block text-sm font-semibold text-stone-700 mb-1">
+              Ideals
+            </label>
             <textarea
-              value={formData.personality?.ideals || ''}
-              onChange={(e) => updateField('personality.ideals', e.target.value)}
+              value={formData.personality?.ideals || ""}
+              onChange={(e) =>
+                updateField("personality.ideals", e.target.value)
+              }
               placeholder="What drives your character? What do they believe in?"
               rows={2}
               className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-stone-700 mb-1">Bonds</label>
+            <label className="block text-sm font-semibold text-stone-700 mb-1">
+              Bonds
+            </label>
             <textarea
-              value={formData.personality?.bonds || ''}
-              onChange={(e) => updateField('personality.bonds', e.target.value)}
+              value={formData.personality?.bonds || ""}
+              onChange={(e) => updateField("personality.bonds", e.target.value)}
               placeholder="What connections does your character have?"
               rows={2}
               className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-stone-700 mb-1">Flaws</label>
+            <label className="block text-sm font-semibold text-stone-700 mb-1">
+              Flaws
+            </label>
             <textarea
-              value={formData.personality?.flaws || ''}
-              onChange={(e) => updateField('personality.flaws', e.target.value)}
+              value={formData.personality?.flaws || ""}
+              onChange={(e) => updateField("personality.flaws", e.target.value)}
               placeholder="What are your character's weaknesses or flaws?"
               rows={2}
               className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -1843,8 +2445,8 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       <div className="bg-stone-50 border border-stone-200 rounded-lg p-4">
         <h3 className="text-lg font-semibold text-stone-800 mb-3">Backstory</h3>
         <textarea
-          value={formData.backstory || ''}
-          onChange={(e) => updateField('backstory', e.target.value)}
+          value={formData.backstory || ""}
+          onChange={(e) => updateField("backstory", e.target.value)}
           placeholder="Tell your character's story..."
           rows={6}
           className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -1853,23 +2455,36 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
       {/* Allies & Organizations */}
       <div className="bg-stone-50 border border-stone-200 rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-stone-800 mb-3">Allies & Organizations</h3>
+        <h3 className="text-lg font-semibold text-stone-800 mb-3">
+          Allies & Organizations
+        </h3>
         <div className="space-y-2">
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1">Name</label>
+            <label className="block text-xs font-semibold text-stone-600 mb-1">
+              Name
+            </label>
             <input
               type="text"
-              value={formData.alliesAndOrganizations?.name || ''}
-              onChange={(e) => updateField('alliesAndOrganizations.name', e.target.value)}
+              value={formData.alliesAndOrganizations?.name || ""}
+              onChange={(e) =>
+                updateField("alliesAndOrganizations.name", e.target.value)
+              }
               placeholder="e.g., The Arcane Brotherhood"
               className="w-full px-2 py-1 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-stone-600 mb-1">Description</label>
+            <label className="block text-xs font-semibold text-stone-600 mb-1">
+              Description
+            </label>
             <textarea
-              value={formData.alliesAndOrganizations?.description || ''}
-              onChange={(e) => updateField('alliesAndOrganizations.description', e.target.value)}
+              value={formData.alliesAndOrganizations?.description || ""}
+              onChange={(e) =>
+                updateField(
+                  "alliesAndOrganizations.description",
+                  e.target.value,
+                )
+              }
               placeholder="Describe your allies and organizations..."
               rows={3}
               className="w-full px-2 py-1 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -1880,10 +2495,12 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
       {/* Treasure */}
       <div className="bg-stone-50 border border-stone-200 rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-stone-800 mb-3">Treasure & Other Notes</h3>
+        <h3 className="text-lg font-semibold text-stone-800 mb-3">
+          Treasure & Other Notes
+        </h3>
         <textarea
-          value={formData.treasure || ''}
-          onChange={(e) => updateField('treasure', e.target.value)}
+          value={formData.treasure || ""}
+          onChange={(e) => updateField("treasure", e.target.value)}
           placeholder="Special items, treasure, or other important notes..."
           rows={4}
           className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -1893,16 +2510,16 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
   );
 
   return (
-    <div className="bg-white border-2 border-stone-200 rounded-lg overflow-hidden shadow-lg">
+    <div className="overflow-hidden rounded-cozy border border-stone-300 bg-stone-100 text-stone-900">
       {renderHeader()}
       {renderTabs()}
-      <div className="p-6">
-        {activeTab === 'stats' && renderStatsTab()}
-        {activeTab === 'combat' && renderCombatTab()}
-        {activeTab === 'spells' && renderSpellsTab()}
-        {activeTab === 'inventory' && renderInventoryTab()}
-        {activeTab === 'features' && renderFeaturesTab()}
-        {activeTab === 'bio' && renderBiographyTab()}
+      <div className="p-3 sm:p-6">
+        {activeTab === "stats" && renderStatsTab()}
+        {activeTab === "combat" && renderCombatTab()}
+        {activeTab === "spells" && renderSpellsTab()}
+        {activeTab === "inventory" && renderInventoryTab()}
+        {activeTab === "features" && renderFeaturesTab()}
+        {activeTab === "bio" && renderBiographyTab()}
       </div>
       {errors.submit && (
         <div className="px-6 pb-4 text-sm text-red-600">{errors.submit}</div>

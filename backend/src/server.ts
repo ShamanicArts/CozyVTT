@@ -42,12 +42,13 @@ const app = express();
 const httpServer = createServer(app);
 const PORT = process.env.PORT || 4000;
 
-// Trust the first proxy hop (Nginx).
+// Trust the configured proxy hop count (one for Nginx in production; two for
+// Tailscale Serve -> Vite in local development).
 // Required so that:
 //   - express-rate-limit can read X-Forwarded-For for accurate IP identification
 //   - Session cookies are issued with secure:true when the request arrives over HTTPS
 //   - req.protocol reflects https rather than http
-app.set("trust proxy", 1);
+app.set("trust proxy", parseInt(process.env.TRUST_PROXY_HOPS || "1", 10));
 
 // ============================================
 // SECURITY MIDDLEWARE
