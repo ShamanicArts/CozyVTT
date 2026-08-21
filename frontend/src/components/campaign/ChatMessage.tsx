@@ -3,9 +3,9 @@
 // Displays individual chat messages with styling
 // ============================================
 
-import { memo } from 'react';
-import { Bot, Shield } from 'lucide-react';
-import type { Message, MessageType } from '@/types';
+import { memo } from "react";
+import { Bot, Shield } from "lucide-react";
+import type { Message, MessageType } from "@/types";
 
 interface ChatMessageProps {
   message: Message;
@@ -20,15 +20,15 @@ interface ChatMessageProps {
 function formatRelativeTime(timestamp: string): string {
   // Handle undefined, null, or empty timestamps
   if (!timestamp) {
-    return 'unknown time';
+    return "unknown time";
   }
 
   const date = new Date(timestamp);
 
   // Check if date is invalid
   if (isNaN(date.getTime())) {
-    console.warn('[ChatMessage] Invalid timestamp:', timestamp);
-    return 'unknown time';
+    console.warn("[ChatMessage] Invalid timestamp:", timestamp);
+    return "unknown time";
   }
 
   const now = new Date();
@@ -38,96 +38,124 @@ function formatRelativeTime(timestamp: string): string {
   const diffHour = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHour / 24);
 
-  if (diffSec < 60) return 'just now';
-  if (diffMin < 60) return `${diffMin} ${diffMin === 1 ? 'minute' : 'minutes'} ago`;
-  if (diffHour < 24) return `${diffHour} ${diffHour === 1 ? 'hour' : 'hours'} ago`;
-  if (diffDay < 7) return `${diffDay} ${diffDay === 1 ? 'day' : 'days'} ago`;
+  if (diffSec < 60) return "just now";
+  if (diffMin < 60)
+    return `${diffMin} ${diffMin === 1 ? "minute" : "minutes"} ago`;
+  if (diffHour < 24)
+    return `${diffHour} ${diffHour === 1 ? "hour" : "hours"} ago`;
+  if (diffDay < 7) return `${diffDay} ${diffDay === 1 ? "day" : "days"} ago`;
 
   // If older than a week, show the date
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 /**
  * Get message styling based on type
  */
-function getMessageStyle(type: MessageType): { bg: string; textColor: string; borderColor: string } {
+function getMessageStyle(type: MessageType): {
+  bg: string;
+  textColor: string;
+  borderColor: string;
+} {
   switch (type) {
-    case 'DM':
+    case "DM":
       return {
-        bg: 'bg-amber-50/30',
-        textColor: 'text-amber-900',
-        borderColor: 'border-amber-200',
+        bg: "bg-amber-50/30",
+        textColor: "text-amber-900",
+        borderColor: "border-amber-200",
       };
-    case 'SYSTEM':
+    case "SYSTEM":
       return {
-        bg: 'bg-moss-green/10',
-        textColor: 'text-moss-green',
-        borderColor: 'border-moss-green/20',
+        bg: "bg-moss-green/10",
+        textColor: "text-moss-green",
+        borderColor: "border-moss-green/20",
       };
-    case 'DICE_ROLL':
+    case "DICE_ROLL":
       return {
-        bg: 'bg-blue-50/30',
-        textColor: 'text-blue-900',
-        borderColor: 'border-blue-200',
+        bg: "bg-blue-50/30",
+        textColor: "text-blue-900",
+        borderColor: "border-blue-200",
       };
-    case 'CHARACTER_ACTION':
+    case "CHARACTER_ACTION":
       return {
-        bg: 'bg-purple-50/30',
-        textColor: 'text-purple-900',
-        borderColor: 'border-purple-200',
+        bg: "bg-purple-50/30",
+        textColor: "text-purple-900",
+        borderColor: "border-purple-200",
       };
     default: // PLAYER
       return {
-        bg: 'bg-parchment/40',
-        textColor: 'text-stone-gray',
-        borderColor: 'border-stone-gray/20',
+        bg: "bg-parchment/40",
+        textColor: "text-stone-gray",
+        borderColor: "border-stone-gray/20",
       };
   }
 }
 
-function ChatMessageInner({ message, isCurrentUser = false, isPending = false }: ChatMessageProps) {
+function ChatMessageInner({
+  message,
+  isCurrentUser = false,
+  isPending = false,
+}: ChatMessageProps) {
   const { bg, textColor, borderColor } = getMessageStyle(message.type);
-  const isSystem = message.type === 'SYSTEM';
-  const isDM = message.type === 'DM';
+  const isSystem = message.type === "SYSTEM";
+  const isDM = message.type === "DM";
+  const actorSpeaker =
+    typeof message.metadata?.speakerName === "string"
+      ? message.metadata.speakerName
+      : null;
 
   // Get display name
   const displayName = isSystem
-    ? 'System'
-    : message.user?.displayName || 'Unknown User';
+    ? "System"
+    : actorSpeaker || message.user?.displayName || "Unknown User";
 
   return (
     <div
       className={`p-3 rounded-lg border ${bg} ${borderColor} transition-all hover:shadow-sm ${
-        isPending ? 'opacity-60' : ''
+        isPending ? "opacity-60" : ""
       }`}
     >
       {/* Message Header */}
       <div className="flex items-center gap-2 mb-1">
         {/* Icon for special message types */}
         {isSystem && <Bot className="w-3.5 h-3.5 text-moss-green" />}
+        {actorSpeaker && <Bot className="w-3.5 h-3.5 text-purple-600" />}
         {isDM && <Shield className="w-3.5 h-3.5 text-amber-600" />}
 
         {/* Username */}
         <span
           className={`text-xs font-semibold ${
             isDM
-              ? 'text-amber-700'
+              ? "text-amber-700"
               : isSystem
-              ? 'text-moss-green'
-              : isCurrentUser
-              ? 'text-moss-green'
-              : 'text-stone-gray'
+                ? "text-moss-green"
+                : isCurrentUser
+                  ? "text-moss-green"
+                  : "text-stone-gray"
           }`}
         >
           {displayName}
-          {isCurrentUser && !isSystem && ' (You)'}
+          {isCurrentUser &&
+            !isSystem &&
+            (actorSpeaker ? " (via You)" : " (You)")}
         </span>
 
         {/* Timestamp / pending indicator */}
         {isPending ? (
           <span className="text-xs text-stone-gray/50 italic">sending…</span>
         ) : (
-          <span className="text-xs text-stone-gray/70" title={message.createdAt ? new Date(message.createdAt).toLocaleString() : 'Unknown time'}>
+          <span
+            className="text-xs text-stone-gray/70"
+            title={
+              message.createdAt
+                ? new Date(message.createdAt).toLocaleString()
+                : "Unknown time"
+            }
+          >
             {formatRelativeTime(message.createdAt)}
           </span>
         )}
@@ -140,21 +168,22 @@ function ChatMessageInner({ message, isCurrentUser = false, isPending = false }:
 
       {/* Metadata (e.g., dice roll results) - hide for internal system actions */}
       {message.metadata &&
-       Object.keys(message.metadata).length > 0 &&
-       message.metadata.action !== 'user.joined' &&
-       message.metadata.action !== 'user.left' &&
-       message.metadata.action !== 'spirit_layer.toggle' &&
-       message.metadata.action !== 'vibe.update' &&
-       message.metadata.action !== 'session.started' &&
-       message.metadata.action !== 'session.paused' &&
-       message.metadata.action !== 'session.ended' &&
-       message.metadata.action !== 'session.resumed' && (
-        <div className="mt-2 pt-2 border-t border-current/10">
-          <pre className="text-xs opacity-70 font-mono">
-            {JSON.stringify(message.metadata, null, 2)}
-          </pre>
-        </div>
-      )}
+        Object.keys(message.metadata).length > 0 &&
+        message.metadata.action !== "user.joined" &&
+        message.metadata.action !== "user.left" &&
+        message.metadata.action !== "spirit_layer.toggle" &&
+        message.metadata.action !== "vibe.update" &&
+        message.metadata.action !== "session.started" &&
+        message.metadata.action !== "session.paused" &&
+        message.metadata.action !== "session.ended" &&
+        message.metadata.action !== "session.resumed" &&
+        !actorSpeaker && (
+          <div className="mt-2 pt-2 border-t border-current/10">
+            <pre className="text-xs opacity-70 font-mono">
+              {JSON.stringify(message.metadata, null, 2)}
+            </pre>
+          </div>
+        )}
     </div>
   );
 }

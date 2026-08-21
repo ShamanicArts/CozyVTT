@@ -24,6 +24,7 @@ import {
   validateJsonSchema,
 } from "../extensions/bridge/JsonSchemaValidator";
 import type { JsonSchema } from "../extensions/contracts";
+import { AgentGameplayError } from "../application/agents/AgentGameplayCommands";
 
 const CONFIRMATION_TTL_MS = 5 * 60_000;
 
@@ -143,7 +144,7 @@ async function buildBindings(
       tool: commandTool(
         toolName("command", command.id),
         command.title,
-        command.description,
+        `${command.description} Operating roles: ${command.operatingRoles.join(", ")}.`,
         command.inputSchema,
         command.risk === "high",
         command.openWorld === true,
@@ -429,6 +430,7 @@ function toolError(message: string): CallToolResult {
 function publicError(error: unknown): string {
   if (error instanceof JsonSchemaValidationError)
     return "Tool input is invalid.";
+  if (error instanceof AgentGameplayError) return error.message;
   if (
     error instanceof Error &&
     /confirmation|idempotency|campaignId|input must/.test(error.message)

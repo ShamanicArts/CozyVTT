@@ -11,6 +11,7 @@ import type {
 import type { ExtensionModule } from "../contracts";
 import { ExtensionRegistry } from "../registry";
 import type { ExtensionLifecycleRegistry } from "./ports";
+import type { CoreApplicationGatewayFactory } from "../core/CoreApplicationGateway";
 
 interface TrustedExtensionCommand extends Command<unknown> {
   readonly type: string;
@@ -31,6 +32,7 @@ export class TrustedRegistryProxy implements ExtensionLifecycleRegistry {
     private readonly registry: ExtensionRegistry,
     private readonly commandBus: CommandBus,
     private readonly bridge: ExtensionCommandBridge,
+    private readonly coreGateway?: CoreApplicationGatewayFactory,
   ) {}
 
   async install(module: ExtensionModule): Promise<unknown> {
@@ -49,7 +51,11 @@ export class TrustedRegistryProxy implements ExtensionLifecycleRegistry {
         if (!execute) throw new Error(`Missing handler for ${descriptor.id}`);
         const type = trustedCommandType(extensionId, descriptor.id);
         const handler: CommandHandler<TrustedExtensionCommand, unknown> = {
-          execute: async (command) => execute(command.input, command.context),
+          execute: async (command) =>
+            execute(command.input, {
+              ...command.context,
+              core: this.coreGateway?.create(extensionId, command.context),
+            }),
         };
         disposers.push(this.commandBus.register(type, handler));
         const binding: CommandBinding = {

@@ -122,6 +122,27 @@ export interface ExtensionCommandExecutionContext {
     readonly kind: "agent" | "user" | "service";
   };
   readonly scope: { readonly campaignId: string };
+  /** Campaign-scoped application capabilities; no transport or database access. */
+  readonly core?: CoreExtensionGateway;
+}
+
+export interface CoreExtensionGateway {
+  listCommands(): Array<{
+    id: string;
+    title: string;
+    description: string;
+    inputSchema: JsonSchema;
+    operatingRoles: readonly ("GM" | "PLAYER" | "NPC" | "SYSTEM")[];
+  }>;
+  dispatch(
+    commandId: string,
+    input: Readonly<Record<string, unknown>>,
+  ): Promise<unknown>;
+  listQueries(): Array<{ id: string; inputSchema: JsonSchema }>;
+  query(
+    queryId: string,
+    input: Readonly<Record<string, unknown>>,
+  ): Promise<unknown>;
 }
 
 export type ExtensionCommandHandler = (

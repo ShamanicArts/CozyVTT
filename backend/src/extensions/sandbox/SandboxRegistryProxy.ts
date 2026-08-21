@@ -11,10 +11,12 @@ import type { ExtensionModule } from "../contracts";
 import type { ExtensionInstallation } from "../host/contracts";
 import { ExtensionRegistry } from "../registry";
 import { NodeBubblewrapSandbox } from "./NodeBubblewrapSandbox";
+import type { CoreApplicationGatewayFactory } from "../core/CoreApplicationGateway";
 
 interface SandboxCommand {
   readonly type: string;
   readonly input: Record<string, unknown>;
+  readonly context: AgentToolInvocationContext;
 }
 
 /** Descriptor-only registration: the module has no lifecycle code and no package import. */
@@ -25,6 +27,7 @@ export class SandboxRegistryProxy {
     private readonly commandBus: CommandBus,
     private readonly bridge: ExtensionCommandBridge,
     private readonly sandbox: NodeBubblewrapSandbox,
+    private readonly coreGateway?: CoreApplicationGatewayFactory,
   ) {}
   async activate(installation: ExtensionInstallation): Promise<void> {
     const manifest = installation.packageManifest.manifest;
@@ -36,8 +39,8 @@ export class SandboxRegistryProxy {
       const type = `sandbox.${manifest.id}.${descriptor.id}`;
       disposers.push(
         this.commandBus.register(type, {
-          execute: async (command: SandboxCommand) =>
-            this.sandbox.invoke({
+          execute: async (command: SandboxCommand) => {
+            const response = await this.sandbox.invokeWithCoreActions({
               extensionId: installation.extensionId,
               packagePath: installation.packagePath,
               checksum: installation.packageChecksum,
@@ -45,15 +48,29 @@ export class SandboxRegistryProxy {
               params: { commandId: descriptor.id, input: command.input },
               inputSchema: { type: "object" },
               outputSchema: descriptor.outputSchema,
-            }),
+            });
+            if (response.coreActions.length) {
+              if (!this.coreGateway) {
+                throw new Error("Sandbox core gateway is unavailable");
+              }
+              const gateway = this.coreGateway.create(
+                installation.extensionId,
+                command.context,
+              );
+              for (const action of response.coreActions) {
+                await gateway.dispatch(action.commandId, action.input);
+              }
+            }
+            return response.result;
+          },
         } as CommandHandler<SandboxCommand, unknown>),
       );
       const binding: CommandBinding = {
         commandId: descriptor.id,
         createCommand: (
           input: Record<string, unknown>,
-          _context: AgentToolInvocationContext,
-        ) => ({ type, input }),
+          context: AgentToolInvocationContext,
+        ) => ({ type, input, context }),
       };
       disposers.push(this.bridge.registerBinding(binding));
     }

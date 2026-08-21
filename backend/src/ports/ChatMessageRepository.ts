@@ -1,4 +1,7 @@
-import { ChatMessageType, PersistedChatMessage } from '../domain/chat/ChatMessage';
+import {
+  ChatMessageType,
+  PersistedChatMessage,
+} from "../domain/chat/ChatMessage";
 
 /** Persistence boundary for chat commands. */
 export interface ChatMessageRepository {
@@ -12,5 +15,6 @@ export interface ChatMessageRepository {
     userId: string;
     type: ChatMessageType;
     content: string;
+    metadata?: Record<string, unknown>;
   }): Promise<PersistedChatMessage>;
 }

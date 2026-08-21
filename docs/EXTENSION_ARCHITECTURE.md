@@ -132,6 +132,21 @@ audit boundaries. MCP is mounted at `/api/mcp`; tool discovery includes the
 finite core catalogue and active local extension tools. Neither transport is an
 arbitrary HTTP proxy, database accessor, shell tool, or raw Socket.IO capability.
 
+The built-in catalogue treats agents as campaign participants rather than
+automation scripts. Player, NPC, GM, and system-oriented tools cover actor and
+character creation/control, in-world speech and dice, HP/state changes,
+initiative, map activation/import, scene fog/walls/lights, atmosphere/audio/
+vibe, and session lifecycle. The delegated campaign role remains authoritative.
+These core tools execute after the one-time OAuth connection without routine
+per-action confirmation prompts.
+
+Installed packages can compose those same capabilities. A trusted handler gets
+a campaign-scoped `context.core` gateway for catalogue discovery, commands,
+and queries. A sandboxed handler may return a bounded `coreActions` list; the
+host validates and dispatches each action through the same gateway after the
+sandbox exits. Neither mode receives Prisma, Express, Socket.IO, or an ambient
+network/database handle.
+
 ## Frontend contributions
 
 The renderer host is per map canvas and supports controlled terrain, token,
@@ -154,17 +169,19 @@ lifecycle, and advanced non-user service grants. MCP users need none of those
 grants. The panel deliberately presents trust/risk information and is
 not a package registry or publishing workflow.
 
-## Remaining boundaries
+## Deliberate boundaries and remaining limits
 
-- A single command/query host shared by core, installed extensions, REST,
-  Socket.IO, jobs, and agents.
+- Core and extension runtimes remain separate on purpose. The explicit core
+  gateway is the composition port between them; merging buses would weaken the
+  isolation boundary and is not a migration objective.
 - Packages remain operator-controlled files below `EXTENSION_PACKAGE_ROOT`.
   There is intentionally no remote store, publishing workflow, or marketplace.
   Upgrade/rollback and extension-owned data migrations are still absent.
 - Trusted renderer modules can extend or replace named map layers, but there is
   no general React component/route injection, arbitrary CSS, or iframe plugin UI.
-- MCP exposes the finite application query/command catalogues; it is not a
-  generic resource mirror. Persistent sandbox workers and richer
+- MCP exposes the finite application query/command catalogues rather than a
+  generic resource mirror. Initiative state is still process-memory state and
+  resets on a backend restart. Persistent sandbox workers and richer
   resource/observability controls remain absent.
 
 New work should extend explicit ports and versioned contracts, preserve the

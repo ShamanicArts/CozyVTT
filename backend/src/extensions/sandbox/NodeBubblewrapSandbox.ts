@@ -13,6 +13,7 @@ import {
   parseSandboxResponse,
   type SandboxRequest,
   type SandboxResponse,
+  type SandboxCoreAction,
 } from "./protocol";
 
 const MAX_STDOUT_BYTES = 1_048_576;
@@ -50,6 +51,18 @@ export class NodeBubblewrapSandbox {
     inputSchema: JsonSchema;
     outputSchema: JsonSchema;
   }): Promise<unknown> {
+    return (await this.invokeWithCoreActions(input)).result;
+  }
+
+  async invokeWithCoreActions(input: {
+    extensionId: string;
+    packagePath: string;
+    checksum: string;
+    method: SandboxRequest["method"];
+    params: Record<string, unknown>;
+    inputSchema: JsonSchema;
+    outputSchema: JsonSchema;
+  }): Promise<{ result: unknown; coreActions: SandboxCoreAction[] }> {
     if (this.running >= this.maxConcurrent)
       throw new SandboxExecutionError("Sandbox capacity is exhausted");
     this.running += 1;
@@ -70,7 +83,10 @@ export class NodeBubblewrapSandbox {
       if (!response.ok)
         throw new SandboxExecutionError("Sandbox command failed");
       validateJsonSchema(input.outputSchema, response.result);
-      return response.result;
+      return {
+        result: response.result,
+        coreActions: response.coreActions ?? [],
+      };
     } finally {
       this.running -= 1;
     }

@@ -1,4 +1,3 @@
-import { Server } from "socket.io";
 import logger from "../utils/logger";
 import { productionCommandBus } from "../composition/productionApplicationHost";
 import {
@@ -6,6 +5,14 @@ import {
   CreateSystemMessage,
   CreateSystemMessageCommand,
 } from "../application/chat/SystemMessageCommands";
+import { getSocketInstance } from "./socketInstance";
+
+export {
+  broadcastToCampaign,
+  broadcastToUser,
+  getSocketInstance,
+  setSocketInstance,
+} from "./socketInstance";
 
 const systemMessageCommands = productionCommandBus;
 
@@ -13,55 +20,6 @@ const systemMessageCommands = productionCommandBus;
  * WebSocket Utility Functions
  * WebSocket Event Specification
  */
-
-let ioInstance: Server | null = null;
-
-/**
- * Store the Socket.io instance for use in utility functions
- */
-export function setSocketInstance(io: Server): void {
-  ioInstance = io;
-}
-
-/**
- * Get the Socket.io instance
- */
-export function getSocketInstance(): Server {
-  if (!ioInstance) {
-    throw new Error("Socket.io instance not initialized");
-  }
-  return ioInstance;
-}
-
-/**
- * Broadcast an event to all members of a campaign
- * @param campaignId - Campaign ID
- * @param event - Event name
- * @param data - Event data
- */
-export function broadcastToCampaign(
-  campaignId: string,
-  event: string,
-  data: any,
-): void {
-  const io = getSocketInstance();
-  io.to(campaignId).emit(event, data);
-}
-
-/**
- * Broadcast an event to a specific user (all their connected sockets)
- * @param userId - User ID
- * @param event - Event name
- * @param data - Event data
- */
-export function broadcastToUser(
-  userId: string,
-  event: string,
-  data: any,
-): void {
-  const io = getSocketInstance();
-  io.to(userId).emit(event, data);
-}
 
 /**
  * Get all sockets in a campaign room
