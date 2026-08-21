@@ -32,6 +32,8 @@ const supportedKeywords = new Set([
   "maximum",
   "minItems",
   "maxItems",
+  "minProperties",
+  "maxProperties",
 ]);
 
 function validate(
@@ -138,6 +140,18 @@ function validateObject(
   issues: string[],
   depth: number,
 ): void {
+  const propertyCount = Object.keys(value).length;
+  if (
+    typeof schema.minProperties === "number" &&
+    propertyCount < schema.minProperties
+  )
+    issues.push(`${path}: has fewer than minProperties`);
+  if (
+    typeof schema.maxProperties === "number" &&
+    propertyCount > schema.maxProperties
+  )
+    issues.push(`${path}: has more than maxProperties`);
+
   const properties = isPlainObject(schema.properties) ? schema.properties : {};
   const required = Array.isArray(schema.required)
     ? schema.required.filter((key): key is string => typeof key === "string")

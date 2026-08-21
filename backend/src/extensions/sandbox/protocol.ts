@@ -10,7 +10,13 @@ export interface SandboxResponse {
   id: string;
   ok: boolean;
   result?: unknown;
+  /** Declarative calls into the campaign-scoped core gateway. */
+  coreActions?: SandboxCoreAction[];
   error?: { code: string; message: string };
+}
+export interface SandboxCoreAction {
+  commandId: string;
+  input: Record<string, unknown>;
 }
 export class SandboxProtocolError extends Error {
   constructor(message: string) {
@@ -33,11 +39,25 @@ export function parseSandboxResponse(value: unknown): SandboxResponse {
       typeof value.error.message !== "string")
   )
     throw new SandboxProtocolError("Invalid sandbox error response");
+  if (
+    value.coreActions !== undefined &&
+    (!Array.isArray(value.coreActions) ||
+      value.coreActions.length > 32 ||
+      value.coreActions.some(
+        (action) =>
+          !isRecord(action) ||
+          typeof action.commandId !== "string" ||
+          !isRecord(action.input),
+      ))
+  ) {
+    throw new SandboxProtocolError("Invalid sandbox core actions");
+  }
   return {
     version: SANDBOX_PROTOCOL_VERSION,
     id: value.id,
     ok: value.ok,
     result: value.result,
+    coreActions: value.coreActions as SandboxCoreAction[] | undefined,
     error: value.ok
       ? undefined
       : {

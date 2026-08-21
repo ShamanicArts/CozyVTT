@@ -110,11 +110,11 @@ refresh tokens are hash-only at rest and are never copied by the user.
 Core agent commands are discovered and executed through
 `productionApplicationHost`. They are campaign-scoped and use the approving
 user's existing campaign role rather than a duplicate administrator grant.
-Write commands require idempotency. An agent may create a pending confirmation,
-but only the delegated user's authenticated session can approve or deny it.
-The client retries with the same confirmation ID after approval; the ID is
-bound to credential, user, campaign, extension, command, and input digest and
-is consumed once. The human never relays a receipt or secret.
+Write commands require idempotency. Built-in play, GM, and system tools do not
+require per-action confirmation after the user completes the one-time OAuth
+connection. The confirmation primitive remains available for an installed
+extension that explicitly declares an exceptional action, but it is not an
+ordinary MCP setup or gameplay step.
 
 `map.import-remote` is a concrete end-to-end example of this boundary. MCP
 injects the OAuth-bound campaign scope, the application command authorizes the
@@ -127,6 +127,16 @@ The route can also list and invoke active extension tools through the extension
 bridge. That bridge has separate runtime bindings and policy/audit
 adapters, so it is not a general escape hatch to arbitrary REST, Socket.IO,
 database, shell, or network access.
+
+The agent catalogue now provides first-class player, NPC, GM, and system
+operations: character and actor creation/control; actor speech and dice;
+character/token HP and state; initiative; current-map selection and remote map
+ingress; fog, walls, lights, and lighting; atmosphere/audio/vibe; and campaign
+session lifecycle. Mutations reuse the production command handlers and publish
+their normal live events. Trusted packages receive a scoped `context.core`
+command/query gateway. Sandboxed packages return a bounded declarative
+`coreActions` list which the host validates and dispatches through that same
+gateway, without importing sandboxed code into the server.
 
 The Streamable HTTP adapter exposes the finite production query catalogue and
 dispatches core and active local-extension writes through their existing
@@ -225,9 +235,9 @@ snapshot.
 
 ## Remaining limits and non-goals
 
-- The core and installed-extension command runtimes are separate. A future
-  shared command/query host needs a deliberate binding and authorization model
-  rather than an implicit bridge between their buses.
+- The core and installed-extension runtimes are deliberately separate. Their
+  completed, explicit composition boundary is the campaign-scoped core gateway;
+  a unified bus is not a migration goal.
 - The agent surface has an explicit read-only query catalogue and MCP endpoint.
   A remote package store/marketplace is intentionally not part of the design;
   package upgrade/rollback and extension migration workflows remain absent.
@@ -247,6 +257,8 @@ snapshot.
 - Executable browser rendering is limited to explicitly trusted local packages;
   it is not available to sandboxed packages. There is no frontend code sandbox,
   arbitrary CSS contribution, route/component injection, or iframe plugin UI.
+- Initiative combat state remains in process memory, so a backend restart
+  clears an active tracker even though map actors and persisted rolls remain.
 
 ## Evidence and verification
 

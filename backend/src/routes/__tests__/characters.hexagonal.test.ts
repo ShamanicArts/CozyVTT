@@ -23,7 +23,7 @@ jest.mock('../../middleware/compose', () => ({
   authenticated: (_req: express.Request, _res: express.Response, next: express.NextFunction) => next(),
 }));
 
-jest.mock('../../websocket/utils', () => ({ broadcastToCampaign }));
+jest.mock('../../websocket/socketInstance', () => ({ broadcastToCampaign }));
 
 import characterRoutes from '../characters';
 

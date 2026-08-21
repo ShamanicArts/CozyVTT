@@ -20,6 +20,9 @@ import {
   SandboxRegistryProxy,
   SandboxedExtensionSupervisor,
 } from "../extensions/sandbox";
+import { CoreApplicationGatewayFactory } from "../extensions/core/CoreApplicationGateway";
+import { productionApplicationHost } from "./productionApplicationHost";
+import { productionQueryHost } from "./productionQueryHost";
 
 class DurableBridgePolicy implements ExtensionPolicyPort {
   public constructor(private readonly access: PrismaAgentAccessRepository) {}
@@ -30,12 +33,12 @@ class DurableBridgePolicy implements ExtensionPolicyPort {
     );
     const allowed = Boolean(
       credential &&
-        (await this.access.activeCredentialDelegates({
-          credentialId: credential.id,
-          delegatedUserId: credential.delegatedUserId,
-          campaignId: check.scope.campaignId,
-          now: new Date(),
-        })),
+      (await this.access.activeCredentialDelegates({
+        credentialId: credential.id,
+        delegatedUserId: credential.delegatedUserId,
+        campaignId: check.scope.campaignId,
+        now: new Date(),
+      })),
     );
     return { allowed, missing: allowed ? [] : [...check.permissions] };
   }
@@ -91,9 +94,25 @@ export function productionExtensionRuntime(): ProductionExtensionRuntime {
     [],
   );
   const catalog = new LocalExtensionPackageCatalog(root);
+  const coreGateway = new CoreApplicationGatewayFactory(
+    productionApplicationHost,
+    productionQueryHost,
+    new PrismaAgentAccessRepository(prisma),
+  );
   const sandbox = new NodeBubblewrapSandbox(catalog);
-  const proxy = new SandboxRegistryProxy(registry, bus, bridge, sandbox);
-  const trustedRegistry = new TrustedRegistryProxy(registry, bus, bridge);
+  const proxy = new SandboxRegistryProxy(
+    registry,
+    bus,
+    bridge,
+    sandbox,
+    coreGateway,
+  );
+  const trustedRegistry = new TrustedRegistryProxy(
+    registry,
+    bus,
+    bridge,
+    coreGateway,
+  );
   const supervisor = new SandboxedExtensionSupervisor(sandbox);
   const lifecycle = {
     activate: async (installation: Parameters<typeof proxy.activate>[0]) => {

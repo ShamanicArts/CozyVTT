@@ -63,11 +63,12 @@ grants. They run as the same delegated campaign member through the extension
 bridge and remain constrained by their manifest, command binding, sandbox or
 trusted execution mode, and the application's domain authorization.
 
-Arguments cannot change the selected campaign. Writes use idempotency keys. A
-genuinely sensitive operation can pause and return a `confirmationId`; CozyVTT
-shows the pending action to the delegated user. After one click on **Approve**,
-the client retries with the same ID. No approval receipt or secret is copied
-between the browser and the agent.
+Arguments cannot change the selected campaign. Writes use idempotency keys.
+Built-in campaign tools do not impose per-action approval prompts: the one-time
+OAuth connection and the delegated user's existing campaign role are the
+authorization. The confirmation protocol remains available to an explicitly
+installed extension that declares a genuinely exceptional operation, but it is
+not part of ordinary MCP play or GMing.
 
 Audit records contain identities, decisions, and canonical input digests—not
 OAuth credentials, raw command input, or result payloads.
@@ -86,3 +87,29 @@ most four redirects, enforces a size limit and timeout, checks the downloaded
 file signature, and compensates partial asset/map/file writes on failure. The
 command uses the approving user's normal campaign role and does not require a
 separate administrator grant or per-call confirmation.
+
+## First-class campaign roles
+
+MCP and the sibling JSON agent API expose the same typed application tools.
+They are not browser macros and do not simulate clicks.
+
+- A **player agent** can create a real character, place a self-controlled
+  player actor, move and update actors it controls, adjust its character HP,
+  speak in character, roll dice, and read the campaign state available to that
+  player.
+- An **NPC agent** is represented by a controlled map actor. It can move,
+  change state, speak under the NPC's name, and make public or secret rolls.
+  Audit data still records the delegated human/service identity behind it.
+- A **GM agent** can create and control player or NPC actors, run initiative,
+  activate or import maps, manage fog/walls/lights, set atmosphere/audio/vibe,
+  and start, pause, resume, or end sessions.
+- A **system agent** uses the same explicit GM/system application tools for
+  orchestration. It does not receive a raw database, shell, HTTP, or Socket.IO
+  escape hatch.
+
+Every successful mutation publishes the same campaign events as the human UI
+path, so connected human players see agent actions live. The public catalogue
+is also available to locally installed extensions: trusted extensions call the
+campaign-scoped `context.core` gateway, while sandboxed extensions return
+bounded declarative `coreActions`. Both paths resolve to these same application
+handlers and campaign-role checks.

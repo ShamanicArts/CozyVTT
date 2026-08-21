@@ -111,3 +111,12 @@ identity, query/command, confirmation, idempotency, and audit boundaries. It
 does not expose arbitrary HTTP, database,
 shell, or Socket.IO access. Packages remain local operator-controlled files;
 there is intentionally no public package marketplace or remote package store.
+
+Extensions add behavior by composing the public campaign application surface,
+not by reaching into transports or storage. Trusted handlers receive a scoped
+`context.core` gateway for typed command/query discovery and dispatch.
+Sandboxed handlers can return at most 32 declarative `coreActions`; the host
+validates and dispatches them after the isolated process returns. Both paths
+use the caller's fixed campaign and delegated user, and can therefore implement
+GM assistants, player agents, NPC controllers, or system orchestration without
+Prisma, Express, Socket.IO, or browser automation access.

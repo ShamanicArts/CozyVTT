@@ -1,5 +1,5 @@
 import { CampaignRealtimeEventPublisher } from "../../ports/CampaignRealtimeEventPublisher";
-import { broadcastToCampaign } from "../../websocket/utils";
+import { broadcastToCampaign } from "../../websocket/socketInstance";
 
 /** Socket.IO adapter for public campaign-realtime command events. */
 export class WebsocketCampaignRealtimeEventPublisher implements CampaignRealtimeEventPublisher {

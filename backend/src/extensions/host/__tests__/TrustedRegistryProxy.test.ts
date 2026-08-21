@@ -5,6 +5,11 @@ import { InMemoryAgentToolAudit } from "../../bridge/contracts";
 import type { ExtensionManifest, ExtensionModule } from "../../contracts";
 import { ExtensionRegistry } from "../../registry";
 import { TrustedRegistryProxy } from "../TrustedRegistryProxy";
+import { CoreApplicationGatewayFactory } from "../../core/CoreApplicationGateway";
+import { ApplicationHost } from "../../../composition/ApplicationHost";
+import { QueryHost } from "../../../application/queries/QueryHost";
+import { AGENT_SET_ATMOSPHERE_EFFECT } from "../../../application/agents/AgentGmCommands";
+import type { AgentAccessRepository } from "../../../ports/AgentAccessRepository";
 
 const manifest: ExtensionManifest = {
   manifestVersion: "1.0",
@@ -134,5 +139,71 @@ describe("TrustedRegistryProxy", () => {
         },
       }),
     ).rejects.toThrow("undeclared: undeclared.command");
+  });
+
+  it("lets trusted plugin code compose public core actions without transport access", async () => {
+    const registry = new ExtensionRegistry();
+    const bus = new CommandBus();
+    const policy = new InMemoryExtensionPolicy([
+      {
+        principalId: "agent-1",
+        campaignId: "campaign-1",
+        extensionId: manifest.id,
+        permissions: ["campaign.write"],
+      },
+    ]);
+    const bridge = new ExtensionCommandBridge(
+      registry,
+      bus,
+      policy,
+      new InMemoryAgentToolAudit(),
+      [],
+    );
+    const application = new ApplicationHost();
+    const setEffect = jest.fn(async () => "mist");
+    application.register({
+      metadata: {
+        id: AGENT_SET_ATMOSPHERE_EFFECT,
+        version: "1",
+        risk: "MEDIUM",
+        permissions: ["WRITE", "EXECUTE"],
+      },
+      execute: setEffect,
+    });
+    const core = new CoreApplicationGatewayFactory(
+      application,
+      new QueryHost(),
+      {
+        findCredentialById: async () => ({
+          id: "agent-1",
+          delegatedUserId: "dm-1",
+          campaignId: "campaign-1",
+        }),
+      } as unknown as AgentAccessRepository,
+    );
+    const proxy = new TrustedRegistryProxy(registry, bus, bridge, core);
+    await proxy.install({
+      manifest,
+      commandHandlers: {
+        "trusted.note.create": async (input, context) => {
+          await context.core!.dispatch(AGENT_SET_ATMOSPHERE_EFFECT, {
+            effect: "mist",
+          });
+          return { note: input.note, campaignId: context.scope.campaignId };
+        },
+      },
+    });
+    await proxy.activate(manifest.id);
+
+    await bridge.invoke({
+      principal: { id: "agent-1", kind: "agent" },
+      scope: { campaignId: "campaign-1" },
+      toolId: "trusted_note_create",
+      input: { note: "Call the mist" },
+    });
+    expect(setEffect).toHaveBeenCalledWith(
+      { effect: "mist", campaignId: "campaign-1" },
+      expect.objectContaining({ delegatedIdentity: "dm-1" }),
+    );
   });
 });

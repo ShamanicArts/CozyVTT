@@ -191,6 +191,68 @@ import { LegacyCampaignArchiveService } from "../adapters/campaignArchives/Legac
 import { PrismaCreatureRepository } from "../adapters/persistence/PrismaCreatureRepository";
 import { PrismaUserMutationRepository } from "../adapters/persistence/PrismaUserMutationRepository";
 import { PrismaUvttMapImportRepository } from "../adapters/persistence/PrismaUvttMapImportRepository";
+import { PrismaAgentGameplayMembership } from "../adapters/persistence/PrismaAgentGameplayMembership";
+import { WebsocketAgentGameplayEventPublisher } from "../adapters/events/WebsocketAgentGameplayEventPublisher";
+import {
+  AGENT_ADD_TO_COMBAT,
+  AGENT_ADJUST_CHARACTER_HP,
+  AGENT_CREATE_CHARACTER,
+  AGENT_END_COMBAT,
+  AGENT_MOVE_ACTOR,
+  AGENT_NEXT_TURN,
+  AGENT_REMOVE_FROM_COMBAT,
+  AGENT_ROLL_AS_ACTOR,
+  AGENT_SPAWN_ACTOR,
+  AGENT_SPEAK_AS_ACTOR,
+  AGENT_START_COMBAT,
+  AGENT_UPDATE_ACTOR,
+  AddAgentCombatant,
+  AdjustAgentCharacterHp,
+  CreateAgentCharacter,
+  EndAgentCombat,
+  MoveAgentActor,
+  NextAgentTurn,
+  RemoveAgentCombatant,
+  RollAsAgentActor,
+  SpawnAgentActor,
+  SpeakAsAgentActor,
+  StartAgentCombat,
+  UpdateAgentActor,
+} from "../application/agents/AgentGameplayCommands";
+import {
+  AGENT_ACTIVATE_MAP,
+  AGENT_ADD_LIGHT,
+  AGENT_ADD_WALL,
+  AGENT_APPLY_FOG,
+  AGENT_END_SESSION,
+  AGENT_PAUSE_SESSION,
+  AGENT_REMOVE_LIGHT,
+  AGENT_REMOVE_WALL,
+  AGENT_RESUME_SESSION,
+  AGENT_SET_ATMOSPHERE_AUDIO,
+  AGENT_SET_ATMOSPHERE_EFFECT,
+  AGENT_SET_LIGHTING,
+  AGENT_SET_VIBE,
+  AGENT_START_SESSION,
+  AGENT_UPDATE_LIGHT,
+  AGENT_UPDATE_WALL,
+  ActivateAgentMap,
+  AddAgentLight,
+  AddAgentWall,
+  ApplyAgentFog,
+  EndAgentSession,
+  PauseAgentSession,
+  RemoveAgentLight,
+  RemoveAgentWall,
+  ResumeAgentSession,
+  SetAgentAtmosphereAudio,
+  SetAgentAtmosphereEffect,
+  SetAgentLighting,
+  SetAgentVibe,
+  StartAgentSession,
+  UpdateAgentLight,
+  UpdateAgentWall,
+} from "../application/agents/AgentGmCommands";
 
 /** Single process-wide handler graph for commands shared by HTTP and Socket.IO. */
 export const productionCommandBus = new CommandBus();
@@ -662,6 +724,136 @@ productionCommandBus.register(
 productionCommandBus.register(
   Admin.RESTORE_ADMIN_BACKUP,
   new Admin.RestoreAdminBackup(adminRepository, adminRepository, adminBackups),
+);
+
+// Agent-facing orchestration is deliberately another application adapter over
+// the same handlers humans use. It adds role-shaped convenience and live
+// publication without duplicating token/chat/dice/initiative rules.
+const agentMemberships = new PrismaAgentGameplayMembership(transactionalPrisma);
+const agentEvents = new WebsocketAgentGameplayEventPublisher();
+productionCommandBus.register(
+  AGENT_SPAWN_ACTOR,
+  new SpawnAgentActor(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_UPDATE_ACTOR,
+  new UpdateAgentActor(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_MOVE_ACTOR,
+  new MoveAgentActor(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_SPEAK_AS_ACTOR,
+  new SpeakAsAgentActor(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_ROLL_AS_ACTOR,
+  new RollAsAgentActor(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_ADJUST_CHARACTER_HP,
+  new AdjustAgentCharacterHp(
+    productionCommandBus,
+    agentMemberships,
+    agentEvents,
+  ),
+);
+productionCommandBus.register(
+  AGENT_CREATE_CHARACTER,
+  new CreateAgentCharacter(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_ADD_TO_COMBAT,
+  new AddAgentCombatant(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_REMOVE_FROM_COMBAT,
+  new RemoveAgentCombatant(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_START_COMBAT,
+  new StartAgentCombat(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_NEXT_TURN,
+  new NextAgentTurn(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_END_COMBAT,
+  new EndAgentCombat(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_ACTIVATE_MAP,
+  new ActivateAgentMap(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_ADD_WALL,
+  new AddAgentWall(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_UPDATE_WALL,
+  new UpdateAgentWall(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_REMOVE_WALL,
+  new RemoveAgentWall(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_APPLY_FOG,
+  new ApplyAgentFog(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_ADD_LIGHT,
+  new AddAgentLight(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_UPDATE_LIGHT,
+  new UpdateAgentLight(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_REMOVE_LIGHT,
+  new RemoveAgentLight(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_SET_LIGHTING,
+  new SetAgentLighting(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_SET_ATMOSPHERE_EFFECT,
+  new SetAgentAtmosphereEffect(
+    productionCommandBus,
+    agentMemberships,
+    agentEvents,
+  ),
+);
+productionCommandBus.register(
+  AGENT_SET_ATMOSPHERE_AUDIO,
+  new SetAgentAtmosphereAudio(
+    productionCommandBus,
+    agentMemberships,
+    agentEvents,
+  ),
+);
+productionCommandBus.register(
+  AGENT_SET_VIBE,
+  new SetAgentVibe(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_START_SESSION,
+  new StartAgentSession(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_PAUSE_SESSION,
+  new PauseAgentSession(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_RESUME_SESSION,
+  new ResumeAgentSession(productionCommandBus, agentMemberships, agentEvents),
+);
+productionCommandBus.register(
+  AGENT_END_SESSION,
+  new EndAgentSession(productionCommandBus, agentMemberships, agentEvents),
 );
 
 /** Catalog facade delegates to the exact shared CommandBus handlers. */

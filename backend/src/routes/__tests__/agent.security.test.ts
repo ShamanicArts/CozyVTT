@@ -37,6 +37,7 @@ jest.mock("../../config/database", () => ({
     outboxEvent: { create: outboxCreate },
     $transaction: async (work: (transaction: unknown) => Promise<unknown>) =>
       work({
+        campaignMembership: { findUnique: membershipFindUnique },
         campaign: { findUnique: vibeFindUnique, update: campaignUpdate },
         extensionGrant: { findFirst: grantFindFirst },
         agentAuditRecord: { create: auditCreate },
@@ -50,6 +51,12 @@ jest.mock("../../config/database", () => ({
 }));
 
 jest.mock("../../websocket/utils", () => ({ broadcastToCampaign }));
+jest.mock("../../websocket/socketInstance", () => ({
+  broadcastToCampaign,
+  broadcastToUser: jest.fn(),
+  getSocketInstance: jest.fn(),
+  setSocketInstance: jest.fn(),
+}));
 
 import agentRoutes from "../agent";
 
@@ -80,7 +87,7 @@ describe("agent HTTP adapter", () => {
       expiresAt: null,
       revokedAt: null,
     });
-    membershipFindUnique.mockResolvedValue({ userId: "user-1" });
+    membershipFindUnique.mockResolvedValue({ userId: "user-1", role: "DM" });
     credentialUpdate.mockResolvedValue({ id: "credential-1" });
     idempotencyCreate.mockResolvedValue({ id: "key-1" });
     idempotencyUpdate.mockResolvedValue({ id: "key-1" });
@@ -109,60 +116,30 @@ describe("agent HTTP adapter", () => {
     expect(catalog.body.commands).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: "campaign.atmosphere.effect.set",
+          id: "agent.atmosphere.effect.set",
           extensionId: "cozyvtt.core-agent",
+        }),
+        expect.objectContaining({
+          id: "agent.actor.spawn",
+          extensionId: "cozyvtt.core-agent",
+          confirmationRequired: false,
         }),
       ]),
     );
   });
 
-  it("separates agent request from human approval and consumes the approved confirmation ID once", async () => {
+  it("executes core controls immediately after connection without per-action approval", async () => {
     grantFindFirst.mockResolvedValue({ id: "grant-1" });
-    confirmationCreate.mockResolvedValue({
-      id: "confirmation-1",
-      expiresAt: new Date("2026-08-20T12:05:00.000Z"),
-    });
-    const pending = await request(app())
-      .post("/api/agent/campaigns/campaign-1/confirmations")
-      .set(bearer)
-      .send({
-        commandId: "campaign.atmosphere.effect.set",
-        input: { effect: "rain" },
-      });
-    expect(pending.status).toBe(202);
-    expect(pending.body.receipt).toBeUndefined();
-
-    confirmationUpdateMany.mockResolvedValueOnce({ count: 1 });
-    const approval = await request(app()).post(
-      "/api/agent/confirmations/confirmation-1/approve",
-    );
-    expect(approval.status).toBe(200);
-    expect(approval.body).toEqual({ approved: true });
-    expect(approval.body.receipt).toBeUndefined();
-
-    confirmationUpdateMany.mockResolvedValueOnce({ count: 0 });
-    const changedInput = await request(app())
-      .post(
-        "/api/agent/campaigns/campaign-1/commands/campaign.atmosphere.effect.set",
-      )
-      .set(bearer)
-      .set("Idempotency-Key", "idem-key-1")
-      .set("X-Agent-Confirmation", "confirmation-1")
-      .send({ input: { effect: "mist" } });
-    expect(changedInput.status).toBe(409);
-
-    confirmationUpdateMany.mockResolvedValueOnce({ count: 1 });
     const accepted = await request(app())
       .post(
-        "/api/agent/campaigns/campaign-1/commands/campaign.atmosphere.effect.set",
+        "/api/agent/campaigns/campaign-1/commands/agent.atmosphere.effect.set",
       )
       .set(bearer)
       .set("Idempotency-Key", "idem-key-1")
-      .set("X-Agent-Confirmation", "confirmation-1")
       .send({ input: { effect: "rain" } });
     expect(accepted.status).toBe(200);
     expect(accepted.body).toEqual({
-      commandId: "campaign.atmosphere.effect.set",
+      commandId: "agent.atmosphere.effect.set",
       result: "rain",
     });
     expect(broadcastToCampaign).toHaveBeenCalledTimes(1);
@@ -181,16 +158,8 @@ describe("agent HTTP adapter", () => {
       }),
     );
 
-    confirmationUpdateMany.mockResolvedValueOnce({ count: 0 });
-    const replay = await request(app())
-      .post(
-        "/api/agent/campaigns/campaign-1/commands/campaign.atmosphere.effect.set",
-      )
-      .set(bearer)
-      .set("Idempotency-Key", "idem-key-2")
-      .set("X-Agent-Confirmation", "confirmation-1")
-      .send({ input: { effect: "rain" } });
-    expect(replay.status).toBe(409);
+    expect(confirmationCreate).not.toHaveBeenCalled();
+    expect(confirmationUpdateMany).not.toHaveBeenCalled();
   });
 
   it("lists and executes a membership-authorized campaign query without confirmation or idempotency", async () => {
@@ -212,7 +181,7 @@ describe("agent HTTP adapter", () => {
       .set(bearer);
     expect(catalog.body.commands).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: "campaign.atmosphere.effect.set" }),
+        expect.objectContaining({ id: "agent.atmosphere.effect.set" }),
       ]),
     );
     expect(catalog.body.queries).toEqual(

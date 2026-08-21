@@ -137,6 +137,7 @@ router.get("/campaigns/:campaignId/catalog", async (req, res) => {
         risk: command.risk,
         confirmationRequired: command.requiresConfirmation,
         idempotencyRequired: command.write,
+        operatingRoles: command.operatingRoles,
       })),
       ...sandboxTools,
     ],

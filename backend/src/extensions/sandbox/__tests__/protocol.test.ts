@@ -25,4 +25,31 @@ describe("sandbox NDJSON protocol", () => {
       }),
     ).toThrow(SandboxProtocolError);
   });
+
+  it("accepts bounded declarative core actions and rejects malformed ones", () => {
+    expect(
+      parseSandboxResponse({
+        version: SANDBOX_PROTOCOL_VERSION,
+        id: "call-2",
+        ok: true,
+        result: { planned: true },
+        coreActions: [
+          {
+            commandId: "agent.actor.move",
+            input: { mapId: "map-1", tokenId: "npc-1", x: 4, y: 5 },
+          },
+        ],
+      }).coreActions,
+    ).toEqual([
+      expect.objectContaining({ commandId: "agent.actor.move" }),
+    ]);
+    expect(() =>
+      parseSandboxResponse({
+        version: SANDBOX_PROTOCOL_VERSION,
+        id: "call-3",
+        ok: true,
+        coreActions: [{ commandId: "agent.actor.move", input: "bad" }],
+      }),
+    ).toThrow(SandboxProtocolError);
+  });
 });
