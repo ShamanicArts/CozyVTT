@@ -101,7 +101,7 @@ export default function ConnectedPluginsPanel() {
         </Button>
       </div>
 
-      {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && <p role="alert" className="rounded-lg border border-danger/30 bg-danger/10 p-3 text-sm text-danger-ink">{error}</p>}
 
       <div className="space-y-3">
         <div className="flex items-center gap-2">

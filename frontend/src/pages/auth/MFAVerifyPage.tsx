@@ -140,7 +140,7 @@ export default function MFAVerifyPage() {
           <div className="flex justify-center mb-4">
             <div className="bg-moss-green/10 rounded-full p-3">
               <svg
-                className="w-8 h-8 text-moss-green"
+                className="w-8 h-8 text-brand-ink"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -154,7 +154,7 @@ export default function MFAVerifyPage() {
               </svg>
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-moss-green font-heading">
+          <h1 className="text-3xl font-bold text-brand-ink font-heading">
             Two-Factor Authentication
           </h1>
           <p className="mt-2 text-sm text-warm-gray">
@@ -177,7 +177,7 @@ export default function MFAVerifyPage() {
             <div>
               <label
                 htmlFor="token"
-                className="block text-sm font-medium text-moss-green mb-1"
+                className="block text-sm font-medium text-brand-ink mb-1"
               >
                 Authentication Code
               </label>
@@ -246,7 +246,7 @@ export default function MFAVerifyPage() {
             <div>
               <label
                 htmlFor="backupCode"
-                className="block text-sm font-medium text-moss-green mb-1"
+                className="block text-sm font-medium text-brand-ink mb-1"
               >
                 Backup Code
               </label>
@@ -319,7 +319,7 @@ export default function MFAVerifyPage() {
         <div className="text-center">
           <button
             onClick={toggleInputMode}
-            className="text-sm text-moss-green hover:text-moss-green/80 transition-colors"
+            className="text-sm text-brand-ink hover:text-brand-ink/80 transition-colors"
             disabled={loading}
           >
             {useBackupCode

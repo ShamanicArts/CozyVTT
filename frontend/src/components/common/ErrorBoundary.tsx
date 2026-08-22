@@ -53,9 +53,9 @@ export default class ErrorBoundary extends Component<Props, State> {
         <div className="glass-panel max-w-lg w-full p-8 text-center space-y-6">
           {/* Icon */}
           <div className="flex justify-center">
-            <div className="p-4 rounded-full bg-red-100">
+            <div className="p-4 rounded-full bg-danger/10">
               <AlertTriangle
-                className="w-10 h-10 text-red-600"
+                className="w-10 h-10 text-danger-ink"
                 aria-hidden="true"
               />
             </div>
@@ -74,11 +74,11 @@ export default class ErrorBoundary extends Component<Props, State> {
 
           {/* Error details (collapsible) */}
           {this.state.error && (
-            <details className="text-left bg-red-50 border border-red-200 rounded-lg p-4">
-              <summary className="text-sm font-medium text-red-800 cursor-pointer select-none">
+            <details className="text-left bg-danger/10 border border-danger/30 rounded-lg p-4">
+              <summary className="text-sm font-medium text-danger-ink cursor-pointer select-none">
                 Error details
               </summary>
-              <pre className="mt-2 text-xs text-red-700 overflow-x-auto whitespace-pre-wrap break-words">
+              <pre className="mt-2 text-xs text-danger-ink overflow-x-auto whitespace-pre-wrap break-words">
                 {this.state.error.message}
                 {this.state.errorInfo?.componentStack
                   ? "\n\nComponent stack:" + this.state.errorInfo.componentStack

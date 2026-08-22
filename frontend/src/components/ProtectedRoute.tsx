@@ -70,7 +70,7 @@ export default function ProtectedRoute({
               </svg>
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-moss-green font-heading">
+          <h1 className="text-2xl font-bold text-brand-ink font-heading">
             Access Denied
           </h1>
           <p className="text-stone-gray">

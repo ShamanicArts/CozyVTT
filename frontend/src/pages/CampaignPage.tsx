@@ -468,9 +468,9 @@ function CampaignPageContent() {
 
             {/* Session status indicator (visible to all) */}
             {campaign.status === CampaignStatus.ACTIVE && (
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-green-500/10 border border-green-500/20">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="hidden text-xs font-medium text-green-700 sm:inline">
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-success/100/10 border border-success/30">
+                <div className="w-2 h-2 rounded-full bg-success/100 animate-pulse" />
+                <span className="hidden text-xs font-medium text-success-ink sm:inline">
                   Live
                 </span>
               </div>

@@ -156,7 +156,7 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="email"
-              className="block text-sm font-medium text-moss-green mb-1"
+              className="block text-sm font-medium text-brand-ink mb-1"
             >
               Email
             </label>
@@ -196,7 +196,7 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="password"
-              className="block text-sm font-medium text-moss-green mb-1"
+              className="block text-sm font-medium text-brand-ink mb-1"
             >
               Password
             </label>
@@ -266,7 +266,7 @@ export default function LoginPage() {
 
             <Link
               to="/auth/forgot-password"
-              className="text-sm text-moss-green hover:text-moss-green/80 transition-colors"
+              className="text-sm text-brand-ink hover:text-brand-ink/80 transition-colors"
             >
               Forgot password?
             </Link>

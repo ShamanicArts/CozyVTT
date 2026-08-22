@@ -83,7 +83,7 @@ export default function MapAoEToolPanel({
         </div>
       </div>
       {origin && (
-        <button onClick={onClearOrigin} className="text-xs text-stone-gray hover:text-red-500 transition-colors">
+        <button onClick={onClearOrigin} className="text-xs text-stone-gray hover:text-danger-ink transition-colors">
           × Clear placement
         </button>
       )}

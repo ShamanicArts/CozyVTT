@@ -151,10 +151,10 @@ function formatDuration(ms: number): string {
 }
 
 const LOG_LEVEL_COLORS: Record<string, string> = {
-  INFO: "bg-blue-100 text-blue-700",
-  WARNING: "bg-amber-100 text-amber-700",
-  ERROR: "bg-red-100 text-red-700",
-  CRITICAL: "bg-red-200 text-red-900 font-bold",
+  INFO: "bg-info/10 text-info-ink",
+  WARNING: "bg-warning/10 text-warning-ink",
+  ERROR: "bg-danger/10 text-danger-ink",
+  CRITICAL: "bg-danger/10 text-danger-ink font-bold",
 };
 
 type Tab =
@@ -1057,7 +1057,7 @@ export default function AdminPage() {
             </div>
 
             {statsError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-6 text-sm">
+              <div className="bg-danger/10 border border-danger/30 text-danger-ink rounded-lg p-4 mb-6 text-sm">
                 {statsError}
               </div>
             )}
@@ -1098,27 +1098,27 @@ export default function AdminPage() {
                     </p>
                     <p className="text-xs text-warm-gray mt-1">Campaigns</p>
                     {stats && (
-                      <p className="text-xs text-green-600 mt-0.5">
+                      <p className="text-xs text-success-ink mt-0.5">
                         {stats.activeCampaignCount} active
                       </p>
                     )}
                   </div>
 
                   <div className="glass-panel p-5 flex flex-col items-center text-center">
-                    <CalendarDays className="w-7 h-7 text-blue-500 mb-2" />
+                    <CalendarDays className="w-7 h-7 text-info-ink mb-2" />
                     <p className="text-3xl font-bold text-moss-green">
                       {stats?.sessionCount ?? "\u2014"}
                     </p>
                     <p className="text-xs text-warm-gray mt-1">Sessions</p>
                     {stats && (
-                      <p className="text-xs text-green-600 mt-0.5">
+                      <p className="text-xs text-success-ink mt-0.5">
                         {stats.activeSessionCount} live
                       </p>
                     )}
                   </div>
 
                   <div className="glass-panel p-5 flex flex-col items-center text-center">
-                    <BookUser className="w-7 h-7 text-indigo-500 mb-2" />
+                    <BookUser className="w-7 h-7 text-spirit-ink mb-2" />
                     <p className="text-3xl font-bold text-moss-green">
                       {stats?.characterCount ?? "\u2014"}
                     </p>
@@ -1134,7 +1134,7 @@ export default function AdminPage() {
                   </div>
 
                   <div className="glass-panel p-5 flex flex-col items-center text-center">
-                    <Database className="w-7 h-7 text-purple-500 mb-2" />
+                    <Database className="w-7 h-7 text-spirit-ink mb-2" />
                     <p className="text-2xl font-bold text-moss-green break-all">
                       {stats ? formatBytes(stats.totalStorageBytes) : "\u2014"}
                     </p>
@@ -1142,8 +1142,8 @@ export default function AdminPage() {
                   </div>
 
                   <div className="glass-panel p-5 flex flex-col items-center text-center">
-                    <Shield className="w-7 h-7 text-green-500 mb-2" />
-                    <p className="text-sm font-bold text-green-600">Healthy</p>
+                    <Shield className="w-7 h-7 text-success-ink mb-2" />
+                    <p className="text-sm font-bold text-success-ink">Healthy</p>
                     <p className="text-xs text-warm-gray mt-1">Status</p>
                     <div className="mt-2 space-y-1 text-left w-full">
                       {[
@@ -1157,7 +1157,7 @@ export default function AdminPage() {
                         >
                           <span className="text-stone-gray">{label}</span>
                           <span
-                            className={ok ? "text-green-600" : "text-red-500"}
+                            className={ok ? "text-success-ink" : "text-danger-ink"}
                           >
                             &#9679;
                           </span>
@@ -1277,7 +1277,7 @@ export default function AdminPage() {
             </div>
 
             {usersError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4 text-sm">
+              <div className="bg-danger/10 border border-danger/30 text-danger-ink rounded-lg p-4 mb-4 text-sm">
                 {usersError}
               </div>
             )}
@@ -1367,7 +1367,7 @@ export default function AdminPage() {
                                       </span>
                                     )}
                                     {isPending && (
-                                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
+                                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-warning/10 text-warning-ink font-medium">
                                         Pending
                                       </span>
                                     )}
@@ -1435,7 +1435,7 @@ export default function AdminPage() {
                                 {/* MFA */}
                                 <td className="px-4 py-3">
                                   <span
-                                    className={`text-xs font-medium ${u.mfaEnabled ? "text-green-600" : "text-warm-gray"}`}
+                                    className={`text-xs font-medium ${u.mfaEnabled ? "text-success-ink" : "text-warm-gray"}`}
                                   >
                                     {u.mfaEnabled ? "Enabled" : "Off"}
                                   </span>
@@ -1457,7 +1457,7 @@ export default function AdminPage() {
                                         onClick={() => handleApproveUser(u.id)}
                                         disabled={isApproving}
                                         title="Approve this account"
-                                        className="text-xs py-1 px-2 flex items-center gap-1 rounded border border-green-300 text-green-700 hover:bg-green-50 transition-colors disabled:opacity-50"
+                                        className="text-xs py-1 px-2 flex items-center gap-1 rounded border border-success/30 text-success-ink hover:bg-success/80 transition-colors disabled:opacity-50"
                                       >
                                         {isApproving ? (
                                           <Loader2 className="w-3 h-3 animate-spin" />
@@ -1490,7 +1490,7 @@ export default function AdminPage() {
                                         className={`text-xs py-1 px-2 flex items-center gap-1 rounded border transition-colors ${
                                           isSelf
                                             ? "opacity-40 cursor-not-allowed border-warm-gray/20 text-warm-gray"
-                                            : "border-amber-200 text-amber-700 hover:bg-amber-50"
+                                            : "border-warning/30 text-warning-ink hover:bg-warning/80"
                                         }`}
                                       >
                                         <Shield className="w-3 h-3" />
@@ -1558,7 +1558,7 @@ export default function AdminPage() {
                                       className={`text-xs py-1 px-2 flex items-center gap-1 rounded border transition-colors ${
                                         isSelf
                                           ? "opacity-40 cursor-not-allowed border-warm-gray/20 text-warm-gray"
-                                          : "border-red-200 text-red-600 hover:bg-red-50"
+                                          : "border-danger/30 text-danger-ink hover:bg-danger/80"
                                       }`}
                                     >
                                       {loadingDeleteWarning === u.id ? (
@@ -1573,20 +1573,20 @@ export default function AdminPage() {
 
                               {/* MFA Reset Inline Confirm */}
                               {isMfaConfirm && (
-                                <tr className="bg-amber-50/60 border-b border-warm-gray/10">
+                                <tr className="bg-warning/10 border-b border-warm-gray/10">
                                   <td colSpan={7} className="px-6 py-4">
                                     <div className="max-w-md">
-                                      <p className="text-sm font-medium text-amber-800 mb-1">
+                                      <p className="text-sm font-medium text-warning-ink mb-1">
                                         Reset MFA for{" "}
                                         <strong>{u.displayName}</strong>?
                                       </p>
-                                      <p className="text-xs text-amber-700 mb-3">
+                                      <p className="text-xs text-warning-ink mb-3">
                                         This clears their authenticator app
                                         enrollment. They will need to re-enroll
                                         on next login.
                                       </p>
                                       {resetMfaError && (
-                                        <p className="text-xs text-red-600 mb-2">
+                                        <p className="text-xs text-danger-ink mb-2">
                                           {resetMfaError}
                                         </p>
                                       )}
@@ -1594,7 +1594,7 @@ export default function AdminPage() {
                                         <button
                                           onClick={() => handleResetMfa(u.id)}
                                           disabled={isResettingMfa}
-                                          className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                                          className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium bg-warning text-white hover:bg-warning/80 disabled:opacity-50 transition-colors"
                                         >
                                           {isResettingMfa && (
                                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1619,7 +1619,7 @@ export default function AdminPage() {
 
                               {/* Reset Password Inline Panel */}
                               {isResetExpanded && (
-                                <tr className="bg-blue-50/50 border-b border-warm-gray/10">
+                                <tr className="bg-info/10 border-b border-warm-gray/10">
                                   <td colSpan={7} className="px-6 py-4">
                                     <div className="max-w-md">
                                       <p className="text-sm font-medium text-stone-gray mb-3">
@@ -1648,7 +1648,7 @@ export default function AdminPage() {
                                               className="flex items-center gap-1 text-xs py-2 px-3"
                                             >
                                               {copied ? (
-                                                <Check className="w-3.5 h-3.5 text-green-600" />
+                                                <Check className="w-3.5 h-3.5 text-success-ink" />
                                               ) : (
                                                 <Copy className="w-3.5 h-3.5" />
                                               )}
@@ -1671,7 +1671,7 @@ export default function AdminPage() {
                                               share with the user directly:
                                             </p>
                                             {resetError && (
-                                              <p className="text-xs text-red-600 mb-1.5">
+                                              <p className="text-xs text-danger-ink mb-1.5">
                                                 {resetError}
                                               </p>
                                             )}
@@ -1697,7 +1697,7 @@ export default function AdminPage() {
                                               their email address:
                                             </p>
                                             {resetLinkSent ? (
-                                              <p className="text-xs text-green-700 flex items-center gap-1">
+                                              <p className="text-xs text-success-ink flex items-center gap-1">
                                                 <Check className="w-3.5 h-3.5" />{" "}
                                                 Reset link sent to{" "}
                                                 {resetTarget?.email}
@@ -1705,7 +1705,7 @@ export default function AdminPage() {
                                             ) : (
                                               <>
                                                 {resetLinkError && (
-                                                  <p className="text-xs text-red-600 mb-1.5">
+                                                  <p className="text-xs text-danger-ink mb-1.5">
                                                     {resetLinkError}
                                                   </p>
                                                 )}
@@ -1746,10 +1746,10 @@ export default function AdminPage() {
 
                               {/* Delete Inline Panel */}
                               {isDeleteExpanded && (
-                                <tr className="bg-red-50/50 border-b border-warm-gray/10">
+                                <tr className="bg-danger/10 border-b border-warm-gray/10">
                                   <td colSpan={7} className="px-6 py-4">
                                     <div className="max-w-md">
-                                      <p className="text-sm font-medium text-red-700 mb-1">
+                                      <p className="text-sm font-medium text-danger-ink mb-1">
                                         Delete <strong>{u.displayName}</strong>?
                                       </p>
                                       <p className="text-xs text-warm-gray mb-3">
@@ -1757,8 +1757,8 @@ export default function AdminPage() {
                                         email address to confirm.
                                       </p>
                                       {deletingUserAssetCount > 0 && (
-                                        <div className="flex items-start gap-2 mb-3 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-                                          <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-amber-600" />
+                                        <div className="flex items-start gap-2 mb-3 p-2.5 bg-warning/10 border border-warning/30 rounded-lg text-xs text-warning-ink">
+                                          <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-warning-ink" />
                                           <span>
                                             This user has{" "}
                                             <strong>
@@ -1785,7 +1785,7 @@ export default function AdminPage() {
                                         </div>
                                       )}
                                       {deleteError && (
-                                        <p className="text-xs text-red-600 mb-2">
+                                        <p className="text-xs text-danger-ink mb-2">
                                           {deleteError}
                                         </p>
                                       )}
@@ -1805,7 +1805,7 @@ export default function AdminPage() {
                                             deleteEmail !== u.email ||
                                             isDeleting
                                           }
-                                          className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                          className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium bg-danger text-white hover:bg-danger/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                         >
                                           {isDeleting && (
                                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1921,7 +1921,7 @@ export default function AdminPage() {
             </div>
 
             {adminAssetsError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4 text-sm">
+              <div className="bg-danger/10 border border-danger/30 text-danger-ink rounded-lg p-4 mb-4 text-sm">
                 {adminAssetsError}
               </div>
             )}
@@ -2045,7 +2045,7 @@ export default function AdminPage() {
                                 <span
                                   className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full font-medium ${
                                     asset.scope === AssetScope.GLOBAL
-                                      ? "bg-purple-100 text-purple-700"
+                                      ? "bg-spirit/10 text-spirit-ink"
                                       : asset.scope === AssetScope.USER
                                         ? "bg-moss-green/15 text-moss-green"
                                         : "bg-warm-amber/15 text-warm-amber"
@@ -2127,7 +2127,7 @@ export default function AdminPage() {
                                       handleAdminDeleteAsset(asset.id)
                                     }
                                     disabled={isDeleting || isChangingScope}
-                                    className="text-xs py-1 px-2 flex items-center gap-1 rounded border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                    className="text-xs py-1 px-2 flex items-center gap-1 rounded border border-danger/30 text-danger-ink hover:bg-danger/80 transition-colors disabled:opacity-50"
                                     title="Delete asset"
                                   >
                                     {isDeleting ? (
@@ -2399,7 +2399,7 @@ export default function AdminPage() {
 
                 <div className="pt-2 border-t border-warm-gray/20 flex items-center gap-3">
                   {settingsError && (
-                    <p className="text-sm text-red-600 flex-1">
+                    <p className="text-sm text-danger-ink flex-1">
                       {settingsError}
                     </p>
                   )}
@@ -2440,12 +2440,12 @@ export default function AdminPage() {
                     <span
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
                         serverConfig.smtp.configured
-                          ? "bg-green-100 text-green-700"
-                          : "bg-amber-100 text-amber-700"
+                          ? "bg-success/10 text-success-ink"
+                          : "bg-warning/10 text-warning-ink"
                       }`}
                     >
                       <span
-                        className={`w-1.5 h-1.5 rounded-full ${serverConfig.smtp.configured ? "bg-green-500" : "bg-amber-500"}`}
+                        className={`w-1.5 h-1.5 rounded-full ${serverConfig.smtp.configured ? "bg-success/100" : "bg-warning/100"}`}
                       />
                       {serverConfig.smtp.configured
                         ? "Configured"
@@ -2478,7 +2478,7 @@ export default function AdminPage() {
                       </button>
                       {smtpTestResult && (
                         <span
-                          className={`text-xs ${smtpTestResult.ok ? "text-green-600" : "text-red-600"}`}
+                          className={`text-xs ${smtpTestResult.ok ? "text-success-ink" : "text-danger-ink"}`}
                         >
                           {smtpTestResult.ok ? "✓" : "✗"}{" "}
                           {smtpTestResult.message}
@@ -2663,7 +2663,7 @@ export default function AdminPage() {
 
             {settingsLoading && !settings ? (
               <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 text-moss-green animate-spin" />
+                <Loader2 className="w-8 h-8 text-brand-ink animate-spin" />
               </div>
             ) : (
               <>
@@ -2683,7 +2683,7 @@ export default function AdminPage() {
                 {/* Save Appearance */}
                 <div className="flex items-center gap-3">
                   {appearanceError && (
-                    <p className="text-sm text-red-600 flex-1">
+                    <p className="text-sm text-danger-ink flex-1">
                       {appearanceError}
                     </p>
                   )}
@@ -2785,14 +2785,14 @@ export default function AdminPage() {
             </div>
 
             {backupCreateError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm flex items-start gap-2">
+              <div className="bg-danger/10 border border-danger/30 text-danger-ink rounded-lg p-4 text-sm flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span>{backupCreateError}</span>
               </div>
             )}
 
             {backupsError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm">
+              <div className="bg-danger/10 border border-danger/30 text-danger-ink rounded-lg p-4 text-sm">
                 {backupsError}
               </div>
             )}
@@ -2812,7 +2812,7 @@ export default function AdminPage() {
 
               {backupsLoading && backups.length === 0 ? (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 text-moss-green animate-spin" />
+                  <Loader2 className="w-6 h-6 text-brand-ink animate-spin" />
                 </div>
               ) : backups.length === 0 ? (
                 <div className="text-center py-10 text-warm-gray">
@@ -2872,7 +2872,7 @@ export default function AdminPage() {
                               <button
                                 onClick={() => handleDeleteBackup(b.filename)}
                                 disabled={deletingBackupFile === b.filename}
-                                className="text-xs py-1 px-2 flex items-center gap-1 rounded border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                className="text-xs py-1 px-2 flex items-center gap-1 rounded border border-danger/30 text-danger-ink hover:bg-danger/80 transition-colors disabled:opacity-50"
                               >
                                 {deletingBackupFile === b.filename ? (
                                   <Loader2 className="w-3 h-3 animate-spin" />
@@ -2890,10 +2890,10 @@ export default function AdminPage() {
               )}
             </section>
 
-            <section className="glass-panel overflow-hidden border border-red-200/40">
-              <div className="px-4 py-3 border-b border-red-200/30 flex items-center gap-2 bg-red-50/30">
-                <RotateCcw className="w-4 h-4 text-red-600" />
-                <h3 className="font-semibold text-red-700 text-sm">
+            <section className="glass-panel overflow-hidden border border-danger/30">
+              <div className="px-4 py-3 border-b border-danger/30 flex items-center gap-2 bg-danger/10">
+                <RotateCcw className="w-4 h-4 text-danger-ink" />
+                <h3 className="font-semibold text-danger-ink text-sm">
                   Restore from Backup
                 </h3>
               </div>
@@ -2916,9 +2916,9 @@ export default function AdminPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="bg-red-50 border border-red-200/60 rounded-lg p-3 flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-red-700">
+                    <div className="bg-danger/10 border border-danger/30 rounded-lg p-3 flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-danger-ink mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-danger-ink">
                         Restoring will <strong>permanently overwrite</strong>{" "}
                         the current database and all uploaded files. This cannot
                         be undone. Make sure you have a recent backup before
@@ -2955,7 +2955,7 @@ export default function AdminPage() {
                     </div>
 
                     {restoreError && (
-                      <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-xs flex items-start gap-2">
+                      <div className="bg-danger/10 border border-danger/30 text-danger-ink rounded-lg p-3 text-xs flex items-start gap-2">
                         <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
                         {restoreError}
                       </div>
@@ -2965,7 +2965,7 @@ export default function AdminPage() {
                       <button
                         onClick={handleRestoreBackup}
                         disabled={restoring}
-                        className="flex items-center gap-2 text-sm py-1.5 px-4 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors font-medium"
+                        className="flex items-center gap-2 text-sm py-1.5 px-4 rounded-lg bg-danger text-white hover:bg-danger/80 disabled:opacity-50 transition-colors font-medium"
                       >
                         {restoring ? (
                           <>
@@ -3012,7 +3012,7 @@ export default function AdminPage() {
             </div>
 
             {activityError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-6 text-sm">
+              <div className="bg-danger/10 border border-danger/30 text-danger-ink rounded-lg p-4 mb-6 text-sm">
                 {activityError}
               </div>
             )}
@@ -3030,12 +3030,12 @@ export default function AdminPage() {
                 {/* Currently Online */}
                 <section className="glass-panel overflow-hidden">
                   <div className="px-4 py-3 border-b border-warm-gray/20 flex items-center gap-2">
-                    <Wifi className="w-4 h-4 text-green-500" />
+                    <Wifi className="w-4 h-4 text-success-ink" />
                     <h3 className="font-semibold text-moss-green text-sm">
                       Currently Online
                     </h3>
                     {activity?.onlineUsers && (
-                      <span className="ml-auto text-xs font-medium text-green-600">
+                      <span className="ml-auto text-xs font-medium text-success-ink">
                         {activity.onlineUsers.length} active{" "}
                         {activity.onlineUsers.length === 1
                           ? "session"
@@ -3077,7 +3077,7 @@ export default function AdminPage() {
                             >
                               <td className="px-4 py-2">
                                 <div className="flex items-center gap-2">
-                                  <span className="inline-block w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                                  <span className="inline-block w-2 h-2 rounded-full bg-success/100 flex-shrink-0" />
                                   <span className="font-medium text-stone-gray">
                                     {u.displayName}
                                   </span>
@@ -3239,7 +3239,7 @@ export default function AdminPage() {
                               </td>
                               <td className="px-4 py-2">
                                 <span
-                                  className={`text-xs ${u.mfaEnabled ? "text-green-600" : "text-warm-gray"}`}
+                                  className={`text-xs ${u.mfaEnabled ? "text-success-ink" : "text-warm-gray"}`}
                                 >
                                   {u.mfaEnabled ? "On" : "Off"}
                                 </span>
@@ -3261,7 +3261,7 @@ export default function AdminPage() {
                 {/* Recent Game Sessions */}
                 <section className="glass-panel overflow-hidden">
                   <div className="px-4 py-3 border-b border-warm-gray/20 flex items-center gap-2">
-                    <CalendarDays className="w-4 h-4 text-blue-500" />
+                    <CalendarDays className="w-4 h-4 text-info-ink" />
                     <h3 className="font-semibold text-moss-green text-sm">
                       Recent Game Sessions
                     </h3>
@@ -3318,7 +3318,7 @@ export default function AdminPage() {
                                     {formatDate(s.endedAt)}
                                   </span>
                                 ) : (
-                                  <span className="text-green-600 font-medium">
+                                  <span className="text-success-ink font-medium">
                                     In progress
                                   </span>
                                 )}
@@ -3368,7 +3368,7 @@ export default function AdminPage() {
             <div className="p-5">
               {createUserSuccess ? (
                 <div className="space-y-4">
-                  <p className="text-sm text-green-700 font-medium">
+                  <p className="text-sm text-success-ink font-medium">
                     {createUserSuccess}
                   </p>
                   <Button onClick={closeCreateUserModal} className="w-full">
@@ -3378,7 +3378,7 @@ export default function AdminPage() {
               ) : newUserPassword ? (
                 /* Success — show temp password */
                 <div>
-                  <p className="text-sm text-green-700 font-medium mb-1">
+                  <p className="text-sm text-success-ink font-medium mb-1">
                     User created successfully!
                   </p>
                   <p className="text-xs text-warm-gray mb-4">
@@ -3400,7 +3400,7 @@ export default function AdminPage() {
                       className="flex items-center gap-1 text-xs py-2 px-3"
                     >
                       {newUserPasswordCopied ? (
-                        <Check className="w-3.5 h-3.5 text-green-600" />
+                        <Check className="w-3.5 h-3.5 text-success-ink" />
                       ) : (
                         <Copy className="w-3.5 h-3.5" />
                       )}
@@ -3420,14 +3420,14 @@ export default function AdminPage() {
                       : "A temporary password is generated and must be replaced on first login."}
                   </p>
                   {createUserError && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+                    <div className="bg-danger/10 border border-danger/30 text-danger-ink rounded-lg p-3 text-sm">
                       {createUserError}
                     </div>
                   )}
 
                   <div>
                     <label className="block text-sm font-medium text-stone-gray mb-1">
-                      Email <span className="text-red-500">*</span>
+                      Email <span className="text-danger-ink">*</span>
                     </label>
                     <input
                       type="email"

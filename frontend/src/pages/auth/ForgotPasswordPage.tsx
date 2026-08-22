@@ -85,7 +85,7 @@ export default function ForgotPasswordPage() {
             </p>
             <Link
               to="/auth/login"
-              className="inline-flex items-center gap-2 text-sm text-moss-green hover:text-moss-green/80 font-medium transition-colors"
+              className="inline-flex items-center gap-2 text-sm text-brand-ink hover:text-brand-ink/80 font-medium transition-colors"
             >
               <ArrowLeft className="w-4 h-4" aria-hidden="true" />
               Back to Sign In
@@ -128,7 +128,7 @@ export default function ForgotPasswordPage() {
                     setEmail(e.target.value);
                     setEmailError("");
                   }}
-                  className={`input-cozy w-full ${emailError ? "border-red-400 focus:ring-red-400" : ""}`}
+                  className={`input-cozy w-full ${emailError ? "border-danger/30 focus:ring-danger/50" : ""}`}
                   placeholder="your@email.com"
                   disabled={loading}
                   aria-required="true"
@@ -139,7 +139,7 @@ export default function ForgotPasswordPage() {
                   <p
                     id="email-error"
                     role="alert"
-                    className="mt-1 text-xs text-red-600"
+                    className="mt-1 text-xs text-danger-ink"
                   >
                     {emailError}
                   </p>
@@ -180,7 +180,7 @@ export default function ForgotPasswordPage() {
             <div className="text-center">
               <Link
                 to="/auth/login"
-                className="inline-flex items-center gap-1.5 text-sm text-moss-green hover:text-moss-green/80 transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm text-brand-ink hover:text-brand-ink/80 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" aria-hidden="true" />
                 Back to Sign In

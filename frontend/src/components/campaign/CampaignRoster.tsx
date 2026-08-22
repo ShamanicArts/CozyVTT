@@ -431,7 +431,7 @@ export default function CampaignRoster() {
               visible:
                 user.id === contextMenu.characterUserId ||
                 userMembership.role === "DM",
-              className: "text-red-600 hover:bg-red-50",
+              className: "text-danger-ink hover:bg-danger/80",
             },
           ]}
           onClose={handleCloseContextMenu}
@@ -621,12 +621,12 @@ function MemberCard({
                   const pct = Math.max(0, Math.min(1, hp.current / hp.max));
                   const barColor =
                     pct >= 0.75
-                      ? "bg-green-500"
+                      ? "bg-success/100"
                       : pct >= 0.5
                         ? "bg-lime-500"
                         : pct >= 0.25
-                          ? "bg-amber-500"
-                          : "bg-red-500";
+                          ? "bg-warning/100"
+                          : "bg-danger/100";
                   return (
                     <div
                       className="mt-1 space-y-1 px-1"

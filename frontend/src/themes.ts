@@ -5,9 +5,17 @@
  * variable consumed by Tailwind. Tailwind composes them with alpha via
  * rgb(var(--color-x) / <alpha-value>).
  *
- * Readability contract: every theme guarantees WCAG AA contrast (≥4.5:1)
- * between text colors and their expected backgrounds.
+ * Readability contract: every theme meets WCAG AA contrast (≥4.5:1) between
+ * text colors and the backgrounds they are rendered on. This is enforced, not
+ * assumed — see utils/__tests__/themes.contrast.test.ts, which fails the build
+ * on any violation.
+ *
+ * Colors that exist to be *fills* (accent, spirit, danger, and the state hues)
+ * get a derived `-ink` variant for use as text; see deriveReadableTokens.
+ * Authored values that already pass are never modified.
  */
+
+import { ensureReadableChannels, ensureReadableOnAll, readableTextOn } from './utils/color';
 
 export interface ThemeColors {
   brand: string;
@@ -549,6 +557,35 @@ export function rgbChannelsToHex(channels: string): string {
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
 }
 
+export const STATE_HUES = {
+  success: "34 139 68",
+  warning: "191 129 20",
+  info: "37 99 190",
+} as const;
+
+export function deriveReadableTokens(
+  colors: ThemeColors,
+): Record<string, string> {
+  const everywhere = [colors.bgBase, colors.bgSurface, colors.paper];
+  return {
+    "--color-ink-muted": ensureReadableOnAll(colors.inkMuted, everywhere),
+    "--color-accent-text": ensureReadableChannels(
+      colors.accentText,
+      colors.accent,
+    ),
+    "--color-brand-ink": ensureReadableOnAll(colors.brand, everywhere),
+    "--color-accent-ink": ensureReadableOnAll(colors.accent, everywhere),
+    "--color-spirit-ink": ensureReadableOnAll(colors.spirit, everywhere),
+    "--color-danger-ink": ensureReadableOnAll(colors.danger, everywhere),
+    "--color-success": STATE_HUES.success,
+    "--color-success-ink": ensureReadableOnAll(STATE_HUES.success, everywhere),
+    "--color-warning": STATE_HUES.warning,
+    "--color-warning-ink": ensureReadableOnAll(STATE_HUES.warning, everywhere),
+    "--color-info": STATE_HUES.info,
+    "--color-info-ink": ensureReadableOnAll(STATE_HUES.info, everywhere),
+  };
+}
+
 export function applyThemeColors(
   colors: ThemeColors,
   treatments?: ThemeTreatments,
@@ -569,6 +606,9 @@ export function applyThemeColors(
   root.style.setProperty("--color-paper", colors.paper);
   root.style.setProperty("--color-danger", colors.danger);
   root.style.setProperty("--color-spirit", colors.spirit);
+  for (const [name, value] of Object.entries(deriveReadableTokens(colors))) {
+    root.style.setProperty(name, value);
+  }
   const pageBackground = treatments?.pageBackground;
   root.style.setProperty(
     "--theme-page-background-image",
@@ -625,39 +665,42 @@ export function buildCustomThemeColors(customColors: {
     return `${Math.min(255, r + amount)} ${Math.min(255, g + amount)} ${Math.min(255, b + amount)}`;
   };
 
-  // Compute accent text: needs to contrast with the accent background
-  const accentRgb = customColors.accent.split(" ").map(Number);
-  const accentIsLight = (accentRgb[0] + accentRgb[1] + accentRgb[2]) / 3 > 128;
-  const accentTextColor = accentIsLight
-    ? darken(customColors.accent, 120)
-    : lighten(customColors.accent, 120);
+  const surface = isLight
+    ? darken(customColors.background, 12)
+    : lighten(customColors.background, 8);
+  const paper = isLight ? "254 254 254" : lighten(customColors.background, 20);
+  const readableOn = [customColors.background, surface, paper];
 
   return {
-    brand: customColors.primary,
+    brand: ensureReadableOnAll(customColors.primary, readableOn),
     brandDark: isLight
       ? darken(customColors.primary, 30)
       : lighten(customColors.primary, 30),
     accent: customColors.accent,
     accentHover: lighten(customColors.accent, 20),
-    accentText: accentTextColor,
+    accentText: readableTextOn(customColors.accent),
     bgBase: customColors.background,
-    bgSurface: isLight
-      ? darken(customColors.background, 12)
-      : lighten(customColors.background, 8),
+    bgSurface: surface,
     bgSurfaceLight: isLight
       ? darken(customColors.background, 5)
       : lighten(customColors.background, 12),
     bgSurfaceDark: isLight
       ? darken(customColors.background, 25)
       : darken(customColors.background, 6),
-    ink: customColors.text,
-    inkSecondary: isLight
-      ? lighten(customColors.text, 60)
-      : darken(customColors.text, 60),
-    inkMuted: isLight
-      ? lighten(customColors.text, 90)
-      : darken(customColors.text, 90),
-    paper: isLight ? "254 254 254" : lighten(customColors.background, 20),
+    ink: ensureReadableOnAll(customColors.text, readableOn),
+    inkSecondary: ensureReadableOnAll(
+      isLight
+        ? lighten(customColors.text, 60)
+        : darken(customColors.text, 60),
+      readableOn,
+    ),
+    inkMuted: ensureReadableOnAll(
+      isLight
+        ? lighten(customColors.text, 90)
+        : darken(customColors.text, 90),
+      readableOn,
+    ),
+    paper,
     danger: customColors.danger || "192 57 43",
     spirit: customColors.spirit || "147 112 219",
   };

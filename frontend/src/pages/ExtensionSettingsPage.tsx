@@ -106,7 +106,7 @@ export default function ExtensionSettingsPage() {
         </header>
 
         {error && (
-          <p role="alert" className="mt-5 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <p role="alert" className="mt-5 flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/10 p-3 text-sm text-danger-ink">
             <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
             {error}
           </p>

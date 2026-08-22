@@ -42,7 +42,7 @@ export default function DiceResult({ roll, isCurrentUser }: DiceResultProps) {
   const consequential = isCriticalSuccess || isCriticalFail;
 
   const resultClass = isCriticalSuccess
-    ? "text-green-700"
+    ? "text-success-ink"
     : isCriticalFail
       ? "text-danger"
       : "text-ink";
@@ -58,7 +58,7 @@ export default function DiceResult({ roll, isCurrentUser }: DiceResultProps) {
           <span
             className={`flex h-7 w-7 items-center justify-center rounded-full ${
               isCriticalSuccess
-                ? "bg-green-500/15 text-green-700"
+                ? "bg-success/100/15 text-success-ink"
                 : isCriticalFail
                   ? "bg-danger/10 text-danger"
                   : "bg-brand/10 text-brand"
@@ -136,7 +136,7 @@ export default function DiceResult({ roll, isCurrentUser }: DiceResultProps) {
                           key={resultIndex}
                           className={`${kept ? "text-ink" : "text-ink-muted line-through"} ${
                             value === 20 && entry.sides === 20
-                              ? "font-bold text-green-700"
+                              ? "font-bold text-success-ink"
                               : ""
                           } ${
                             value === 1 && entry.sides === 20

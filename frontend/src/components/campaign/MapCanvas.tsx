@@ -2057,8 +2057,10 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
             onClick={() => setDmPreviewPlayerView((prev) => !prev)}
             className={`px-3 py-1.5 rounded text-xs font-medium transition-colors border ${
               dmPreviewPlayerView
-                ? 'bg-blue-600/30 text-blue-300 border-blue-500/50'
-                : 'bg-stone-800/90 text-stone-300 border-stone-600/50 hover:bg-stone-700/90'
+                ? 'bg-info/30 text-info-ink border-info/50'
+                // ink/paper invert together, so this stays a legible contrast
+                // chip over the map on both light and dark themes
+                : 'bg-ink/85 text-paper border-ink/40 hover:bg-ink'
             }`}
             title={dmPreviewPlayerView ? 'Back to DM view (see all)' : 'Preview how players see this map with dynamic lighting'}
             aria-label="Toggle DM player view preview"
@@ -2096,7 +2098,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
       {hoverToken && hoverCoords && (
         <div className="absolute bottom-4 left-4 glass-panel px-3 py-1.5 bg-parchment/90 backdrop-blur-sm">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-moss-green font-semibold">
+            <span className="text-xs text-brand-ink font-semibold">
               {hoverToken.name}
             </span>
             <span className="text-xs text-stone-gray font-mono">
@@ -2125,7 +2127,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
       {imageError && (
         <div className="absolute inset-0 flex items-center justify-center bg-parchment/80">
           <div className="glass-panel p-4 text-center">
-            <p className="text-sm text-red-600 mb-2">{imageError}</p>
+            <p className="text-sm text-danger-ink mb-2">{imageError}</p>
             <p className="text-xs text-stone-gray">Check map image URL</p>
           </div>
         </div>
@@ -2135,7 +2137,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
       {!currentMap && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <Grid3x3 className="w-12 h-12 text-moss-green/30 mx-auto mb-3" />
+            <Grid3x3 className="w-12 h-12 text-brand-ink/30 mx-auto mb-3" />
             <p className="text-sm text-warm-gray mb-2">No map loaded</p>
             <p className="text-xs text-stone-gray/70">
               Upload a map to get started
@@ -2212,7 +2214,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
               {/* Edit Token — NPC and Object tokens */}
               {isNpcOrObject && (
                 <button
-                  className="w-full px-4 py-2 text-left text-sm text-moss-green font-medium hover:bg-moss-green/10 transition-colors"
+                  className="w-full px-4 py-2 text-left text-sm text-brand-ink font-medium hover:bg-moss-green/10 transition-colors"
                   onClick={() => {
                     setContextMenu(null);
                     onEditToken?.(cmToken);
@@ -2352,7 +2354,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
                 ) : (
                   <button
                     disabled={isMovingTokenLayer}
-                    className="w-full px-4 py-2 text-left text-sm text-moss-green hover:bg-moss-green/10 transition-colors disabled:opacity-50"
+                    className="w-full px-4 py-2 text-left text-sm text-brand-ink hover:bg-moss-green/10 transition-colors disabled:opacity-50"
                     onClick={async () => {
                       if (!campaign?.id || !currentMap?.id) return;
                       setIsMovingTokenLayer(true);
@@ -2443,7 +2445,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
               <div className="h-px bg-moss-green/20 my-1" />
 
               <button
-                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-500/10 transition-colors"
+                className="w-full px-4 py-2 text-left text-sm text-danger-ink hover:bg-danger/10 transition-colors"
                 onClick={async () => {
                   if (!campaign?.id || !currentMap?.id) return;
                   const token = contextMenu.token;
@@ -2523,7 +2525,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
           {/* Open — available when door is closed */}
           {doorContextMenu.door.type === 'door-closed' && (
             <button
-              className="w-full px-4 py-2 text-left text-sm text-moss-green hover:bg-moss-green/10 transition-colors"
+              className="w-full px-4 py-2 text-left text-sm text-brand-ink hover:bg-moss-green/10 transition-colors"
               onClick={() => changeDoorType(doorContextMenu.door, 'door-open')}
             >
               Open Door
@@ -2533,7 +2535,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
           {/* Close — available when door is open */}
           {doorContextMenu.door.type === 'door-open' && (
             <button
-              className="w-full px-4 py-2 text-left text-sm text-moss-green hover:bg-moss-green/10 transition-colors"
+              className="w-full px-4 py-2 text-left text-sm text-brand-ink hover:bg-moss-green/10 transition-colors"
               onClick={() => changeDoorType(doorContextMenu.door, 'door-closed')}
             >
               Close Door
@@ -2543,7 +2545,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
           {/* Lock — DM only, available when door is open or closed */}
           {isDM && doorContextMenu.door.type !== 'door-locked' && (
             <button
-              className="w-full px-4 py-2 text-left text-sm text-red-500 hover:bg-red-500/10 transition-colors"
+              className="w-full px-4 py-2 text-left text-sm text-danger-ink hover:bg-danger/10 transition-colors"
               onClick={() => changeDoorType(doorContextMenu.door, 'door-locked')}
             >
               Lock Door
@@ -2553,7 +2555,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
           {/* Unlock — DM only, available when door is locked */}
           {isDM && doorContextMenu.door.type === 'door-locked' && (
             <button
-              className="w-full px-4 py-2 text-left text-sm text-moss-green hover:bg-moss-green/10 transition-colors"
+              className="w-full px-4 py-2 text-left text-sm text-brand-ink hover:bg-moss-green/10 transition-colors"
               onClick={() => changeDoorType(doorContextMenu.door, 'door-closed')}
             >
               Unlock Door

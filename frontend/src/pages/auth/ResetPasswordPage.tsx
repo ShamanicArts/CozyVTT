@@ -105,7 +105,7 @@ export default function ResetPasswordPage({ invite = false }: { invite?: boolean
           /* Invalid / missing token */
           <div className="text-center space-y-4">
             <AlertCircle
-              className="w-14 h-14 text-red-500 mx-auto"
+              className="w-14 h-14 text-danger-ink mx-auto"
               aria-hidden="true"
             />
             <h1 className="text-2xl font-bold text-moss-green font-heading">
@@ -142,10 +142,10 @@ export default function ResetPasswordPage({ invite = false }: { invite?: boolean
             {error && (
               <div
                 role="alert"
-                className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3"
+                className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-lg p-3"
               >
-                <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-red-700">{error}</p>
+                <AlertCircle className="w-4 h-4 text-danger-ink mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-danger-ink">{error}</p>
               </div>
             )}
 
@@ -171,14 +171,14 @@ export default function ResetPasswordPage({ invite = false }: { invite?: boolean
                       password: undefined,
                     }));
                   }}
-                  className={`input-cozy w-full ${fieldErrors.password ? "border-red-400 focus:ring-red-400" : ""}`}
+                  className={`input-cozy w-full ${fieldErrors.password ? "border-danger/30 focus:ring-danger/50" : ""}`}
                   disabled={loading}
                   aria-required="true"
                   aria-invalid={!!fieldErrors.password}
                   aria-describedby="password-requirements"
                 />
                 {fieldErrors.password && (
-                  <p role="alert" className="mt-1 text-xs text-red-600">
+                  <p role="alert" className="mt-1 text-xs text-danger-ink">
                     {fieldErrors.password}
                   </p>
                 )}
@@ -222,7 +222,7 @@ export default function ResetPasswordPage({ invite = false }: { invite?: boolean
                     setConfirmPassword(e.target.value);
                     setFieldErrors((prev) => ({ ...prev, confirm: undefined }));
                   }}
-                  className={`input-cozy w-full ${fieldErrors.confirm ? "border-red-400 focus:ring-red-400" : ""}`}
+                  className={`input-cozy w-full ${fieldErrors.confirm ? "border-danger/30 focus:ring-danger/50" : ""}`}
                   disabled={loading}
                   aria-required="true"
                   aria-invalid={!!fieldErrors.confirm}
@@ -234,7 +234,7 @@ export default function ResetPasswordPage({ invite = false }: { invite?: boolean
                   <p
                     id="confirm-error"
                     role="alert"
-                    className="mt-1 text-xs text-red-600"
+                    className="mt-1 text-xs text-danger-ink"
                   >
                     {fieldErrors.confirm}
                   </p>
@@ -281,7 +281,7 @@ export default function ResetPasswordPage({ invite = false }: { invite?: boolean
             <div className="text-center">
               <Link
                 to="/auth/login"
-                className="inline-flex items-center gap-1.5 text-sm text-moss-green hover:text-moss-green/80 transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm text-brand-ink hover:text-brand-ink/80 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" aria-hidden="true" />
                 Back to Sign In

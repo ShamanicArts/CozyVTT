@@ -140,25 +140,25 @@ const QUICK_ROLLS = [
     label: "d4",
     expression: "1d4",
     color:
-      "bg-amber-100/80 dark:bg-amber-900/30 border-amber-300/50 hover:bg-amber-200/80 dark:hover:bg-amber-900/40",
+      "bg-warning/10 dark:bg-warning/10 border-warning/30 hover:bg-warning/80 dark:hover:bg-warning/80",
   },
   {
     label: "d6",
     expression: "1d6",
     color:
-      "bg-green-100/80 dark:bg-green-900/30 border-green-300/50 hover:bg-green-200/80 dark:hover:bg-green-900/40",
+      "bg-success/10 dark:bg-success/10 border-success/30 hover:bg-success/80 dark:hover:bg-success/80",
   },
   {
     label: "d8",
     expression: "1d8",
     color:
-      "bg-purple-100/80 dark:bg-purple-900/30 border-purple-300/50 hover:bg-purple-200/80 dark:hover:bg-purple-900/40",
+      "bg-spirit/10 dark:bg-spirit/10 border-spirit/30 hover:bg-spirit/10 dark:hover:bg-spirit/10",
   },
   {
     label: "d10",
     expression: "1d10",
     color:
-      "bg-orange-100/80 dark:bg-orange-900/30 border-orange-300/50 hover:bg-orange-200/80 dark:hover:bg-orange-900/40",
+      "bg-spirit/10 dark:bg-spirit/10 border-spirit/30 hover:bg-spirit/10 dark:hover:bg-spirit/10",
   },
   {
     label: "d12",
@@ -170,13 +170,13 @@ const QUICK_ROLLS = [
     label: "d20",
     expression: "1d20",
     color:
-      "bg-rose-100/80 dark:bg-rose-900/30 border-rose-300/50 hover:bg-rose-200/80 dark:hover:bg-rose-900/40",
+      "bg-spirit/10 dark:bg-spirit/10 border-spirit/30 hover:bg-spirit/10 dark:hover:bg-spirit/10",
   },
   {
     label: "d100",
     expression: "1d100",
     color:
-      "bg-indigo-100/80 dark:bg-indigo-900/30 border-indigo-300/50 hover:bg-indigo-200/80 dark:hover:bg-indigo-900/40",
+      "bg-spirit/10 dark:bg-spirit/10 border-spirit/30 hover:bg-spirit/10 dark:hover:bg-spirit/10",
   },
 ];
 
@@ -567,7 +567,7 @@ export default function DiceRoller() {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mb-2 flex items-center gap-2 text-red-600 dark:text-red-400 text-xs"
+                className="mb-2 flex items-center gap-2 text-danger-ink dark:text-danger-ink text-xs"
               >
                 <AlertCircle className="w-3 h-3 flex-shrink-0" />
                 <span>{error}</span>
@@ -679,10 +679,10 @@ export default function DiceRoller() {
                 }
                 className="
                 flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md
-                bg-green-700 hover:bg-green-600 text-white font-semibold text-xs shadow-sm
+                bg-success hover:bg-success/80 text-white font-semibold text-xs shadow-sm
                 disabled:opacity-50 disabled:cursor-not-allowed
                 transition-all duration-200
-                focus:outline-none focus:ring-2 focus:ring-green-500/50
+                focus:outline-none focus:ring-2 focus:ring-success/50
               "
               >
                 {isRolling ? (
@@ -728,7 +728,7 @@ export default function DiceRoller() {
 
           {/* Hint / Rate Limit Countdown */}
           {rateLimitCooldown > 0 ? (
-            <div className="mt-1.5 text-xs text-red-600 dark:text-red-400 text-center font-medium">
+            <div className="mt-1.5 text-xs text-danger-ink dark:text-danger-ink text-center font-medium">
               You may roll again in: {rateLimitCooldown} second
               {rateLimitCooldown !== 1 ? "s" : ""}
             </div>

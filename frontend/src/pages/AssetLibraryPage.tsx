@@ -378,8 +378,8 @@ export default function AssetLibraryPage() {
             ))}
           </div>
         ) : toast?.type === "error" && filteredAssets.length === 0 ? (
-          <div className="bg-parchment/50 border border-red-500/20 rounded-xl p-12 text-center">
-            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-400" />
+          <div className="bg-parchment/50 border border-danger/30 rounded-xl p-12 text-center">
+            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-danger-ink" />
             <h2 className="text-lg font-semibold text-moss-green mb-2">
               Failed to load assets
             </h2>
