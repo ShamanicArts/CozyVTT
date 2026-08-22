@@ -10,6 +10,7 @@ export interface QueryMetadata {
   operatingRoles?: readonly ("DM" | "PLAYER" | "SPECTATOR")[];
   resultRedactionPolicy?: string;
   bounds?: { maxItems?: number; maxResultBytes?: number; maxWaitMs?: number };
+  extensionPermissions?: readonly "campaign.read"[];
 }
 export interface PublicQueryDescriptor extends QueryMetadata {
   title: string;
@@ -18,6 +19,7 @@ export interface PublicQueryDescriptor extends QueryMetadata {
   operatingRoles: readonly ("DM" | "PLAYER" | "SPECTATOR")[];
   resultRedactionPolicy: string;
   bounds: { maxItems?: number; maxResultBytes: number; maxWaitMs?: number };
+  extensionPermissions: readonly "campaign.read"[];
 }
 export interface QueryContext {
   principalId: string;
@@ -41,13 +43,20 @@ export class QueryHost {
       title: query.metadata.title ?? query.metadata.id,
       description: query.metadata.description ?? `Read ${query.metadata.id}.`,
       requiredPermissions: query.metadata.requiredPermissions ?? ["READ"],
-      operatingRoles: query.metadata.operatingRoles ?? ["DM", "PLAYER", "SPECTATOR"],
+      operatingRoles: query.metadata.operatingRoles ?? [
+        "DM",
+        "PLAYER",
+        "SPECTATOR",
+      ],
       resultRedactionPolicy:
         query.metadata.resultRedactionPolicy ?? "campaign-role-v1",
       bounds: {
         maxResultBytes: 262_144,
         ...query.metadata.bounds,
       },
+      extensionPermissions: query.metadata.extensionPermissions ?? [
+        "campaign.read",
+      ],
     }));
   }
   async dispatch<I, O>(

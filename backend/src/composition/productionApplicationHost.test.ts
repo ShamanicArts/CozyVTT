@@ -15,6 +15,7 @@ import {
   SET_SPIRIT_LAYER_ENABLED,
   SET_SPIRIT_TOKEN_VISIBLE,
 } from "../application/scene/RealtimeSpiritCommands";
+import { listPublicCoreCommandDescriptors } from "../application/capabilities/CoreCapabilityCatalog";
 
 describe("production application host catalog", () => {
   it("exposes every migrated command once through the shared catalog", () => {
@@ -68,5 +69,22 @@ describe("production application host catalog", () => {
       permissions: ["WRITE", "EXECUTE"],
       idempotency: true,
     });
+  });
+
+  it("projects public capability schemas and policy from the core descriptors", () => {
+    for (const descriptor of listPublicCoreCommandDescriptors()) {
+      expect(productionApplicationHost.get(descriptor.id)).toMatchObject({
+        id: descriptor.id,
+        version: descriptor.version,
+        title: descriptor.title,
+        description: descriptor.description,
+        risk: descriptor.risk.toUpperCase(),
+        operatingRoles: descriptor.operatingRoles,
+        approvalPolicy: descriptor.approvalRequired ? "ALWAYS" : "NEVER",
+        idempotency: descriptor.idempotencyRequired,
+        inputSchema: descriptor.inputSchema,
+        outputSchema: descriptor.outputSchema,
+      });
+    }
   });
 });

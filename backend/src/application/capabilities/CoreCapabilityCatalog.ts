@@ -1,5 +1,8 @@
 import { IMPORT_REMOTE_MAP } from "../maps/RemoteMapImportCommands";
-import type { JsonSchema } from "../../extensions/contracts";
+import type {
+  ExtensionPermission,
+  JsonSchema,
+} from "../../extensions/contracts";
 import {
   PUBLIC_ADD_TO_COMBAT,
   PUBLIC_ADJUST_CHARACTER_HP,
@@ -48,6 +51,13 @@ export interface CoreCapabilityCommand {
   openWorld?: boolean;
   /** Roles for which this capability is useful; domain authorization still wins. */
   operatingRoles: readonly CapabilityOperatingRole[];
+}
+
+export interface PublicCoreCommandDescriptor extends CoreCapabilityCommand {
+  version: "1";
+  requiredPermissions: readonly ExtensionPermission[];
+  approvalRequired: boolean;
+  idempotencyRequired: boolean;
 }
 
 const campaignId = { type: "string", minLength: 1, maxLength: 128 };
@@ -389,7 +399,11 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     operatingRoles: ["GM"],
   },
   ...[
-    [PUBLIC_START_COMBAT, "Start combat", "Start the initiative tracker as GM."],
+    [
+      PUBLIC_START_COMBAT,
+      "Start combat",
+      "Start the initiative tracker as GM.",
+    ],
     [
       PUBLIC_NEXT_TURN,
       "Advance combat",
@@ -769,8 +783,57 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
 
 export function findCoreCapabilityCommand(
   commandId: unknown,
-): CoreCapabilityCommand | undefined {
+): PublicCoreCommandDescriptor | undefined {
   return typeof commandId === "string"
-    ? CORE_PUBLIC_CAPABILITIES.find((command) => command.id === commandId)
+    ? PUBLIC_CORE_COMMAND_DESCRIPTORS.find(
+        (command) => command.id === commandId,
+      )
     : undefined;
+}
+
+export function publicCoreCommandDescriptor(
+  command: CoreCapabilityCommand,
+): PublicCoreCommandDescriptor {
+  return {
+    ...command,
+    version: "1",
+    requiredPermissions: coreCommandPermissions(command.id),
+    approvalRequired: command.requiresApproval,
+    idempotencyRequired: command.write,
+  };
+}
+
+export function listPublicCoreCommandDescriptors(): PublicCoreCommandDescriptor[] {
+  return [...PUBLIC_CORE_COMMAND_DESCRIPTORS];
+}
+
+export const PUBLIC_CORE_COMMAND_DESCRIPTORS: readonly PublicCoreCommandDescriptor[] =
+  CORE_PUBLIC_CAPABILITIES.map(publicCoreCommandDescriptor);
+
+function coreCommandPermissions(
+  commandId: string,
+): readonly ExtensionPermission[] {
+  if (commandId === IMPORT_REMOTE_MAP) {
+    return ["maps.write", "assets.write", "network.fetch"];
+  }
+  if (commandId === PUBLIC_SPEAK_AS_ACTOR) return ["chat.write"];
+  if (commandId === PUBLIC_ROLL_AS_ACTOR) return ["dice.roll"];
+  if (
+    commandId.startsWith("vtt.actor.") ||
+    commandId.startsWith("vtt.combat.")
+  ) {
+    return ["tokens.write"];
+  }
+  if (commandId.startsWith("vtt.character.")) return ["characters.write"];
+  if (commandId.startsWith("vtt.map.") || commandId.startsWith("vtt.scene.")) {
+    return ["maps.write"];
+  }
+  if (
+    commandId.startsWith("vtt.campaign.") ||
+    commandId.startsWith("vtt.session.") ||
+    commandId.startsWith("vtt.atmosphere.")
+  ) {
+    return ["campaign.write"];
+  }
+  throw new Error(`Core command ${commandId} has no plugin permission mapping`);
 }

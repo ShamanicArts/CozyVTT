@@ -256,6 +256,7 @@ import {
   UpdateCapabilityLight,
   UpdateCapabilityWall,
 } from "../application/capabilities/CapabilityGmCommands";
+import { findCoreCapabilityCommand } from "../application/capabilities/CoreCapabilityCatalog";
 
 /** Single process-wide handler graph for commands shared by HTTP and Socket.IO. */
 export const productionCommandBus = new CommandBus();
@@ -267,14 +268,8 @@ productionCommandBus.register(UPDATE_MAP, new UpdateMap(maps));
 productionCommandBus.register(DELETE_MAP, new DeleteMap(maps));
 productionCommandBus.register(SET_CURRENT_MAP, new SetCurrentMap(maps));
 const tokens = new PrismaMapTokenRepository(transactionalPrisma);
-productionCommandBus.register(
-  CREATE_MAP_TOKEN,
-  new CreateMapToken(tokens),
-);
-productionCommandBus.register(
-  UPDATE_MAP_TOKEN,
-  new UpdateMapToken(tokens),
-);
+productionCommandBus.register(CREATE_MAP_TOKEN, new CreateMapToken(tokens));
+productionCommandBus.register(UPDATE_MAP_TOKEN, new UpdateMapToken(tokens));
 productionCommandBus.register(DELETE_MAP_TOKEN, new DeleteMapToken(tokens));
 const scene = new PrismaSceneMutationRepository(transactionalPrisma);
 productionCommandBus.register(ADD_WALL_SEGMENT, new AddWallSegment(scene));
@@ -624,11 +619,7 @@ const assetsRepository = new PrismaAssetMutationRepository(transactionalPrisma);
 const assetFiles = new FileSystemAssetFileStore();
 productionCommandBus.register(
   IMPORT_REMOTE_MAP,
-  new ImportRemoteMap(
-    assetsRepository,
-    new HttpRemoteMapAssetIngress(),
-    maps,
-  ),
+  new ImportRemoteMap(assetsRepository, new HttpRemoteMapAssetIngress(), maps),
 );
 productionCommandBus.register(
   Assets.PREPARE_ASSET_UPLOAD,
@@ -650,38 +641,23 @@ const characterRepository = new PrismaCharacterRepository(transactionalPrisma);
 const characterEvents = new WebsocketCharacterEventPublisher();
 productionCommandBus.register(
   Characters.CREATE_CHARACTER,
-  new Characters.CreateCharacter(
-    characterRepository,
-    characterEvents,
-  ),
+  new Characters.CreateCharacter(characterRepository, characterEvents),
 );
 productionCommandBus.register(
   Characters.UPDATE_CHARACTER,
-  new Characters.UpdateCharacter(
-    characterRepository,
-    characterEvents,
-  ),
+  new Characters.UpdateCharacter(characterRepository, characterEvents),
 );
 productionCommandBus.register(
   Characters.DELETE_CHARACTER,
-  new Characters.DeleteCharacter(
-    characterRepository,
-    characterEvents,
-  ),
+  new Characters.DeleteCharacter(characterRepository, characterEvents),
 );
 productionCommandBus.register(
   Characters.ASSIGN_CHARACTER,
-  new Characters.AssignCharacter(
-    characterRepository,
-    characterEvents,
-  ),
+  new Characters.AssignCharacter(characterRepository, characterEvents),
 );
 productionCommandBus.register(
   Characters.COPY_CHARACTER,
-  new Characters.CopyCharacter(
-    characterRepository,
-    characterEvents,
-  ),
+  new Characters.CopyCharacter(characterRepository, characterEvents),
 );
 const authentication = new LegacyAuthenticationService();
 productionCommandBus.register(
@@ -805,27 +781,49 @@ productionCommandBus.register(
 // Capability-facing orchestration is deliberately another application adapter over
 // the same handlers humans use. It adds role-shaped convenience and live
 // publication without duplicating token/chat/dice/initiative rules.
-const capabilityMemberships = new PrismaCapabilityGameplayMembership(transactionalPrisma);
+const capabilityMemberships = new PrismaCapabilityGameplayMembership(
+  transactionalPrisma,
+);
 const capabilityEvents = new WebsocketCapabilityGameplayEventPublisher();
 productionCommandBus.register(
   PUBLIC_SPAWN_ACTOR,
-  new SpawnCapabilityActor(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new SpawnCapabilityActor(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_UPDATE_ACTOR,
-  new UpdateCapabilityActor(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new UpdateCapabilityActor(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_MOVE_ACTOR,
-  new MoveCapabilityActor(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new MoveCapabilityActor(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_SPEAK_AS_ACTOR,
-  new SpeakAsCapabilityActor(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new SpeakAsCapabilityActor(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_ROLL_AS_ACTOR,
-  new RollAsCapabilityActor(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new RollAsCapabilityActor(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_ADJUST_CHARACTER_HP,
@@ -837,63 +835,123 @@ productionCommandBus.register(
 );
 productionCommandBus.register(
   PUBLIC_CREATE_CHARACTER,
-  new CreateCapabilityCharacter(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new CreateCapabilityCharacter(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_ADD_TO_COMBAT,
-  new AddCapabilityCombatant(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new AddCapabilityCombatant(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_REMOVE_FROM_COMBAT,
-  new RemoveCapabilityCombatant(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new RemoveCapabilityCombatant(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_START_COMBAT,
-  new StartCapabilityCombat(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new StartCapabilityCombat(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_NEXT_TURN,
-  new NextCapabilityTurn(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new NextCapabilityTurn(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_END_COMBAT,
-  new EndCapabilityCombat(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new EndCapabilityCombat(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_ACTIVATE_MAP,
-  new ActivateCapabilityMap(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new ActivateCapabilityMap(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_ADD_WALL,
-  new AddCapabilityWall(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new AddCapabilityWall(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_UPDATE_WALL,
-  new UpdateCapabilityWall(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new UpdateCapabilityWall(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_REMOVE_WALL,
-  new RemoveCapabilityWall(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new RemoveCapabilityWall(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_APPLY_FOG,
-  new ApplyCapabilityFog(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new ApplyCapabilityFog(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_ADD_LIGHT,
-  new AddCapabilityLight(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new AddCapabilityLight(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_UPDATE_LIGHT,
-  new UpdateCapabilityLight(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new UpdateCapabilityLight(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_REMOVE_LIGHT,
-  new RemoveCapabilityLight(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new RemoveCapabilityLight(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_SET_LIGHTING,
-  new SetCapabilityLighting(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new SetCapabilityLighting(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_SET_ATMOSPHERE_EFFECT,
@@ -913,23 +971,43 @@ productionCommandBus.register(
 );
 productionCommandBus.register(
   PUBLIC_SET_VIBE,
-  new SetCapabilityVibe(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new SetCapabilityVibe(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_START_SESSION,
-  new StartCapabilitySession(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new StartCapabilitySession(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_PAUSE_SESSION,
-  new PauseCapabilitySession(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new PauseCapabilitySession(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_RESUME_SESSION,
-  new ResumeCapabilitySession(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new ResumeCapabilitySession(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 productionCommandBus.register(
   PUBLIC_END_SESSION,
-  new EndCapabilitySession(productionCommandBus, capabilityMemberships, capabilityEvents),
+  new EndCapabilitySession(
+    productionCommandBus,
+    capabilityMemberships,
+    capabilityEvents,
+  ),
 );
 
 /** Catalog facade delegates to the exact shared CommandBus handlers. */
@@ -970,6 +1048,31 @@ const administratorCommandIds = new Set<string>([
 ]);
 
 function metadataForProductionCommand(id: string): CommandMetadata {
+  const coreCommand = findCoreCapabilityCommand(id);
+  if (coreCommand) {
+    const descriptor = coreCommand;
+    return {
+      id: descriptor.id,
+      version: descriptor.version,
+      title: descriptor.title,
+      description: descriptor.description,
+      risk: descriptor.risk.toUpperCase() as CommandMetadata["risk"],
+      permissions: descriptor.write ? ["WRITE", "EXECUTE"] : ["READ"],
+      operatingRoles: descriptor.operatingRoles,
+      approvalPolicy: descriptor.approvalRequired ? "ALWAYS" : "NEVER",
+      outputRedactionPolicy: "campaign-role-v1",
+      idempotency: descriptor.idempotencyRequired,
+      outbox: descriptor.write
+        ? {
+            topic: "application.command.executed.v1",
+            aggregateType: commandAggregateType(id),
+            aggregateId: productionAggregateId,
+          }
+        : undefined,
+      inputSchema: descriptor.inputSchema,
+      outputSchema: descriptor.outputSchema,
+    };
+  }
   const readOnly = readOnlyCommandIds.has(id);
   const risk: CommandMetadata["risk"] = highRiskCommandIds.has(id)
     ? "HIGH"
