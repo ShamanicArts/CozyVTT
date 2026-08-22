@@ -720,9 +720,15 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
         console.log('[MapCanvas] Processing token:', token.name, 'imageUrl:', token.imageUrl);
         if (!token.imageUrl) continue;
 
-        // Check if already loaded
-        if (tokenImages.has(token.id)) {
-          newTokenImages.set(token.id, tokenImages.get(token.id)!);
+        // Reuse the cached element only when it was loaded from the SAME url.
+        // Keying on token id alone meant a token whose image was changed kept
+        // rendering the old picture until the page was reloaded — for every
+        // client, since they all cache the same way.
+        // getAttribute('src') returns the literal value set below, not the
+        // resolved absolute URL the .src property would give.
+        const cached = tokenImages.get(token.id);
+        if (cached && cached.getAttribute('src') === token.imageUrl) {
+          newTokenImages.set(token.id, cached);
           continue;
         }
 

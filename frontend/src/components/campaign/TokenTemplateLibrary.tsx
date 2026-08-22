@@ -611,7 +611,12 @@ function TemplateForm({ campaignId, editingTemplate, onCreated, onEdited, onCanc
         <div className="flex items-center gap-2">
           {imageUrl ? (
             <img
-              src={imageUrl.startsWith('http') || imageUrl.startsWith('/') ? imageUrl : `/api/assets/${imageUrl}/file`}
+              // imageUrl may be a bare asset id or an /api/assets path — both
+              // resolve through the tokens serving route. (There is no
+              // /api/assets/:id/file endpoint; this used to point at one.)
+              src={imageUrl.startsWith('http') || imageUrl.startsWith('/')
+                ? imageUrl
+                : api.getAssetUrl(imageUrl, 'tokens')}
               alt="Token" className="w-10 h-10 rounded-full object-cover border border-moss-green/20"
             />
           ) : (

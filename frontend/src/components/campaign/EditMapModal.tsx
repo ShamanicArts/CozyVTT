@@ -12,6 +12,7 @@ import { AssetType } from '@/types';
 import AssetPicker from '@/components/assets/AssetPicker';
 import { detectMapGrid, type GridDetectionResult } from '@/utils/detectMapGrid';
 import { Button, Modal } from '@/components/ui';
+import { extractAssetId } from '@/utils/assetUrl';
 
 interface EditMapModalProps {
   isOpen: boolean;
@@ -173,16 +174,6 @@ function DimensionField({
 // ============================================
 // EditMapModal
 // ============================================
-
-/**
- * Extract asset UUID from a stored map imageUrl like /api/assets/maps/{uuid}
- * Falls back to the value itself if it's already a UUID
- */
-function extractAssetId(url: string | null): string | null {
-  if (!url) return null;
-  const parts = url.split('/');
-  return parts[parts.length - 1] || null;
-}
 
 export default function EditMapModal({
   isOpen,

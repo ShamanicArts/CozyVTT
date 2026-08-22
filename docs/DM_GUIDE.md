@@ -180,9 +180,11 @@ Click any token on the map to open the **Quick Editor**. From here you can:
 
 1. Click the token on the map to open the Quick Editor
 2. Click the token avatar (top-left of the editor) — a hover overlay with an image icon appears
-3. The **Image Picker** opens, showing all TOKEN-type assets from your campaign
+3. The **Image Picker** opens, showing every token image you have access to — platform-wide assets, your own uploads, and assets from campaigns you're a member of
 4. Select an image, or click **Upload New** to upload a fresh asset
 5. Click **None** to remove the image and revert to a colored-letter placeholder
+
+The map updates immediately for everyone at the table — no one needs to refresh. This changes only that one token; to change the image every future placement uses, edit the creature template instead (see [Creature Token Images](#creature-token-images)).
 
 #### Saving an Image to a Creature Template
 
@@ -275,7 +277,7 @@ Click **+ New Creature** at the top of the Creature Library to create a custom c
 - **HP Max** — Hit points given to tokens placed from this creature
 - **Challenge Rating** — Optional, used for filtering
 - **Creature Type** — Optional (e.g., beast, undead, fiend)
-- **Image** — Optional; choose from your TOKEN assets
+- **Token Image** — Optional. Click **Browse Assets** to pick from token images already in your asset library, or **Upload New** to add one. See [Creature Token Images](#creature-token-images) below
 - **Size** — Grid size (default 1×1)
 - **Disposition** — Hostile, friendly, or neutral
 - **Display Mode** — Pog, top-down, or full-art
@@ -287,6 +289,19 @@ Custom creatures are scoped to your campaign and fully editable.
 Click the **pencil icon** next to any custom creature in the library to open it for editing. You can update any field — name, stat block, image, disposition, display mode, and all advanced stats (traits, actions, legendary actions, etc.).
 
 SRD creatures cannot be edited directly. Duplicate them first, then edit the copy.
+
+### Creature Token Images
+
+The **Token Image** field in the creature editor gives you two ways to set a picture:
+
+- **Browse Assets** — opens a grid of the token images already available to you. Use the search box to filter by name, then click one to select it. Click it again to deselect.
+- **Upload New** — adds a new image. The upload dialog opens pre-set to a **token** asset scoped to **this campaign**, which is what you usually want: everyone in the campaign can then use it, and it appears in Browse Assets from then on. You can change the type or scope in the dialog if you need to.
+
+The grid only ever shows images you have access to: platform-wide assets, your own personal uploads, and assets belonging to campaigns you're a member of. Uploads are validated by their actual file contents rather than their file extension, so renaming a document to `.png` won't get it through.
+
+*Screenshot pending — Creature editor with the token image picker expanded.*
+
+Whatever you choose here becomes the default image for every token placed from that creature. To change the image on a single token that's already on the map without touching the template, use the Quick Editor instead — see [Changing a Token's Image](#changing-a-tokens-image).
 
 ### Duplicating SRD Creatures
 

@@ -611,6 +611,11 @@ Additional fields:
 
 All creature endpoints are mounted under `/api/campaigns/:campaignId/creatures`.
 
+**`imageUrl` on create, update and duplicate** accepts either a bare asset id or a full
+`/api/assets/tokens/:id` path, and is stored normalised to the full path — the same treatment
+characters, maps and map tokens already receive. Send `""` to clear it. Rows written before this
+normalisation may still hold a bare id, so clients should tolerate both when reading.
+
 ### `GET /api/campaigns/:id/creatures`
 
 List creature templates available in this campaign (SRD + campaign-specific custom creatures). Any campaign member can list.

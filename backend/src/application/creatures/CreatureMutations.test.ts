@@ -84,6 +84,41 @@ describe("creature commands", () => {
     );
   });
 
+  it("normalizes token image references for every creature write", async () => {
+    const repo = repository();
+    await new CreateCreature(repo).execute({
+      type: "creature.create",
+      campaignId: "camp",
+      userId: "u",
+      data: { name: "Orc", statBlock: {}, imageUrl: "asset-1" },
+    });
+    await new UpdateCreature(repo).execute({
+      type: "creature.update",
+      campaignId: "camp",
+      creatureId: "c1",
+      data: { imageUrl: "asset-2" },
+    });
+
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ imageUrl: "/api/assets/tokens/asset-1" }),
+    );
+    expect(repo.update).toHaveBeenCalledWith(
+      "c1",
+      expect.objectContaining({ imageUrl: "/api/assets/tokens/asset-2" }),
+    );
+
+    repo.find.mockResolvedValue({ ...creature, imageUrl: "asset-3" });
+    await new DuplicateCreature(repo).execute({
+      type: "creature.duplicate",
+      campaignId: "camp",
+      userId: "u",
+      creatureId: "c1",
+    });
+    expect(repo.create).toHaveBeenLastCalledWith(
+      expect.objectContaining({ imageUrl: "/api/assets/tokens/asset-3" }),
+    );
+  });
+
   it("keeps update, delete, duplicate, and favorite behaviors behind commands", async () => {
     const repo = repository();
     await new UpdateCreature(repo).execute({

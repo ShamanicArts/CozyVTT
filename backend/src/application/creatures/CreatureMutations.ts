@@ -6,6 +6,7 @@ import type {
   SrdSeedResult,
 } from "../../domain/creatures/Creature";
 import type { CreatureRepository } from "../../ports/CreatureRepository";
+import { normalizeAssetUrl } from "../../utils/asset-urls";
 import type { Command, CommandHandler } from "../commands/CommandBus";
 
 export const CREATE_CREATURE = "creature.create" as const;
@@ -125,7 +126,7 @@ export class CreateCreature implements CommandHandler<
       challengeRating: command.data.challengeRating ?? null,
       creatureType: command.data.creatureType ?? null,
       alignment: command.data.alignment ?? null,
-      imageUrl: command.data.imageUrl ?? null,
+      imageUrl: normalizeAssetUrl(command.data.imageUrl, "tokens"),
       statBlock: statBlockOrThrow(command.data.statBlock),
       size: command.data.size ?? { width: 1, height: 1 },
       disposition: command.data.disposition ?? "hostile",
@@ -149,7 +150,12 @@ export class UpdateCreature implements CommandHandler<
       command.creatureId,
       "edit",
     );
-    return this.repository.update(command.creatureId, command.data);
+    return this.repository.update(command.creatureId, {
+      ...command.data,
+      ...(command.data.imageUrl !== undefined && {
+        imageUrl: normalizeAssetUrl(command.data.imageUrl, "tokens"),
+      }),
+    });
   }
 }
 
@@ -189,7 +195,7 @@ export class DuplicateCreature implements CommandHandler<
       challengeRating: source.challengeRating,
       creatureType: source.creatureType,
       alignment: source.alignment,
-      imageUrl: source.imageUrl,
+      imageUrl: normalizeAssetUrl(source.imageUrl, "tokens"),
       statBlock: source.statBlock,
       size: source.size,
       disposition: source.disposition,

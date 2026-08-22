@@ -49,6 +49,10 @@ migrations and should be evaluated on a backup before production deployment.
 
 - MFA setup verification again enforces the five-attempt, fifteen-minute rate
   limit retained from the upstream security contract.
+- **Creature token images can be chosen from the asset library, not just uploaded.** Editing a custom or duplicated creature now offers a searchable asset grid alongside new uploads.
+- **Creature token images now use the real serving route** instead of the nonexistent `/api/assets/{id}/file` path.
+- **Changing a token's image updates the map immediately for everyone** instead of reusing a stale image cached only by token ID.
+- **The NPC Quick Editor header now handles long token names** without pushing its close button off-screen.
 - **The initiative tracker no longer freezes after a WebSocket reconnect.** Its listener was attached to a socket instance that gets rebuilt on reconnect, so after a dropped connection the tracker silently kept showing whatever turn was current when the link went down. Combat state is now mirrored into the shared session store by a reconnect-aware subscription, and re-synced from the server each time the socket comes back
 
 ### Documentation

@@ -28,6 +28,7 @@ import CreateMapModal from './CreateMapModal';
 import EditMapModal from './EditMapModal';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import Button from '@/components/ui/Button';
+import { extractAssetId } from '@/utils/assetUrl';
 
 interface MapManagerProps {
   isOpen: boolean;
@@ -37,12 +38,6 @@ interface MapManagerProps {
 /**
  * Extract asset UUID from a stored imageUrl like /api/assets/maps/{uuid}
  */
-function extractAssetId(url: string | null | undefined): string {
-  if (!url) return '';
-  const parts = url.split('/');
-  return parts[parts.length - 1] || '';
-}
-
 // ============================================
 // Token Transfer Approval
 // ============================================

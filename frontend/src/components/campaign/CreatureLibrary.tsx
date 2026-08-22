@@ -21,18 +21,17 @@ import {
   Star,
   Pencil,
   Trash2,
-  Upload,
 } from 'lucide-react';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { useGameStore } from '@/stores/gameStore';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import api from '@/services/api';
 import type { CreatureTemplate, NpcStatBlock } from '@/types';
-import { TokenType, GameSystem, AssetType, AssetScope } from '@/types';
+import { TokenType, GameSystem, AssetType } from '@/types';
 import { StatBlockViewer } from './npc-stat-blocks';
 import Button from '@/components/ui/Button';
-import { useServerConfigQuery } from '@/hooks/queries';
-import { getUploadLimit, formatUploadLimit } from '@/utils/uploadLimits';
+import AssetPicker from '@/components/assets/AssetPicker';
+import { extractAssetId } from '@/utils/assetUrl';
 
 // ============================================
 // Constants
@@ -830,7 +829,6 @@ interface CreatureFormProps {
 function CreatureForm({ campaignId, gameSystem, editingCreature, onCreated, onEdited, onCancel }: CreatureFormProps) {
   const isEdit = !!editingCreature;
   const sb = editingCreature?.statBlock;
-  const { data: serverConfig } = useServerConfigQuery();
 
   // ── Basic fields ──
   const [name, setName] = useState(editingCreature?.name ?? '');
@@ -852,8 +850,6 @@ function CreatureForm({ campaignId, gameSystem, editingCreature, onCreated, onEd
 
   // ── Image field ──
   const [imageUrl, setImageUrl] = useState(editingCreature?.imageUrl ?? '');
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Advanced stat block fields ──
   const [showAdvanced, setShowAdvanced] = useState(isEdit && !!(sb?.traits?.length || sb?.actions?.length));
@@ -872,40 +868,6 @@ function CreatureForm({ campaignId, gameSystem, editingCreature, onCreated, onEd
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // ── Image upload handler ──
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Client-side size check against the server's token limit
-    const tokenLimit = getUploadLimit(serverConfig, AssetType.TOKEN);
-    if (file.size > tokenLimit) {
-      setFormError(`Image must be under ${formatUploadLimit(tokenLimit)}`);
-      return;
-    }
-
-    setIsUploading(true);
-    setFormError(null);
-    try {
-      // Fields before the file: multer parses in order, so the server knows the
-      // asset type even when it aborts a too-large file mid-stream.
-      const formData = new FormData();
-      formData.append('type', AssetType.TOKEN);
-      formData.append('scope', AssetScope.CAMPAIGN);
-      formData.append('campaignId', campaignId);
-      formData.append('name', file.name.replace(/\.[^.]+$/, ''));
-      formData.append('file', file);
-
-      const { asset } = await api.uploadAsset(formData);
-      setImageUrl(asset.id);
-    } catch {
-      setFormError('Failed to upload image');
-    } finally {
-      setIsUploading(false);
-      // Reset the file input so the same file can be re-selected
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -998,48 +960,19 @@ function CreatureForm({ campaignId, gameSystem, editingCreature, onCreated, onEd
         />
       </div>
 
-      {/* Image */}
-      <div>
-        <label className="text-[10px] text-stone-gray block mb-0.5">Token Image</label>
-        <div className="flex items-center gap-2">
-          {imageUrl ? (
-            <img
-              src={imageUrl.startsWith('http') || imageUrl.startsWith('/') ? imageUrl : `/api/assets/${imageUrl}/file`}
-              alt="Token"
-              className="w-10 h-10 rounded-full object-cover border border-moss-green/20"
-            />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-stone-gray/10 flex items-center justify-center border border-dashed border-stone-gray/30">
-              <Upload className="w-4 h-4 text-stone-gray/40" />
-            </div>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
-            onChange={handleImageUpload}
-            className="hidden"
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="text-[10px] text-brand-ink hover:text-brand-ink/80 flex items-center gap-1"
-          >
-            {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-            {imageUrl ? 'Change' : 'Upload'}
-          </button>
-          {imageUrl && (
-            <button
-              type="button"
-              onClick={() => setImageUrl('')}
-              className="text-[10px] text-danger-ink hover:text-danger-ink"
-            >
-              Remove
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Image — browse the campaign's token assets or upload a new one.
+          Uploads go through the same endpoint as before, so magic-byte
+          validation and the campaign scope are unchanged. */}
+      <AssetPicker
+        label="Token Image"
+        type={AssetType.TOKEN}
+        campaignId={campaignId}
+        selectedAssetId={extractAssetId(imageUrl)}
+        onSelect={(asset) => setImageUrl(asset ? asset.id : '')}
+        columns={5}
+        searchPlaceholder="Search token images..."
+        emptyMessage="No token images yet. Upload one to get started."
+      />
 
       {/* Type & Alignment */}
       <div className="grid grid-cols-2 gap-2">
