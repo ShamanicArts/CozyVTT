@@ -28,7 +28,7 @@ import { useWebSocket } from '@/contexts/WebSocketContext';
 import api from '@/services/api';
 import type { CreatureTemplate, NpcStatBlock } from '@/types';
 import { TokenType, GameSystem, AssetType } from '@/types';
-import { StatBlockViewer } from './npc-stat-blocks';
+import { StatBlockViewer, buildCreatureStatBlock } from './npc-stat-blocks';
 import Button from '@/components/ui/Button';
 import AssetPicker from '@/components/assets/AssetPicker';
 import { extractAssetId } from '@/utils/assetUrl';
@@ -877,33 +877,26 @@ function CreatureForm({ campaignId, gameSystem, editingCreature, onCreated, onEd
     setIsSubmitting(true);
     setFormError(null);
 
-    // Filter out empty name/description pairs
-    const filterPairs = (arr: Array<{ name: string; description: string }>) =>
-      arr.filter((p) => p.name.trim() || p.description.trim());
-
-    const statBlock: NpcStatBlock = {
+    const statBlock = buildCreatureStatBlock(sb, {
       ac,
       hpMax,
-      // Preserve hit dice from the source stat block (e.g. an SRD duplicate) —
-      // the form has no field for it, so it would otherwise be lost on save.
-      ...(sb?.hitDice && { hitDice: sb.hitDice }),
       speed,
       abilities: { str, dex, con, int, wis, cha },
-      creatureType: creatureType || undefined,
-      alignment: alignment || undefined,
-      challengeRating: cr || undefined,
-      ...(filterPairs(traits).length > 0 && { traits: filterPairs(traits) }),
-      ...(filterPairs(actions).length > 0 && { actions: filterPairs(actions) }),
-      ...(filterPairs(bonusActions).length > 0 && { bonusActions: filterPairs(bonusActions) }),
-      ...(filterPairs(reactions).length > 0 && { reactions: filterPairs(reactions) }),
-      ...(filterPairs(legendaryActions).length > 0 && { legendaryActions: filterPairs(legendaryActions) }),
-      ...(damageVulnerabilities && { damageVulnerabilities }),
-      ...(damageResistances && { damageResistances }),
-      ...(damageImmunities && { damageImmunities }),
-      ...(conditionImmunities && { conditionImmunities }),
-      ...(senses && { senses }),
-      ...(languages && { languages }),
-    };
+      creatureType,
+      alignment,
+      challengeRating: cr,
+      traits,
+      actions,
+      bonusActions,
+      reactions,
+      legendaryActions,
+      damageVulnerabilities,
+      damageResistances,
+      damageImmunities,
+      conditionImmunities,
+      senses,
+      languages,
+    });
 
     const payload = {
       name: name.trim(),
