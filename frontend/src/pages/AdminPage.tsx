@@ -478,8 +478,10 @@ export default function AdminPage() {
   // Lazy-load per tab
   useEffect(() => {
     if (activeTab === "dashboard" && !stats && !statsLoading) loadStats();
-    if (activeTab === "users" && users.length === 0 && !usersLoading)
-      loadUsers();
+    if (activeTab === "users") {
+      if (users.length === 0 && !usersLoading) loadUsers();
+      if (!serverConfig && !configLoading) loadServerConfig();
+    }
     if (activeTab === "settings" || activeTab === "appearance") {
       if (!settings && !settingsLoading) loadSettings();
       if (activeTab === "settings" && !serverConfig && !configLoading)
