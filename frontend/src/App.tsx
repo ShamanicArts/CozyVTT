@@ -32,8 +32,11 @@ const CharactersPage = lazy(() => import("@/pages/CharactersPage"));
 const CharacterEditorPage = lazy(() => import("@/pages/CharacterEditorPage"));
 const AssetLibraryPage = lazy(() => import("@/pages/AssetLibraryPage"));
 const ProfilePage = lazy(() => import("@/pages/ProfilePage"));
-const McpAuthorizePage = lazy(() => import("@/pages/McpAuthorizePage"));
+const OAuthAuthorizePage = lazy(() => import("@/pages/OAuthAuthorizePage"));
 const AdminPage = lazy(() => import("@/pages/AdminPage"));
+const ExtensionSettingsPage = lazy(
+  () => import("@/pages/ExtensionSettingsPage"),
+);
 
 function MascotImage({ className = "" }: { className?: string }) {
   const { mascotUrl } = useTheme();
@@ -161,10 +164,10 @@ function App() {
                         }
                       />
                       <Route
-                        path="/mcp/authorize"
+                        path="/oauth/authorize"
                         element={
                           <ProtectedRoute>
-                            <McpAuthorizePage />
+                            <OAuthAuthorizePage />
                           </ProtectedRoute>
                         }
                       />
@@ -175,6 +178,14 @@ function App() {
                         element={
                           <ProtectedRoute requireRole={PlatformRole.ADMIN}>
                             <AdminPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/extensions/:extensionId"
+                        element={
+                          <ProtectedRoute requireRole={PlatformRole.ADMIN}>
+                            <ExtensionSettingsPage />
                           </ProtectedRoute>
                         }
                       />

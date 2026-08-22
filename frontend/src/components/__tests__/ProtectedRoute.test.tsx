@@ -108,17 +108,17 @@ describe("ProtectedRoute", () => {
     expect(screen.queryByText("Protected Content")).not.toBeInTheDocument();
   });
 
-  it("preserves an MCP authorization request through login", () => {
+  it("preserves a plugin authorization request through login", () => {
     mockUseAuth.mockReturnValue(
       makeAuthState({ loading: false, authenticated: false, user: null }),
     );
     renderRoute(
-      <div>Authorize MCP</div>,
+      <div>Authorize plugin</div>,
       undefined,
-      "/mcp/authorize?request=request-1",
+      "/oauth/authorize?request=request-1",
     );
     expect(screen.getByTestId("login-location")).toHaveTextContent(
-      "/auth/login?returnTo=%2Fmcp%2Fauthorize%3Frequest%3Drequest-1",
+      "/auth/login?returnTo=%2Foauth%2Fauthorize%3Frequest%3Drequest-1",
     );
   });
 

@@ -49,7 +49,7 @@ import type {
   ServerConfig,
 } from "@/types";
 import type {
-  AgentCredential,
+  PluginCredential,
   ActiveExtensionContributions,
   ActiveExtensionThemeContribution,
   ExtensionGrant,
@@ -58,8 +58,8 @@ import type {
   ExtensionInstallation,
   ExtensionInstallMode,
   ExtensionPackage,
-  McpAuthorizationRequest,
-  PendingAgentConfirmation,
+  OAuthConsentRequest,
+  PendingCapabilityApproval,
 } from "@/types/extensions";
 
 // ============================================
@@ -460,7 +460,7 @@ class ApiClient {
   }
 
   // ============================================
-  // Extensions and controlled agent access
+  // Extensions and controlled capability access
   // ============================================
 
   async listActiveThemeContributions(): Promise<
@@ -551,86 +551,67 @@ class ApiClient {
     );
   }
 
-  async issueAgentCredential(input: {
-    campaignId: string;
-    label: string;
-    expiresAt?: string | null;
-  }): Promise<{ credential: AgentCredential; token: string }> {
-    const response = await this.client.post<{
-      credential: AgentCredential;
-      token: string;
-    }>("/api/agent/credentials", input);
-    return response.data;
-  }
-
-  async getMcpSetup(): Promise<{ url: string }> {
-    const response = await this.client.get<{ url: string }>(
-      "/api/agent/mcp-setup",
-    );
-    return response.data;
-  }
-
-  async getMcpAuthorizationRequest(
+  async getOAuthConsentRequest(
     requestId: string,
-  ): Promise<McpAuthorizationRequest> {
-    const response = await this.client.get<McpAuthorizationRequest>(
-      `/api/mcp/oauth/requests/${encodeURIComponent(requestId)}`,
+  ): Promise<OAuthConsentRequest> {
+    const response = await this.client.get<OAuthConsentRequest>(
+      `/api/oauth/requests/${encodeURIComponent(requestId)}`,
     );
     return response.data;
   }
 
-  async approveMcpAuthorization(
+  async approveOAuthConsent(
     requestId: string,
     campaignId: string,
   ): Promise<{ redirectUrl: string }> {
     const response = await this.client.post<{ redirectUrl: string }>(
-      `/api/mcp/oauth/requests/${encodeURIComponent(requestId)}/approve`,
+      `/api/oauth/requests/${encodeURIComponent(requestId)}/approve`,
       { campaignId },
     );
     return response.data;
   }
 
-  async denyMcpAuthorization(
+  async denyOAuthConsent(
     requestId: string,
   ): Promise<{ redirectUrl: string }> {
     const response = await this.client.post<{ redirectUrl: string }>(
-      `/api/mcp/oauth/requests/${encodeURIComponent(requestId)}/deny`,
+      `/api/oauth/requests/${encodeURIComponent(requestId)}/deny`,
     );
     return response.data;
   }
 
-  async listAgentCredentials(): Promise<AgentCredential[]> {
-    const response = await this.client.get<{ credentials: AgentCredential[] }>(
-      "/api/agent/credentials",
+  async listPluginCredentials(): Promise<PluginCredential[]> {
+    const response = await this.client.get<{ credentials: PluginCredential[] }>(
+      "/api/plugins/credentials",
     );
     return response.data.credentials;
   }
 
-  async revokeAgentCredential(credentialId: string): Promise<void> {
+  async revokePluginCredential(credentialId: string): Promise<void> {
     await this.client.delete(
-      `/api/agent/credentials/${encodeURIComponent(credentialId)}`,
+      `/api/plugins/credentials/${encodeURIComponent(credentialId)}`,
     );
   }
 
-  async listPendingAgentConfirmations(): Promise<PendingAgentConfirmation[]> {
+  async listPendingCapabilityApprovals(): Promise<PendingCapabilityApproval[]> {
     const response = await this.client.get<{
-      confirmations: PendingAgentConfirmation[];
-    }>("/api/agent/confirmations/pending");
-    return response.data.confirmations;
+      approvals: PendingCapabilityApproval[];
+    }>("/api/plugins/approvals/pending");
+    return response.data.approvals;
   }
 
-  async approveAgentConfirmation(
-    confirmationId: string,
+  async approveCapabilityApproval(
+    approvalId: string,
   ): Promise<{ approved: true }> {
     const response = await this.client.post<{ approved: true }>(
-      `/api/agent/confirmations/${encodeURIComponent(confirmationId)}/approve`,
+      `/api/plugins/approvals/${encodeURIComponent(approvalId)}/approve`,
     );
     return response.data;
   }
 
-  async denyAgentConfirmation(confirmationId: string): Promise<void> {
+  async denyCapabilityApproval(approvalId: string): Promise<void> {
     await this.client.post(
-      `/api/agent/confirmations/${encodeURIComponent(confirmationId)}/deny`,
+      `/api/plugins/approvals/${encodeURIComponent(approvalId)}/deny`,
     );
   }
 

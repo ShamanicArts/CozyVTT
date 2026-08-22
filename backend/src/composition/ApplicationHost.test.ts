@@ -13,6 +13,9 @@ const ports = (): jest.Mocked<DurableExecutionPorts> => ({
   idempotency: {
     register: jest.fn(async () => "CREATED"),
     complete: jest.fn(async () => undefined),
+    fail: jest.fn(async () => undefined),
+    getOutcome: jest.fn(async () => null),
+    cleanupExpired: jest.fn(async () => 0),
   },
   outbox: {
     enqueue: jest.fn(async () => "event"),
@@ -48,7 +51,7 @@ describe("ApplicationHost", () => {
     host.use(durableExecutionMiddleware(dependencies));
     host.register({
       metadata: {
-        id: "agent.write",
+        id: "write",
         version: "1",
         risk: "HIGH",
         permissions: ["WRITE"],
@@ -58,13 +61,13 @@ describe("ApplicationHost", () => {
     });
     await expect(
       host.dispatch({
-        id: "agent.write",
+        id: "write",
         input: { x: 1 },
         context: {
-          principalType: "AGENT",
-          principalId: "agent",
+          principalType: "PLUGIN",
+          principalId: "capability",
           extensionId: "ext",
-          origin: "AGENT",
+          origin: "PLUGIN",
           idempotencyKey: "key",
         },
       }),
@@ -75,19 +78,40 @@ describe("ApplicationHost", () => {
     );
     await expect(
       host.dispatch({
-        id: "agent.write",
+        id: "write",
         input: { x: 1 },
         context: {
-          principalType: "AGENT",
-          principalId: "agent",
+          principalType: "PLUGIN",
+          principalId: "capability",
           extensionId: "ext",
-          origin: "AGENT",
+          origin: "PLUGIN",
           idempotencyKey: "key",
         },
       }),
     ).rejects.toBeInstanceOf(IdempotencyReplayError);
+
+    (dependencies.idempotency.register as jest.Mock).mockResolvedValueOnce(
+      "REPLAY",
+    );
+    (dependencies.idempotency.getOutcome as jest.Mock).mockResolvedValueOnce({
+      status: "COMPLETED",
+      result: "prior-result",
+    });
+    await expect(
+      host.dispatch({
+        id: "write",
+        input: { x: 1 },
+        context: {
+          principalType: "PLUGIN",
+          principalId: "capability",
+          extensionId: "ext",
+          origin: "PLUGIN",
+          idempotencyKey: "key",
+        },
+      }),
+    ).resolves.toBe("prior-result");
   });
-  it("uses the unit of work only for protected agent or extension execution", async () => {
+  it("uses the unit of work only for protected capability or extension execution", async () => {
     const dependencies = ports();
     const execute = jest.fn();
     const unitOfWork: UnitOfWorkPort = {
@@ -100,7 +124,7 @@ describe("ApplicationHost", () => {
     host.use(durableExecutionMiddleware({ ...dependencies, unitOfWork }));
     host.register({
       metadata: {
-        id: "agent.transactional-write",
+        id: "transactional-write",
         version: "1",
         risk: "MEDIUM",
         permissions: [],
@@ -116,13 +140,13 @@ describe("ApplicationHost", () => {
 
     await expect(
       host.dispatch({
-        id: "agent.transactional-write",
+        id: "transactional-write",
         input: {},
         context: {
-          principalType: "AGENT",
-          principalId: "agent",
+          principalType: "PLUGIN",
+          principalId: "capability",
           extensionId: "extension",
-          origin: "AGENT",
+          origin: "PLUGIN",
           idempotencyKey: "key",
         },
       }),
@@ -130,21 +154,21 @@ describe("ApplicationHost", () => {
     expect(execute).toHaveBeenCalledTimes(1);
     expect(dependencies.outbox.enqueue).toHaveBeenCalledTimes(1);
 
-    await host.dispatch({ id: "agent.transactional-write", input: {} });
+    await host.dispatch({ id: "transactional-write", input: {} });
     expect(execute).toHaveBeenCalledTimes(1);
   });
 
-  it("uses the delegated user's campaign membership instead of a duplicate MCP grant", async () => {
+  it("uses the delegated user's campaign membership instead of a duplicate plugin grant", async () => {
     const dependencies = ports();
     (dependencies.grants.hasGrant as jest.Mock).mockResolvedValue(false);
-    dependencies.delegatedAgentAccess = {
+    dependencies.delegatedCapabilityAccess = {
       activeCredentialDelegates: jest.fn(async () => true),
     };
     const host = new ApplicationHost();
     host.use(durableExecutionMiddleware(dependencies));
     host.register({
       metadata: {
-        id: "agent.member-write",
+        id: "member-write",
         version: "1",
         risk: "MEDIUM",
         permissions: ["WRITE"],
@@ -154,15 +178,15 @@ describe("ApplicationHost", () => {
 
     await expect(
       host.dispatch({
-        id: "agent.member-write",
+        id: "member-write",
         input: {},
         context: {
-          principalType: "AGENT",
+          principalType: "PLUGIN",
           principalId: "credential-1",
           delegatedIdentity: "user-1",
           campaignId: "campaign-1",
-          extensionId: "cozyvtt.core-agent",
-          origin: "AGENT",
+          extensionId: "cozyvtt.public-capabilities",
+          origin: "PLUGIN",
         },
       }),
     ).resolves.toBe("ok");

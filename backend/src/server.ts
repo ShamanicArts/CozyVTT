@@ -22,10 +22,11 @@ import creatureRoutes from "./routes/creatures";
 import tokenTemplateRoutes from "./routes/tokenTemplates";
 import adminRoutes from "./routes/admin";
 import configRoutes from "./routes/config";
-import agentRoutes from "./routes/agent";
-import mcpRoutes from "./routes/mcp";
+import pluginAccessRoutes from "./routes/pluginAccess";
+import oauthConsentRoutes from "./routes/oauthConsent";
 import extensionRoutes from "./routes/extensions";
 import extensionContributionRoutes from "./routes/extensionContributions";
+import pluginTransportRoutes from "./routes/pluginTransports";
 import { initializeWebSocket } from "./websocket";
 import logger from "./utils/logger";
 import { prisma } from "./config/database";
@@ -34,9 +35,10 @@ import { getProxyLimitWarnings } from "./utils/proxyLimits";
 import {
   createProductionOutboxDispatcher,
   outboxHealth,
+  startIdempotencyCleanup,
 } from "./composition/productionOutboxRuntime";
 import { rehydrateConfiguredExtensions } from "./composition/ExtensionRuntimeStartup";
-import { productionMcpOAuthRouter } from "./composition/productionMcpOAuth";
+import { productionOAuthRouter } from "./composition/productionOAuth";
 
 const app = express();
 const httpServer = createServer(app);
@@ -117,9 +119,9 @@ app.use(session(sessionConfig));
 // Exceptions: /health and /api/setup/* are always accessible.
 app.use(requireSetupComplete);
 
-// Standard OAuth discovery/authorization for one-click MCP connections.
+// Standard OAuth discovery and authorization for trusted plugin resources.
 // This must be mounted at the origin root for RFC 8414/9728 discovery.
-app.use(productionMcpOAuthRouter());
+app.use(productionOAuthRouter());
 
 // ============================================
 // ROUTES
@@ -162,11 +164,12 @@ app.use("/api/setup", setupRoutes);
 // Public client configuration (upload limits)
 app.use("/api/config", configRoutes);
 
-// Controlled agent and trusted-extension administration boundaries.
-app.use("/api/agent", agentRoutes);
-app.use("/api/mcp", mcpRoutes);
+// Connected plugin credentials and human capability approvals.
+app.use("/api/plugins", pluginAccessRoutes);
+app.use("/api/oauth", oauthConsentRoutes);
 app.use("/api/admin/extensions", extensionRoutes);
 app.use("/api/extensions", extensionContributionRoutes);
+app.use("/api/plugin-transports", pluginTransportRoutes);
 
 // Authentication: login, register, password reset, MFA
 app.use("/api/auth", authRoutes);
@@ -242,7 +245,10 @@ const outboxDispatcher = createProductionOutboxDispatcher(prisma);
 
 function listen(): void {
   httpServer.listen(PORT, () => {
-    if (process.env.NODE_ENV !== "test") outboxDispatcher.start();
+    if (process.env.NODE_ENV !== "test") {
+      outboxDispatcher.start();
+      startIdempotencyCleanup(prisma);
+    }
     logger.info(`CozyVTT Backend running on port ${PORT}`);
     logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
     logger.info(

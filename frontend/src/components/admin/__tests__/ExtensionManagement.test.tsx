@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { api } = vi.hoisted(() => ({
@@ -42,10 +43,14 @@ describe("ExtensionManagement", () => {
 
   it("offers explicit trusted and sandboxed installation boundaries", async () => {
     const user = userEvent.setup();
-    render(<ExtensionManagement />);
+    render(
+      <MemoryRouter>
+        <ExtensionManagement />
+      </MemoryRouter>,
+    );
     await screen.findByRole("button", { name: "Install sandboxed" });
     expect(
-      screen.getByText(/normal user MCP connections do not require/i),
+      screen.getByText(/normal user plugin connections do not require/i),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Install sandboxed" }));
     await waitFor(() =>

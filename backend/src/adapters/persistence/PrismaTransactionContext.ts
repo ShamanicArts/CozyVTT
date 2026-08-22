@@ -7,7 +7,7 @@ type PrismaExecutionClient = PrismaClient | Prisma.TransactionClient;
 /**
  * A process-wide-looking Prisma client which resolves calls to the active
  * transaction when one is present. Repositories can keep their normal Prisma
- * constructor contract while agent-origin host dispatches are transactional.
+ * constructor contract while capability-origin host dispatches are transactional.
  */
 export class PrismaTransactionContext implements UnitOfWorkPort {
   private readonly storage = new AsyncLocalStorage<Prisma.TransactionClient>();

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   RENDERER_CONTRACT_VERSION,
   RendererHost,
+  activateRendererContributions,
   createMapCanvasRendererHost,
   type RendererContext,
   type RendererLayer,
@@ -81,5 +82,43 @@ describe('RendererHost', () => {
 
     expect(onLayerError).toHaveBeenCalledTimes(1);
     expect(healthy).toHaveBeenCalledTimes(1);
+  });
+
+  it('restores an ordered layer after a renderer contribution is disposed', async () => {
+    const host = createMapCanvasRendererHost();
+    const terrain = host.registry.get('cozyvtt.map.terrain')!;
+    host.swap({ ...terrain, order: 10 });
+    const previous = host.registry.get('cozyvtt.map.terrain');
+
+    const dispose = await activateRendererContributions(
+      host,
+      [
+        {
+          extensionId: 'example.renderer',
+          renderer: {
+            id: 'replacement',
+            name: 'Replacement',
+            contractVersion: '1.0.0',
+            moduleUrl: '/replacement.mjs',
+          },
+        },
+      ],
+      async () => ({
+        activateMapRenderer: (api: {
+          replaceLayer: (
+            id: string,
+            layer: { surface: 'terrain'; render: () => void },
+          ) => () => void;
+        }) =>
+          api.replaceLayer('cozyvtt.map.terrain', {
+            surface: 'terrain',
+            render: () => {},
+          }),
+      }),
+    );
+
+    expect(host.registry.get('cozyvtt.map.terrain')).not.toBe(previous);
+    dispose();
+    expect(host.registry.get('cozyvtt.map.terrain')).toBe(previous);
   });
 });

@@ -11,7 +11,6 @@ import {
   UpdateMap,
 } from './MapLifecycleCommands';
 import { CurrentMapCampaign, MapCoreRecord, MapLifecycleError } from '../../domain/maps/MapLifecycle';
-import { MapAssetUrlNormalizer } from '../../ports/MapAssetUrlNormalizer';
 import { MapCoreRepository } from '../../ports/MapCoreRepository';
 
 function mapWith(overrides: Partial<MapCoreRecord> = {}): MapCoreRecord {
@@ -34,16 +33,12 @@ function repositoryFor(map: MapCoreRecord | null = mapWith()): jest.Mocked<MapCo
   };
 }
 
-const assets: jest.Mocked<MapAssetUrlNormalizer> = {
-  normalizeMapAssetUrl: jest.fn((url: string) => `/api/assets/maps/${url}`),
-};
-
 beforeEach(() => jest.clearAllMocks());
 
 describe('map lifecycle commands', () => {
   it('creates a map with established defaults and normalized asset paths', async () => {
     const repository = repositoryFor();
-    await new CreateMap(repository, assets).execute({
+    await new CreateMap(repository).execute({
       type: CREATE_MAP, campaignId: 'campaign-1', input: { name: '  Briar Hollow  ', imageUrl: 'asset-1', width: 30, height: 20 },
     });
 
@@ -56,7 +51,7 @@ describe('map lifecycle commands', () => {
 
   it('loads a map before update validation to retain not-found precedence', async () => {
     const repository = repositoryFor(null);
-    await expect(new UpdateMap(repository, assets).execute({
+    await expect(new UpdateMap(repository).execute({
       type: UPDATE_MAP, campaignId: 'campaign-1', mapId: 'missing', input: { width: -1 },
     })).rejects.toEqual(new MapLifecycleError('MAP_NOT_FOUND', 404, 'Not Found', 'Map not found'));
     expect(repository.updateMap).not.toHaveBeenCalled();
@@ -64,7 +59,7 @@ describe('map lifecycle commands', () => {
 
   it('keeps image and base-layer URLs synchronized on update while returning lighting for the scene command', async () => {
     const repository = repositoryFor();
-    const result = await new UpdateMap(repository, assets).execute({
+    const result = await new UpdateMap(repository).execute({
       type: UPDATE_MAP, campaignId: 'campaign-1', mapId: 'map-1', input: { imageUrl: 'replacement', lightingEnabled: true },
     });
     expect(repository.updateMap).toHaveBeenCalledWith('map-1', 7, {
@@ -75,7 +70,7 @@ describe('map lifecycle commands', () => {
 
   it('does not write lighting-only updates through the map-core repository', async () => {
     const repository = repositoryFor();
-    const result = await new UpdateMap(repository, assets).execute({
+    const result = await new UpdateMap(repository).execute({
       type: UPDATE_MAP, campaignId: 'campaign-1', mapId: 'map-1', input: { lightingEnabled: true },
     });
 

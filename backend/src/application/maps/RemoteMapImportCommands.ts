@@ -1,5 +1,4 @@
 import type { AssetMutationRepository } from "../../ports/AssetMutationRepository";
-import type { MapAssetUrlNormalizer } from "../../ports/MapAssetUrlNormalizer";
 import type { MapCoreRepository } from "../../ports/MapCoreRepository";
 import type { RemoteMapAssetIngress } from "../../ports/RemoteMapAssetIngress";
 import type { Command, CommandHandler } from "../commands/CommandBus";
@@ -60,7 +59,7 @@ export interface ImportRemoteMapCommand extends Command<ImportRemoteMapResult> {
 }
 
 /**
- * End-to-end remote map ingestion shared by MCP and any future API adapter.
+ * End-to-end remote map ingestion shared by plugin and any future API adapter.
  * Database work participates in the production ApplicationHost transaction;
  * filesystem bytes are compensated explicitly on every failure path.
  */
@@ -77,11 +76,10 @@ export class ImportRemoteMap implements CommandHandler<
     private readonly assetRepository: AssetMutationRepository,
     private readonly ingress: RemoteMapAssetIngress,
     private readonly mapRepository: MapCoreRepository,
-    mapAssets: MapAssetUrlNormalizer,
   ) {
     this.createAsset = new CreateAsset(assetRepository, ingress);
     this.deleteAsset = new DeleteAsset(assetRepository, ingress);
-    this.createMap = new CreateMap(mapRepository, mapAssets);
+    this.createMap = new CreateMap(mapRepository);
     this.setCurrentMap = new SetCurrentMap(mapRepository);
   }
 

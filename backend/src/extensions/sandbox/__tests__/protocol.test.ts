@@ -35,20 +35,31 @@ describe("sandbox NDJSON protocol", () => {
         result: { planned: true },
         coreActions: [
           {
-            commandId: "agent.actor.move",
+            commandId: "actor.move",
             input: { mapId: "map-1", tokenId: "npc-1", x: 4, y: 5 },
+            idempotencyKey: "sandbox-action-1",
           },
         ],
       }).coreActions,
     ).toEqual([
-      expect.objectContaining({ commandId: "agent.actor.move" }),
+      expect.objectContaining({ commandId: "actor.move" }),
     ]);
     expect(() =>
       parseSandboxResponse({
         version: SANDBOX_PROTOCOL_VERSION,
         id: "call-3",
         ok: true,
-        coreActions: [{ commandId: "agent.actor.move", input: "bad" }],
+        coreActions: [{ commandId: "actor.move", input: "bad" }],
+      }),
+    ).toThrow(SandboxProtocolError);
+    expect(() =>
+      parseSandboxResponse({
+        version: SANDBOX_PROTOCOL_VERSION,
+        id: "call-4",
+        ok: true,
+        coreActions: [
+          { commandId: "actor.move", input: {}, idempotencyKey: "short" },
+        ],
       }),
     ).toThrow(SandboxProtocolError);
   });

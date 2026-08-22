@@ -1,12 +1,16 @@
 import { CommandBus } from "../application/commands/CommandBus";
-import { PrismaAgentAuditPort } from "../adapters/persistence/PrismaDurableFoundations";
-import { PrismaAgentAccessRepository } from "../adapters/persistence/PrismaAgentAccessRepository";
+import { PrismaCapabilityAuditPort } from "../adapters/persistence/PrismaDurableFoundations";
+import { PrismaPluginAccessRepository } from "../adapters/persistence/PrismaPluginAccessRepository";
 import { prisma } from "../config/database";
 import { ExtensionCommandBridge } from "../extensions/bridge/ExtensionCommandBridge";
-import type { AgentToolAuditPort } from "../extensions/bridge/contracts";
+import type { PublishedCapabilityAuditPort } from "../extensions/bridge/contracts";
 import type { ExtensionPolicyPort } from "../application/policy/ExtensionPolicy";
 import { ExtensionRegistry } from "../extensions/registry";
-import { ExtensionHostService, TrustedRegistryProxy } from "../extensions/host";
+import {
+  ExtensionHostService,
+  TrustedHttpTransportRegistry,
+  TrustedRegistryProxy,
+} from "../extensions/host";
 import { ReviewedExtensionTrustPolicy } from "../extensions/host/ExtensionTrustPolicy";
 import {
   EnvironmentExtensionTrustAllowlist,
@@ -22,10 +26,10 @@ import {
 } from "../extensions/sandbox";
 import { CoreApplicationGatewayFactory } from "../extensions/core/CoreApplicationGateway";
 import { productionApplicationHost } from "./productionApplicationHost";
-import { productionQueryHost } from "./productionQueryHost";
+import { productionPublicQueryHost } from "./productionQueryHost";
 
 class DurableBridgePolicy implements ExtensionPolicyPort {
-  public constructor(private readonly access: PrismaAgentAccessRepository) {}
+  public constructor(private readonly access: PrismaPluginAccessRepository) {}
   async check(check: Parameters<ExtensionPolicyPort["check"]>[0]) {
     const credential = await this.access.findCredentialById(
       check.principal.id,
@@ -43,17 +47,17 @@ class DurableBridgePolicy implements ExtensionPolicyPort {
     return { allowed, missing: allowed ? [] : [...check.permissions] };
   }
 }
-class DurableBridgeAudit implements AgentToolAuditPort {
-  public constructor(private readonly audit: PrismaAgentAuditPort) {}
+class DurableBridgeAudit implements PublishedCapabilityAuditPort {
+  public constructor(private readonly audit: PrismaCapabilityAuditPort) {}
   async record(
-    event: Parameters<AgentToolAuditPort["record"]>[0],
+    event: Parameters<PublishedCapabilityAuditPort["record"]>[0],
   ): Promise<void> {
     await this.audit.append({
-      principalType: "AGENT",
+      principalType: "PLUGIN",
       principalId: event.principalId,
       campaignId: event.campaignId,
       extensionId: event.extensionId,
-      commandType: event.commandId ?? event.toolId ?? "extension.catalog",
+      commandType: event.commandId ?? event.capabilityId ?? "extension.catalog",
       inputDigest: event.inputDigest ?? "sha256:catalog-no-input",
       decision:
         event.outcome === "succeeded"
@@ -72,9 +76,11 @@ export interface ProductionExtensionRuntime {
   registry: ExtensionRegistry;
   bridge: ExtensionCommandBridge;
   host: ExtensionHostService;
+  httpTransport: TrustedHttpTransportRegistry;
   rehydrate(): Promise<void>;
 }
 let runtime: ProductionExtensionRuntime | undefined;
+export const productionHttpTransportRegistry = new TrustedHttpTransportRegistry();
 
 export function productionExtensionRuntime(): ProductionExtensionRuntime {
   if (runtime) return runtime;
@@ -89,16 +95,27 @@ export function productionExtensionRuntime(): ProductionExtensionRuntime {
   const bridge = new ExtensionCommandBridge(
     registry,
     bus,
-    new DurableBridgePolicy(new PrismaAgentAccessRepository(prisma)),
-    new DurableBridgeAudit(new PrismaAgentAuditPort(prisma)),
+    new DurableBridgePolicy(new PrismaPluginAccessRepository(prisma)),
+    new DurableBridgeAudit(new PrismaCapabilityAuditPort(prisma)),
     [],
   );
   const catalog = new LocalExtensionPackageCatalog(root);
   const coreGateway = new CoreApplicationGatewayFactory(
     productionApplicationHost,
-    productionQueryHost,
-    new PrismaAgentAccessRepository(prisma),
+    productionPublicQueryHost,
+    new PrismaPluginAccessRepository(prisma),
   );
+  productionHttpTransportRegistry.setContextFactory({
+    create: ({ extensionId, authorization }) =>
+      coreGateway.create(
+        extensionId,
+        {
+          principal: { id: authorization.credentialId, kind: "plugin" },
+          scope: { campaignId: authorization.campaignId },
+        },
+        registry.getExtension(extensionId)?.manifest.permissions ?? [],
+      ),
+  });
   const sandbox = new NodeBubblewrapSandbox(catalog);
   const proxy = new SandboxRegistryProxy(
     registry,
@@ -112,6 +129,7 @@ export function productionExtensionRuntime(): ProductionExtensionRuntime {
     bus,
     bridge,
     coreGateway,
+    productionHttpTransportRegistry,
   );
   const supervisor = new SandboxedExtensionSupervisor(sandbox);
   const lifecycle = {
@@ -143,6 +161,7 @@ export function productionExtensionRuntime(): ProductionExtensionRuntime {
     registry,
     bridge,
     host,
+    httpTransport: productionHttpTransportRegistry,
     rehydrate: async () => {
       for (const installation of await host.list())
         if (installation.state === "active")

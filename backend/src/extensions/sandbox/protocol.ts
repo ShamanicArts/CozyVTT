@@ -17,6 +17,7 @@ export interface SandboxResponse {
 export interface SandboxCoreAction {
   commandId: string;
   input: Record<string, unknown>;
+  idempotencyKey?: string;
 }
 export class SandboxProtocolError extends Error {
   constructor(message: string) {
@@ -47,7 +48,11 @@ export function parseSandboxResponse(value: unknown): SandboxResponse {
         (action) =>
           !isRecord(action) ||
           typeof action.commandId !== "string" ||
-          !isRecord(action.input),
+          !isRecord(action.input) ||
+          (action.idempotencyKey !== undefined &&
+            (typeof action.idempotencyKey !== "string" ||
+              action.idempotencyKey.length < 8 ||
+              action.idempotencyKey.length > 200)),
       ))
   ) {
     throw new SandboxProtocolError("Invalid sandbox core actions");

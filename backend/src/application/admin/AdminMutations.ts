@@ -9,10 +9,12 @@ import {
   adminError,
 } from "../../domain/admin/Admin";
 import { AdminAdministrationRepository } from "../../ports/AdminAdministrationRepository";
-import { AdminAuditLog } from "../../ports/AdminAuditLog";
-import { AdminBackupStore } from "../../ports/AdminBackupStore";
-import { AdminMailer } from "../../ports/AdminMailer";
-import { AdminPasswordHasher } from "../../ports/AdminPasswordHasher";
+import {
+  AdminAuditLog,
+  AdminBackupStore,
+  AdminMailer,
+  AdminPasswordHasher,
+} from "../../ports/AdminPorts";
 import { Command, CommandHandler } from "../commands/CommandBus";
 
 export const UPDATE_ADMIN_SETTINGS = "admin.settings.update" as const;

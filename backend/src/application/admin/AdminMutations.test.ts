@@ -18,10 +18,12 @@ import {
 } from "./AdminMutations";
 import { AdminCommandError, AdminUser } from "../../domain/admin/Admin";
 import { AdminAdministrationRepository } from "../../ports/AdminAdministrationRepository";
-import { AdminAuditLog } from "../../ports/AdminAuditLog";
-import { AdminBackupStore } from "../../ports/AdminBackupStore";
-import { AdminMailer } from "../../ports/AdminMailer";
-import { AdminPasswordHasher } from "../../ports/AdminPasswordHasher";
+import {
+  AdminAuditLog,
+  AdminBackupStore,
+  AdminMailer,
+  AdminPasswordHasher,
+} from "../../ports/AdminPorts";
 
 const actor = { userId: "admin-1" };
 const user = (overrides: Partial<AdminUser> = {}): AdminUser => ({

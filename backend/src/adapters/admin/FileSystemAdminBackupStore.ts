@@ -11,7 +11,7 @@ import {
   BackupSummary,
   adminError,
 } from "../../domain/admin/Admin";
-import { AdminBackupStore } from "../../ports/AdminBackupStore";
+import { AdminBackupStore } from "../../ports/AdminPorts";
 import { extractArchiveSafely } from "../../utils/archive";
 
 const execFileAsync = promisify(execFile);

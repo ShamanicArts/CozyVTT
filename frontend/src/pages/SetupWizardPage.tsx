@@ -835,7 +835,7 @@ function Step4Review({ adminData, systemConfig }: Step4Props) {
           </dl>
         </div>
 
-        {/* Confirmation Message */}
+        {/* Approval Message */}
         <div className="glass-panel p-4 border-2 border-moss-green/30">
           <p className="text-sm text-stone-gray text-center">
             Click{" "}

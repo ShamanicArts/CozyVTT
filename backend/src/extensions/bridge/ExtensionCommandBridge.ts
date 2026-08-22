@@ -2,7 +2,7 @@ import { createHash } from "crypto";
 import type { CommandBus } from "../../application/commands/CommandBus";
 import type { ExtensionPolicyPort } from "../../application/policy/ExtensionPolicy";
 import type {
-  AgentToolDescriptor,
+  PublishedCapabilityDescriptor,
   ApplicationCommandDescriptor,
 } from "../contracts";
 import type { ExtensionRegistry } from "../registry";
@@ -11,18 +11,18 @@ import {
   validateJsonSchema,
 } from "./JsonSchemaValidator";
 import type {
-  AgentToolAuditEvent,
-  AgentToolAuditPort,
-  AgentToolCatalogEntry,
-  AgentToolInvocation,
-  AgentToolInvocationContext,
-  AgentToolInvocationResult,
+  PublishedCapabilityAuditEvent,
+  PublishedCapabilityAuditPort,
+  PublishedCapabilityCatalogEntry,
+  PublishedCapabilityInvocation,
+  PublishedCapabilityInvocationContext,
+  PublishedCapabilityInvocationResult,
   CommandBinding,
   JsonValue,
-  RedactedAgentToolResult,
+  RedactedPublishedCapabilityResult,
 } from "./contracts";
 
-export type AgentToolBridgeErrorCode =
+export type PublishedCapabilityBridgeErrorCode =
   | "UNKNOWN_TOOL"
   | "UNBOUND_COMMAND"
   | "PERMISSION_DENIED"
@@ -31,17 +31,17 @@ export type AgentToolBridgeErrorCode =
   | "INVALID_OUTPUT"
   | "COMMAND_FAILED";
 
-export class AgentToolBridgeError extends Error {
+export class PublishedCapabilityBridgeError extends Error {
   constructor(
     message: string,
-    public readonly code: AgentToolBridgeErrorCode,
+    public readonly code: PublishedCapabilityBridgeErrorCode,
     public readonly details?: {
       missingPermissions?: string[];
       issues?: string[];
     },
   ) {
     super(message);
-    this.name = "AgentToolBridgeError";
+    this.name = "PublishedCapabilityBridgeError";
   }
 }
 
@@ -56,7 +56,7 @@ export class ExtensionCommandBridge {
     private readonly registry: ExtensionRegistry,
     private readonly commandBus: CommandBus,
     private readonly policy: ExtensionPolicyPort,
-    private readonly audit: AgentToolAuditPort,
+    private readonly audit: PublishedCapabilityAuditPort,
     bindings: readonly CommandBinding[],
   ) {
     for (const binding of bindings) {
@@ -70,30 +70,30 @@ export class ExtensionCommandBridge {
   }
 
   async listCatalog(
-    context: AgentToolInvocationContext,
-  ): Promise<AgentToolCatalogEntry[]> {
-    const entries: AgentToolCatalogEntry[] = [];
-    for (const tool of this.registry.listAgentTools()) {
-      const command = this.registry.getCommand(tool.commandId);
+    context: PublishedCapabilityInvocationContext,
+  ): Promise<PublishedCapabilityCatalogEntry[]> {
+    const entries: PublishedCapabilityCatalogEntry[] = [];
+    for (const capability of this.registry.listPublishedCapabilities()) {
+      const command = this.registry.getCommand(capability.commandId);
       if (!command || !this.bindings.has(command.id)) continue;
 
       const decision = await this.policy.check({
         principal: context.principal,
         scope: context.scope,
-        extensionId: tool.extensionId,
-        permissions: requiredPermissions(tool, command),
+        extensionId: capability.extensionId,
+        permissions: requiredPermissions(capability, command),
       });
       if (!decision.allowed) continue;
 
       entries.push({
-        id: tool.id,
-        extensionId: tool.extensionId,
-        title: tool.title,
-        description: tool.description,
+        id: capability.id,
+        extensionId: capability.extensionId,
+        title: capability.title,
+        description: capability.description,
         inputSchema: command.inputSchema,
-        requiredPermissions: requiredPermissions(tool, command),
-        risk: tool.risk,
-        confirmationRequired: requiresConfirmation(tool),
+        requiredPermissions: requiredPermissions(capability, command),
+        risk: capability.risk,
+        approvalRequired: requiresApproval(capability),
       });
     }
 
@@ -102,25 +102,25 @@ export class ExtensionCommandBridge {
   }
 
   async invoke(
-    invocation: AgentToolInvocation,
-  ): Promise<AgentToolInvocationResult> {
-    let tool: (AgentToolDescriptor & { extensionId: string }) | undefined;
+    invocation: PublishedCapabilityInvocation,
+  ): Promise<PublishedCapabilityInvocationResult> {
+    let capability: (PublishedCapabilityDescriptor & { extensionId: string }) | undefined;
     let command: ApplicationCommandDescriptor | undefined;
     try {
-      tool = this.registry
-        .listAgentTools()
-        .find((candidate) => candidate.id === invocation.toolId);
-      if (!tool)
-        throw new AgentToolBridgeError(
-          `Unknown active agent tool "${invocation.toolId}"`,
+      capability = this.registry
+        .listPublishedCapabilities()
+        .find((candidate) => candidate.id === invocation.capabilityId);
+      if (!capability)
+        throw new PublishedCapabilityBridgeError(
+          `Unknown active capability "${invocation.capabilityId}"`,
           "UNKNOWN_TOOL",
         );
 
-      command = this.registry.getCommand(tool.commandId);
+      command = this.registry.getCommand(capability.commandId);
       const binding = command ? this.bindings.get(command.id) : undefined;
       if (!command || !binding) {
-        throw new AgentToolBridgeError(
-          `No allowlisted command binding for "${tool.commandId}"`,
+        throw new PublishedCapabilityBridgeError(
+          `No allowlisted command binding for "${capability.commandId}"`,
           "UNBOUND_COMMAND",
         );
       }
@@ -134,8 +134,8 @@ export class ExtensionCommandBridge {
         }
       } catch (error) {
         if (error instanceof JsonSchemaValidationError) {
-          throw new AgentToolBridgeError(
-            "Tool input did not satisfy its schema",
+          throw new PublishedCapabilityBridgeError(
+            "Capability input did not satisfy its schema",
             "INVALID_INPUT",
             { issues: error.issues },
           );
@@ -146,11 +146,11 @@ export class ExtensionCommandBridge {
       const decision = await this.policy.check({
         principal: invocation.principal,
         scope: invocation.scope,
-        extensionId: tool.extensionId,
-        permissions: requiredPermissions(tool, command),
+        extensionId: capability.extensionId,
+        permissions: requiredPermissions(capability, command),
       });
       if (!decision.allowed) {
-        throw new AgentToolBridgeError(
+        throw new PublishedCapabilityBridgeError(
           "The principal lacks an explicit extension permission grant",
           "PERMISSION_DENIED",
           {
@@ -159,9 +159,9 @@ export class ExtensionCommandBridge {
         );
       }
 
-      if (requiresConfirmation(tool) && !hasValidConfirmation(invocation)) {
-        throw new AgentToolBridgeError(
-          "This tool requires explicit confirmation before execution",
+      if (requiresApproval(capability) && !hasValidApproval(invocation)) {
+        throw new PublishedCapabilityBridgeError(
+          "This capability requires explicit approval before execution",
           "CONFIRMATION_REQUIRED",
         );
       }
@@ -173,7 +173,7 @@ export class ExtensionCommandBridge {
           binding.createCommand(input, invocation),
         );
       } catch (error) {
-        throw new AgentToolBridgeError(
+        throw new PublishedCapabilityBridgeError(
           "The command handler failed",
           "COMMAND_FAILED",
         );
@@ -183,7 +183,7 @@ export class ExtensionCommandBridge {
         validateJsonSchema(command.outputSchema, output);
       } catch (error) {
         if (error instanceof JsonSchemaValidationError) {
-          throw new AgentToolBridgeError(
+          throw new PublishedCapabilityBridgeError(
             "The command handler returned data outside its declared schema",
             "INVALID_OUTPUT",
             {
@@ -194,13 +194,13 @@ export class ExtensionCommandBridge {
         throw error;
       }
 
-      const result: AgentToolInvocationResult = {
-        toolId: tool.id,
+      const result: PublishedCapabilityInvocationResult = {
+        capabilityId: capability.id,
         commandId: command.id,
-        extensionId: tool.extensionId,
+        extensionId: capability.extensionId,
         result: redactResult(output),
       };
-      await this.audit.record(eventFor("succeeded", invocation, tool, command));
+      await this.audit.record(eventFor("succeeded", invocation, capability, command));
       return result;
     } catch (error) {
       const bridgeError = toBridgeError(error);
@@ -208,7 +208,7 @@ export class ExtensionCommandBridge {
         eventFor(
           outcomeFor(bridgeError),
           invocation,
-          tool,
+          capability,
           command,
           bridgeError.code,
         ),
@@ -232,26 +232,26 @@ export class ExtensionCommandBridge {
 }
 
 function requiredPermissions(
-  tool: AgentToolDescriptor,
+  capability: PublishedCapabilityDescriptor,
   command: ApplicationCommandDescriptor,
-): AgentToolDescriptor["requiredPermissions"] {
+): PublishedCapabilityDescriptor["requiredPermissions"] {
   return [
-    ...new Set([...tool.requiredPermissions, ...command.requiredPermissions]),
+    ...new Set([...capability.requiredPermissions, ...command.requiredPermissions]),
   ];
 }
 
-function requiresConfirmation(tool: AgentToolDescriptor): boolean {
+function requiresApproval(capability: PublishedCapabilityDescriptor): boolean {
   return (
-    tool.confirmation === "always" ||
-    tool.risk === "high" ||
-    (tool.confirmation === "when-risky" && tool.risk !== "read")
+    capability.approval === "always" ||
+    capability.risk === "high" ||
+    (capability.approval === "when-risky" && capability.risk !== "read")
   );
 }
 
-function hasValidConfirmation(invocation: AgentToolInvocation): boolean {
+function hasValidApproval(invocation: PublishedCapabilityInvocation): boolean {
   return (
-    invocation.confirmation?.confirmed === true &&
-    invocation.confirmation.approvedByPrincipalId === invocation.principal.id
+    invocation.approval?.confirmed === true &&
+    invocation.approval.approvedByPrincipalId === invocation.principal.id
   );
 }
 
@@ -261,7 +261,7 @@ function bindScope(
   campaignId: string,
 ): Record<string, unknown> {
   if ("campaignId" in input && input.campaignId !== campaignId) {
-    throw new AgentToolBridgeError(
+    throw new PublishedCapabilityBridgeError(
       "Input campaignId does not match the authorized campaign scope",
       "INVALID_INPUT",
     );
@@ -269,10 +269,10 @@ function bindScope(
   return { ...input };
 }
 
-function redactResult(value: unknown): RedactedAgentToolResult {
+function redactResult(value: unknown): RedactedPublishedCapabilityResult {
   const state = { count: 0 };
   return {
-    kind: "redacted-agent-tool-result",
+    kind: "redacted-capability-capability-result",
     data: redact(value, state),
     redactedFields: state.count,
   };
@@ -310,21 +310,21 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function eventFor(
-  outcome: AgentToolAuditEvent["outcome"],
-  context: AgentToolInvocationContext,
-  tool?: AgentToolDescriptor & { extensionId: string },
+  outcome: PublishedCapabilityAuditEvent["outcome"],
+  context: PublishedCapabilityInvocationContext,
+  capability?: PublishedCapabilityDescriptor & { extensionId: string },
   command?: ApplicationCommandDescriptor,
   reason?: string,
-): AgentToolAuditEvent {
-  const invocation = context as Partial<AgentToolInvocation>;
+): PublishedCapabilityAuditEvent {
+  const invocation = context as Partial<PublishedCapabilityInvocation>;
   return {
     occurredAt: new Date().toISOString(),
     outcome,
     principalId: context.principal.id,
     principalKind: context.principal.kind,
     campaignId: context.scope.campaignId,
-    extensionId: tool?.extensionId,
-    toolId: tool?.id,
+    extensionId: capability?.extensionId,
+    capabilityId: capability?.id,
     commandId: command?.id,
     reason,
     inputKeys: isPlainObject(invocation.input)
@@ -353,17 +353,17 @@ function canonical(value: unknown): unknown {
   return value;
 }
 
-function toBridgeError(error: unknown): AgentToolBridgeError {
-  if (error instanceof AgentToolBridgeError) return error;
-  return new AgentToolBridgeError(
-    "The agent tool invocation failed",
+function toBridgeError(error: unknown): PublishedCapabilityBridgeError {
+  if (error instanceof PublishedCapabilityBridgeError) return error;
+  return new PublishedCapabilityBridgeError(
+    "The capability invocation failed",
     "COMMAND_FAILED",
   );
 }
 
 function outcomeFor(
-  error: AgentToolBridgeError,
-): AgentToolAuditEvent["outcome"] {
+  error: PublishedCapabilityBridgeError,
+): PublishedCapabilityAuditEvent["outcome"] {
   if (
     error.code === "PERMISSION_DENIED" ||
     error.code === "CONFIRMATION_REQUIRED"

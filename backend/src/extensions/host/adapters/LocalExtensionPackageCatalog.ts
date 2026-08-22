@@ -4,6 +4,7 @@ import path from "path";
 import { pathToFileURL } from "url";
 import type {
   ExtensionCommandHandler,
+  ExtensionHttpHandler,
   ExtensionLifecycleContext,
   ExtensionModule,
 } from "../../contracts";
@@ -239,11 +240,36 @@ function readExtensionModule(imported: unknown): ExtensionModule {
   return {
     manifest: parseExtensionManifest(candidate.manifest),
     commandHandlers: readCommandHandlers(candidate),
+    httpHandlers: readHttpHandlers(candidate),
     onInstall: readLifecycle(candidate, "onInstall"),
     onActivate: readLifecycle(candidate, "onActivate"),
     onDeactivate: readLifecycle(candidate, "onDeactivate"),
     onUninstall: readLifecycle(candidate, "onUninstall"),
   };
+}
+
+function readHttpHandlers(
+  candidate: Record<string, unknown>,
+): Readonly<Record<string, ExtensionHttpHandler>> | undefined {
+  const value = candidate.httpHandlers;
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    throw new ExtensionHostError(
+      "Extension httpHandlers must be an object",
+      "INVALID_PACKAGE",
+    );
+  }
+  const handlers: Record<string, ExtensionHttpHandler> = {};
+  for (const [routeId, handler] of Object.entries(value)) {
+    if (typeof handler !== "function") {
+      throw new ExtensionHostError(
+        `Extension HTTP handler ${routeId} must be a function`,
+        "INVALID_PACKAGE",
+      );
+    }
+    handlers[routeId] = handler as ExtensionHttpHandler;
+  }
+  return handlers;
 }
 
 function readCommandHandlers(

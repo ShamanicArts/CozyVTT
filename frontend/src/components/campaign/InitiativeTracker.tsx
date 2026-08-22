@@ -565,7 +565,7 @@ export default function InitiativeTracker() {
         />
       )}
 
-      {/* End combat confirmation */}
+      {/* End combat approval */}
       <ConfirmDialog
         isOpen={showEndConfirm}
         title="End Combat"

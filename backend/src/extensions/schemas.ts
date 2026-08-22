@@ -2,15 +2,17 @@ import { z } from 'zod';
 import {
   EXTENSION_CAPABILITIES,
   EXTENSION_PERMISSIONS,
-  type AgentToolDescriptor,
+  type PublishedCapabilityDescriptor,
   type ApplicationCommandDescriptor,
   type ExtensionManifest,
+  type HttpRouteDescriptor,
+  type OAuthResourceDescriptor,
 } from './contracts';
 import { isValidVersionRange, isValidVersion } from './versioning';
 
 const extensionIdPattern = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$/;
 const descriptorIdPattern = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$/;
-const toolIdPattern = /^[a-z][a-z0-9_]{2,63}$/;
+const capabilityIdPattern = /^[a-z][a-z0-9_]{2,63}$/;
 
 const semverSchema = z.string().refine(isValidVersion, 'Expected a semantic version such as 1.0.0');
 const versionRangeSchema = z.string().refine(
@@ -35,15 +37,40 @@ export const applicationCommandDescriptorSchema: z.ZodType<ApplicationCommandDes
   })
   .strict();
 
-export const agentToolDescriptorSchema: z.ZodType<AgentToolDescriptor> = z
+export const publishedCapabilityDescriptorSchema: z.ZodType<PublishedCapabilityDescriptor> = z
   .object({
-    id: z.string().regex(toolIdPattern, 'Use a lowercase snake_case agent tool id'),
+    id: z.string().regex(capabilityIdPattern, 'Use a lowercase snake_case capability id'),
     title: z.string().trim().min(1).max(120),
     description: z.string().trim().min(1).max(2_000),
     commandId: z.string().regex(descriptorIdPattern, 'Use an application command id'),
     requiredPermissions: z.array(extensionPermissionSchema).max(32),
     risk: z.enum(['read', 'low', 'high']),
-    confirmation: z.enum(['never', 'when-risky', 'always']),
+    approval: z.enum(['never', 'when-risky', 'always']),
+  })
+  .strict();
+
+const contributionIdSchema = z.string().regex(descriptorIdPattern, 'Use a dotted or dashed contribution id');
+const transportPathSchema = z
+  .string()
+  .regex(/^\/(?:[a-zA-Z0-9._~-]+(?:\/[a-zA-Z0-9._~-]+)*)?$/, 'Use a canonical relative HTTP path')
+  .refine((value) => !value.split('/').includes('..'), 'HTTP path must not traverse directories');
+const oauthScopeSchema = z.string().regex(/^[a-zA-Z0-9._:-]{1,128}$/, 'Use a valid OAuth scope');
+
+export const httpRouteDescriptorSchema: z.ZodType<HttpRouteDescriptor> = z
+  .object({
+    id: contributionIdSchema,
+    method: z.enum(['DELETE', 'GET', 'PATCH', 'POST', 'PUT']),
+    path: transportPathSchema,
+    oauthResourceId: contributionIdSchema.optional(),
+    requiredScopes: z.array(oauthScopeSchema).max(32),
+  })
+  .strict();
+
+export const oauthResourceDescriptorSchema: z.ZodType<OAuthResourceDescriptor> = z
+  .object({
+    id: contributionIdSchema,
+    path: transportPathSchema,
+    scopes: z.array(oauthScopeSchema).max(64),
   })
   .strict();
 
@@ -63,14 +90,55 @@ export const extensionManifestSchema: z.ZodType<ExtensionManifest> = z
     capabilities: z.array(extensionCapabilitySchema).max(32),
     permissions: z.array(extensionPermissionSchema).max(32),
     commands: z.array(applicationCommandDescriptorSchema).max(128),
-    agentTools: z.array(agentToolDescriptorSchema).max(128),
+    publishedCapabilities: z.array(publishedCapabilityDescriptorSchema).max(128),
+    httpRoutes: z.array(httpRouteDescriptorSchema).max(64).optional(),
+    oauthResources: z.array(oauthResourceDescriptorSchema).max(16).optional(),
   })
   .strict()
   .superRefine((manifest, context) => {
     rejectDuplicates(manifest.capabilities, 'capabilities', context);
     rejectDuplicates(manifest.permissions, 'permissions', context);
     rejectDuplicates(manifest.commands.map((command) => command.id), 'commands', context);
-    rejectDuplicates(manifest.agentTools.map((tool) => tool.id), 'agentTools', context);
+    rejectDuplicates(manifest.publishedCapabilities.map((capability) => capability.id), 'publishedCapabilities', context);
+    rejectDuplicates((manifest.httpRoutes ?? []).map((route) => route.id), 'httpRoutes', context);
+    rejectDuplicates(
+      (manifest.httpRoutes ?? []).map((route) => `${route.method} ${route.path}`),
+      'httpRoutes',
+      context
+    );
+    rejectDuplicates((manifest.oauthResources ?? []).map((resource) => resource.id), 'oauthResources', context);
+    rejectDuplicates((manifest.oauthResources ?? []).map((resource) => resource.path), 'oauthResources', context);
+
+    if ((manifest.httpRoutes?.length ?? 0) > 0 && !manifest.capabilities.includes('http-transports')) {
+      context.addIssue({
+        code: 'custom',
+        path: ['capabilities'],
+        message: 'The http-transports capability is required when HTTP routes are declared',
+      });
+    }
+
+    const resources = new Map((manifest.oauthResources ?? []).map((resource) => [resource.id, resource]));
+    for (const route of manifest.httpRoutes ?? []) {
+      if (route.requiredScopes.length > 0 && !route.oauthResourceId) {
+        context.addIssue({ code: 'custom', path: ['httpRoutes', route.id, 'oauthResourceId'], message: 'Scoped HTTP routes require an OAuth resource' });
+        continue;
+      }
+      if (!route.oauthResourceId) continue;
+      const resource = resources.get(route.oauthResourceId);
+      if (!resource) {
+        context.addIssue({ code: 'custom', path: ['httpRoutes', route.id, 'oauthResourceId'], message: `HTTP route references undeclared OAuth resource ${route.oauthResourceId}` });
+        continue;
+      }
+      if (resource.path !== '/' && route.path !== resource.path && !route.path.startsWith(`${resource.path}/`)) {
+        context.addIssue({ code: 'custom', path: ['httpRoutes', route.id, 'path'], message: `HTTP route must be within OAuth resource path ${resource.path}` });
+      }
+      const declaredScopes = new Set(resource.scopes);
+      for (const scope of route.requiredScopes) {
+        if (!declaredScopes.has(scope)) {
+          context.addIssue({ code: 'custom', path: ['httpRoutes', route.id, 'requiredScopes'], message: `OAuth scope ${scope} is not declared by resource ${resource.id}` });
+        }
+      }
+    }
 
     if (manifest.commands.length > 0 && !manifest.capabilities.includes('commands')) {
       context.addIssue({
@@ -80,11 +148,11 @@ export const extensionManifestSchema: z.ZodType<ExtensionManifest> = z
       });
     }
 
-    if (manifest.agentTools.length > 0 && !manifest.capabilities.includes('agent-tools')) {
+    if (manifest.publishedCapabilities.length > 0 && !manifest.capabilities.includes('capability-publications')) {
       context.addIssue({
         code: 'custom',
         path: ['capabilities'],
-        message: 'The agent-tools capability is required when agent tools are declared',
+        message: 'The capability-publications capability is required when capability capabilities are declared',
       });
     }
 
@@ -99,40 +167,40 @@ export const extensionManifestSchema: z.ZodType<ExtensionManifest> = z
       );
     }
 
-    for (const tool of manifest.agentTools) {
+    for (const capability of manifest.publishedCapabilities) {
       requireDeclaredPermissions(
-        tool.requiredPermissions,
+        capability.requiredPermissions,
         declaredPermissions,
-        ['agentTools', tool.id, 'requiredPermissions'],
+        ['publishedCapabilities', capability.id, 'requiredPermissions'],
         context
       );
 
-      const command = commands.get(tool.commandId);
+      const command = commands.get(capability.commandId);
       if (!command) {
         context.addIssue({
           code: 'custom',
-          path: ['agentTools', tool.id, 'commandId'],
-          message: `Agent tool targets undeclared command ${tool.commandId}`,
+          path: ['publishedCapabilities', capability.id, 'commandId'],
+          message: `Published capability targets undeclared command ${capability.commandId}`,
         });
         continue;
       }
 
-      const toolPermissions = new Set(tool.requiredPermissions);
+      const toolPermissions = new Set(capability.requiredPermissions);
       for (const permission of command.requiredPermissions) {
         if (!toolPermissions.has(permission)) {
           context.addIssue({
             code: 'custom',
-            path: ['agentTools', tool.id, 'requiredPermissions'],
-            message: `Agent tool must declare command permission ${permission}`,
+            path: ['publishedCapabilities', capability.id, 'requiredPermissions'],
+            message: `Published capability must declare command permission ${permission}`,
           });
         }
       }
 
-      if (tool.risk === 'high' && tool.confirmation === 'never') {
+      if (capability.risk === 'high' && capability.approval === 'never') {
         context.addIssue({
           code: 'custom',
-          path: ['agentTools', tool.id, 'confirmation'],
-          message: 'High-risk agent tools must require a confirmation policy',
+          path: ['publishedCapabilities', capability.id, 'approval'],
+          message: 'High-risk capability capabilities must require an approval policy',
         });
       }
     }

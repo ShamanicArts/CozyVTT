@@ -7,8 +7,8 @@ import {
   mapNotInCampaign,
   validationError,
 } from '../../domain/maps/MapLifecycle';
-import { MapAssetUrlNormalizer } from '../../ports/MapAssetUrlNormalizer';
 import { MapCoreRepository } from '../../ports/MapCoreRepository';
+import { normalizeAssetUrl } from '../../utils/asset-urls';
 import { Command, CommandHandler } from '../commands/CommandBus';
 
 export const CREATE_MAP = 'map.create' as const;
@@ -67,10 +67,7 @@ abstract class MapCommandBase {
 }
 
 export class CreateMap implements CommandHandler<CreateMapCommand, MapCoreRecord> {
-  constructor(
-    private readonly repository: MapCoreRepository,
-    private readonly assets: MapAssetUrlNormalizer
-  ) {}
+  constructor(private readonly repository: MapCoreRepository) {}
 
   async execute(command: CreateMapCommand): Promise<MapCoreRecord> {
     const { input } = command;
@@ -83,9 +80,9 @@ export class CreateMap implements CommandHandler<CreateMapCommand, MapCoreRecord
     if (!width || typeof width !== 'number' || width <= 0) throw validationError('Map width must be a positive number');
     if (!height || typeof height !== 'number' || height <= 0) throw validationError('Map height must be a positive number');
 
-    const normalizedImageUrl = this.assets.normalizeMapAssetUrl(imageUrl);
+    const normalizedImageUrl = normalizeAssetUrl(imageUrl, 'maps');
     if (!normalizedImageUrl) throw validationError('Invalid map imageUrl');
-    const spiritLayerUrl = input.spiritLayerUrl ? this.assets.normalizeMapAssetUrl(input.spiritLayerUrl as string) : null;
+    const spiritLayerUrl = input.spiritLayerUrl ? normalizeAssetUrl(input.spiritLayerUrl as string, 'maps') : null;
     const gridSize = input.gridSize && typeof input.gridSize === 'number' && input.gridSize > 0 ? input.gridSize : 50;
     const rawFeetPerSquare = input.feetPerSquare;
     const feetPerSquare = typeof rawFeetPerSquare === 'number' && rawFeetPerSquare && Number.isInteger(rawFeetPerSquare) && rawFeetPerSquare > 0 && rawFeetPerSquare <= 100
@@ -100,12 +97,10 @@ export class CreateMap implements CommandHandler<CreateMapCommand, MapCoreRecord
 }
 
 export class UpdateMap extends MapCommandBase implements CommandHandler<UpdateMapCommand, MapUpdateResult> {
-  constructor(repository: MapCoreRepository, private readonly assets: MapAssetUrlNormalizer) { super(repository); }
-
   async execute(command: UpdateMapCommand): Promise<MapUpdateResult> {
     // Load before validation: this deliberately retains the existing REST error ordering.
     const existingMap = await this.mapInCampaign(command.campaignId, command.mapId);
-    const { data, lightingEnabled } = buildMapUpdate(command.input, this.assets);
+    const { data, lightingEnabled } = buildMapUpdate(command.input);
     // For a lighting-only generic update, let the scene command perform the
     // sole persistence write. An empty PUT keeps the legacy no-op map update.
     const map = Object.keys(data).length === 0 && lightingEnabled !== undefined
@@ -141,7 +136,7 @@ export class ChangeMap extends MapCommandBase implements CommandHandler<ChangeMa
   }
 }
 
-function buildMapUpdate(input: Record<string, unknown>, assets: MapAssetUrlNormalizer): {
+function buildMapUpdate(input: Record<string, unknown>): {
   data: MapCoreUpdateData;
   lightingEnabled?: boolean;
 } {
@@ -175,7 +170,7 @@ function buildMapUpdate(input: Record<string, unknown>, assets: MapAssetUrlNorma
   }
   if (input.imageUrl !== undefined) {
     if (typeof input.imageUrl !== 'string') throw validationError('Image URL must be a string');
-    const imageUrl = assets.normalizeMapAssetUrl(input.imageUrl);
+    const imageUrl = normalizeAssetUrl(input.imageUrl, 'maps');
     if (!imageUrl) throw validationError('Invalid map imageUrl');
     data.imageUrl = imageUrl;
     data.baseLayerUrl = imageUrl;
@@ -184,7 +179,7 @@ function buildMapUpdate(input: Record<string, unknown>, assets: MapAssetUrlNorma
     if (input.spiritLayerUrl !== null && typeof input.spiritLayerUrl !== 'string') {
       throw validationError('Spirit layer URL must be a string or null');
     }
-    data.spiritLayerUrl = input.spiritLayerUrl ? assets.normalizeMapAssetUrl(input.spiritLayerUrl) : null;
+    data.spiritLayerUrl = input.spiritLayerUrl ? normalizeAssetUrl(input.spiritLayerUrl, 'maps') : null;
   }
   if (input.lightingEnabled !== undefined) {
     if (typeof input.lightingEnabled !== 'boolean') throw validationError('lightingEnabled must be a boolean');

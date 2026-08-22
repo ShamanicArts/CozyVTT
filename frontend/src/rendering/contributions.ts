@@ -104,8 +104,9 @@ function createOwnedApi(
         contractVersion: RENDERER_CONTRACT_VERSION,
       };
       host.swap(replacement);
+      const installed = host.registry.get(targetId);
       const dispose = () => {
-        if (host.registry.get(targetId) === replacement) host.swap(previous);
+        if (host.registry.get(targetId) === installed) host.swap(previous);
       };
       disposers.push(dispose);
       return dispose;

@@ -1,4 +1,4 @@
-export type ExtensionGrantPrincipal = "USER" | "AGENT" | "SYSTEM";
+export type ExtensionGrantPrincipal = "USER" | "PLUGIN" | "SYSTEM";
 export type ExtensionGrantPermission = "READ" | "WRITE" | "EXECUTE" | "ADMIN";
 
 export interface ExtensionGrantRecord {

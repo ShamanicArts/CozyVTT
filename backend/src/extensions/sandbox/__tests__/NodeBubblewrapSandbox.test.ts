@@ -52,7 +52,7 @@ describe("NodeBubblewrapSandbox", () => {
           capabilities: [],
           permissions: [],
           commands: [],
-          agentTools: [],
+          publishedCapabilities: [],
         },
         entrypoint: "runner.js",
         checksum,

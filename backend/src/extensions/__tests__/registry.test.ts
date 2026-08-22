@@ -11,12 +11,12 @@ import {
 function manifest(overrides: Partial<ExtensionManifest> = {}): ExtensionManifest {
   return {
     manifestVersion: '1.0',
-    id: 'cozyvtt.lantern-tools',
-    name: 'Lantern Tools',
+    id: 'cozyvtt.lantern-capabilities',
+    name: 'Lantern Capabilities',
     version: '1.0.0',
     description: 'Adds a campaign note command.',
     compatibility: { extensionApi: '^1.0.0', cozyVtt: '^1.1.0' },
-    capabilities: ['commands', 'agent-tools'],
+    capabilities: ['commands', 'capability-publications'],
     permissions: ['campaign.read', 'campaign.write'],
     commands: [
       {
@@ -30,15 +30,15 @@ function manifest(overrides: Partial<ExtensionManifest> = {}): ExtensionManifest
         idempotent: false,
       },
     ],
-    agentTools: [
+    publishedCapabilities: [
       {
         id: 'campaign_add_note',
         title: 'Add campaign note',
-        description: 'Create a note after user confirmation.',
+        description: 'Create a note after user approval.',
         commandId: 'campaign.add-note',
         requiredPermissions: ['campaign.read', 'campaign.write'],
         risk: 'low',
-        confirmation: 'when-risky',
+        approval: 'when-risky',
       },
     ],
     ...overrides,
@@ -50,40 +50,40 @@ function module(overrides: Partial<ExtensionModule> = {}): ExtensionModule {
 }
 
 describe('extension manifest contracts', () => {
-  it('accepts a versioned manifest with command-backed agent tools', () => {
+  it('accepts a versioned manifest with command-backed capability capabilities', () => {
     expect(parseExtensionManifest(manifest())).toEqual(manifest());
   });
 
-  it('requires declared permissions and prevents agent tools bypassing command permissions', () => {
+  it('requires declared permissions and prevents capability capabilities bypassing command permissions', () => {
     const invalid = manifest({
       permissions: ['campaign.read'],
-      agentTools: [
+      publishedCapabilities: [
         {
-          ...manifest().agentTools[0],
+          ...manifest().publishedCapabilities[0],
           requiredPermissions: ['campaign.read'],
         },
       ],
     });
 
     expect(() => parseExtensionManifest(invalid)).toThrow('Permission campaign.write');
-    expect(() => parseExtensionManifest(invalid)).toThrow('Agent tool must declare command permission campaign.write');
+    expect(() => parseExtensionManifest(invalid)).toThrow('Published capability must declare command permission campaign.write');
   });
 
-  it('rejects transport-shaped agent descriptors because no transport fields are accepted', () => {
+  it('rejects transport-shaped capability descriptors because no transport fields are accepted', () => {
     const invalid = {
       ...manifest(),
-      agentTools: [{ ...manifest().agentTools[0], route: '/api/campaigns/notes' }],
+      publishedCapabilities: [{ ...manifest().publishedCapabilities[0], route: '/api/campaigns/notes' }],
     };
 
     expect(() => parseExtensionManifest(invalid)).toThrow('Unrecognized key');
   });
 
-  it('rejects high-risk tools that never request confirmation', () => {
+  it('rejects high-risk capabilities that never request approval', () => {
     const invalid = manifest({
-      agentTools: [{ ...manifest().agentTools[0], risk: 'high', confirmation: 'never' }],
+      publishedCapabilities: [{ ...manifest().publishedCapabilities[0], risk: 'high', approval: 'never' }],
     });
 
-    expect(() => parseExtensionManifest(invalid)).toThrow('High-risk agent tools');
+    expect(() => parseExtensionManifest(invalid)).toThrow('High-risk capability capabilities');
   });
 });
 
@@ -110,7 +110,7 @@ describe('extension compatibility', () => {
 });
 
 describe('ExtensionRegistry lifecycle', () => {
-  it('only exposes command and agent descriptors after successful activation', async () => {
+  it('only exposes command and capability descriptors after successful activation', async () => {
     const calls: string[] = [];
     const registry = new ExtensionRegistry();
     await registry.install(
@@ -123,20 +123,20 @@ describe('ExtensionRegistry lifecycle', () => {
     );
 
     expect(registry.getCommand('campaign.add-note')).toBeUndefined();
-    expect(registry.listAgentTools()).toEqual([]);
+    expect(registry.listPublishedCapabilities()).toEqual([]);
 
-    await registry.activate('cozyvtt.lantern-tools');
+    await registry.activate('cozyvtt.lantern-capabilities');
     expect(registry.getCommand('campaign.add-note')?.title).toBe('Add campaign note');
-    expect(registry.listAgentTools()).toEqual([
+    expect(registry.listPublishedCapabilities()).toEqual([
       expect.objectContaining({
-        extensionId: 'cozyvtt.lantern-tools',
+        extensionId: 'cozyvtt.lantern-capabilities',
         commandId: 'campaign.add-note',
       }),
     ]);
 
-    await registry.deactivate('cozyvtt.lantern-tools');
+    await registry.deactivate('cozyvtt.lantern-capabilities');
     expect(registry.getCommand('campaign.add-note')).toBeUndefined();
-    await registry.uninstall('cozyvtt.lantern-tools');
+    await registry.uninstall('cozyvtt.lantern-capabilities');
     expect(calls).toEqual(['install', 'activate', 'deactivate', 'uninstall']);
   });
 
@@ -153,7 +153,7 @@ describe('ExtensionRegistry lifecycle', () => {
     await expect(
       registry.install(
         module({
-          manifest: manifest({ id: 'cozyvtt.other-tools' }),
+          manifest: manifest({ id: 'cozyvtt.other-capabilities' }),
         })
       )
     ).rejects.toMatchObject({ code: 'DUPLICATE_COMMAND' });
@@ -162,33 +162,33 @@ describe('ExtensionRegistry lifecycle', () => {
       registry.install(
         module({
           manifest: manifest({
-            id: 'cozyvtt.unique-command-tools',
+            id: 'cozyvtt.unique-command-capabilities',
             commands: [{ ...manifest().commands[0], id: 'campaign.list-notes' }],
-            agentTools: [{ ...manifest().agentTools[0], commandId: 'campaign.list-notes' }],
+            publishedCapabilities: [{ ...manifest().publishedCapabilities[0], commandId: 'campaign.list-notes' }],
           }),
         })
       )
-    ).rejects.toMatchObject({ code: 'DUPLICATE_AGENT_TOOL' });
+    ).rejects.toMatchObject({ code: 'DUPLICATE_PUBLIC_TOOL' });
   });
 
   it('rolls back failed activation and retains an active extension after failed deactivation', async () => {
     const registry = new ExtensionRegistry();
     await registry.install(module({ onActivate: () => Promise.reject(new Error('boom')) }));
 
-    await expect(registry.activate('cozyvtt.lantern-tools')).rejects.toMatchObject({
+    await expect(registry.activate('cozyvtt.lantern-capabilities')).rejects.toMatchObject({
       code: 'ACTIVATION_FAILED',
     });
-    expect(registry.getExtension('cozyvtt.lantern-tools')?.state).toBe('installed');
+    expect(registry.getExtension('cozyvtt.lantern-capabilities')?.state).toBe('installed');
     expect(registry.getCommand('campaign.add-note')).toBeUndefined();
 
-    await registry.uninstall('cozyvtt.lantern-tools');
+    await registry.uninstall('cozyvtt.lantern-capabilities');
     await registry.install(module({ onDeactivate: () => Promise.reject(new Error('keep active')) }));
-    await registry.activate('cozyvtt.lantern-tools');
+    await registry.activate('cozyvtt.lantern-capabilities');
 
-    await expect(registry.deactivate('cozyvtt.lantern-tools')).rejects.toMatchObject({
+    await expect(registry.deactivate('cozyvtt.lantern-capabilities')).rejects.toMatchObject({
       code: 'DEACTIVATION_FAILED',
     });
-    expect(registry.getExtension('cozyvtt.lantern-tools')?.state).toBe('active');
+    expect(registry.getExtension('cozyvtt.lantern-capabilities')?.state).toBe('active');
     expect(registry.getCommand('campaign.add-note')).toBeDefined();
   });
 
@@ -200,8 +200,8 @@ describe('ExtensionRegistry lifecycle', () => {
     const registry = new ExtensionRegistry();
     await registry.install(module({ onActivate: () => activation }));
 
-    const firstActivation = registry.activate('cozyvtt.lantern-tools');
-    await expect(registry.activate('cozyvtt.lantern-tools')).rejects.toBeInstanceOf(ExtensionRegistryError);
+    const firstActivation = registry.activate('cozyvtt.lantern-capabilities');
+    await expect(registry.activate('cozyvtt.lantern-capabilities')).rejects.toBeInstanceOf(ExtensionRegistryError);
     releaseActivation?.();
     await firstActivation;
   });

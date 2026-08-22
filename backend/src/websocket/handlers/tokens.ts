@@ -33,7 +33,7 @@ import { MapRevisionConflictError } from "../../domain/maps/MapRevision";
 
 // Socket.IO remains a transport and recipient-filtering adapter. The mutation
 // and its authorization now run through the same command bus future HTTP,
-// import and agent adapters will use.
+// import and capability adapters will use.
 const tokenMovementCommands = productionCommandBus;
 
 function actorFor(socket: AuthenticatedSocket, campaignId: string) {
@@ -402,7 +402,7 @@ export function registerTokenHandlers(
             }
           }
         } else {
-          // Normal token - broadcast to all campaign members (including sender for confirmation)
+          // Normal token - broadcast to all campaign members (including sender for approval)
           io.to(socket.campaignId).emit("token.moved", {
             tokenId,
             mapId,

@@ -157,9 +157,6 @@ const CORE_WORKSPACE_CONTRIBUTIONS = [
     title: "Party",
     component: CoreCampaignNavigator,
     order: 0,
-    preferredSize: 20,
-    minSize: 15,
-    maxSize: 35,
   },
   {
     contractVersion: WORKSPACE_LAYOUT_CONTRACT_VERSION,
@@ -178,9 +175,6 @@ const CORE_WORKSPACE_CONTRIBUTIONS = [
     title: "Activity",
     component: CoreCampaignInspector,
     order: 0,
-    preferredSize: 25,
-    minSize: 20,
-    maxSize: 40,
   },
   {
     contractVersion: WORKSPACE_LAYOUT_CONTRACT_VERSION,

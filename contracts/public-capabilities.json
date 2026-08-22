@@ -1,0 +1,4871 @@
+{
+  "contractVersion": 1,
+  "principalProtocolVersion": 1,
+  "commands": [
+    {
+      "id": "admin.backup.create",
+      "version": "1",
+      "title": "admin.backup.create",
+      "description": "Execute the admin.backup.create application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "admin.backup.create input",
+        "description": "Validated admin.backup.create command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "admin.backup.create result",
+        "description": "Result emitted by the admin.backup.create command handler."
+      }
+    },
+    {
+      "id": "admin.backup.delete",
+      "version": "1",
+      "title": "admin.backup.delete",
+      "description": "Execute the admin.backup.delete application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "admin.backup.delete input",
+        "description": "Validated admin.backup.delete command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "admin.backup.delete result",
+        "description": "Result emitted by the admin.backup.delete command handler."
+      }
+    },
+    {
+      "id": "admin.backup.restore",
+      "version": "1",
+      "title": "admin.backup.restore",
+      "description": "Execute the admin.backup.restore application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "admin.backup.restore input",
+        "description": "Validated admin.backup.restore command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "admin.backup.restore result",
+        "description": "Result emitted by the admin.backup.restore command handler."
+      }
+    },
+    {
+      "id": "admin.settings.update",
+      "version": "1",
+      "title": "admin.settings.update",
+      "description": "Execute the admin.settings.update application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "admin.settings.update input",
+        "description": "Validated admin.settings.update command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "admin.settings.update result",
+        "description": "Result emitted by the admin.settings.update command handler."
+      }
+    },
+    {
+      "id": "admin.smtp.test",
+      "version": "1",
+      "title": "admin.smtp.test",
+      "description": "Execute the admin.smtp.test application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "admin.smtp.test input",
+        "description": "Validated admin.smtp.test command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "admin.smtp.test result",
+        "description": "Result emitted by the admin.smtp.test command handler."
+      }
+    },
+    {
+      "id": "admin.user.approve",
+      "version": "1",
+      "title": "admin.user.approve",
+      "description": "Execute the admin.user.approve application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "admin.user.approve input",
+        "description": "Validated admin.user.approve command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "admin.user.approve result",
+        "description": "Result emitted by the admin.user.approve command handler."
+      }
+    },
+    {
+      "id": "admin.user.create",
+      "version": "1",
+      "title": "admin.user.create",
+      "description": "Execute the admin.user.create application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "admin.user.create input",
+        "description": "Validated admin.user.create command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "admin.user.create result",
+        "description": "Result emitted by the admin.user.create command handler."
+      }
+    },
+    {
+      "id": "admin.user.reset-mfa",
+      "version": "1",
+      "title": "admin.user.reset-mfa",
+      "description": "Execute the admin.user.reset-mfa application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "admin.user.reset-mfa input",
+        "description": "Validated admin.user.reset-mfa command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "admin.user.reset-mfa result",
+        "description": "Result emitted by the admin.user.reset-mfa command handler."
+      }
+    },
+    {
+      "id": "asset.create",
+      "version": "1",
+      "title": "asset.create",
+      "description": "Execute the asset.create application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "asset.create input",
+        "description": "Validated asset.create command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "asset.create result",
+        "description": "Result emitted by the asset.create command handler."
+      }
+    },
+    {
+      "id": "asset.delete",
+      "version": "1",
+      "title": "asset.delete",
+      "description": "Execute the asset.delete application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "asset.delete input",
+        "description": "Validated asset.delete command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "asset.delete result",
+        "description": "Result emitted by the asset.delete command handler."
+      }
+    },
+    {
+      "id": "asset.scope.update",
+      "version": "1",
+      "title": "asset.scope.update",
+      "description": "Execute the asset.scope.update application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "asset.scope.update input",
+        "description": "Validated asset.scope.update command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "asset.scope.update result",
+        "description": "Result emitted by the asset.scope.update command handler."
+      }
+    },
+    {
+      "id": "asset.upload.prepare",
+      "version": "1",
+      "title": "asset.upload.prepare",
+      "description": "Execute the asset.upload.prepare application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "asset.upload.prepare input",
+        "description": "Validated asset.upload.prepare command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "asset.upload.prepare result",
+        "description": "Result emitted by the asset.upload.prepare command handler."
+      }
+    },
+    {
+      "id": "campaign-archive.export",
+      "version": "1",
+      "title": "campaign-archive.export",
+      "description": "Execute the campaign-archive.export application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign-archive.export input",
+        "description": "Validated campaign-archive.export command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign-archive.export result",
+        "description": "Result emitted by the campaign-archive.export command handler."
+      }
+    },
+    {
+      "id": "campaign-archive.import",
+      "version": "1",
+      "title": "campaign-archive.import",
+      "description": "Execute the campaign-archive.import application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign-archive.import input",
+        "description": "Validated campaign-archive.import command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign-archive.import result",
+        "description": "Result emitted by the campaign-archive.import command handler."
+      }
+    },
+    {
+      "id": "campaign-archive.preview-import",
+      "version": "1",
+      "title": "campaign-archive.preview-import",
+      "description": "Execute the campaign-archive.preview-import application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign-archive.preview-import input",
+        "description": "Validated campaign-archive.preview-import command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign-archive.preview-import result",
+        "description": "Result emitted by the campaign-archive.preview-import command handler."
+      }
+    },
+    {
+      "id": "campaign.atmosphere.audio.set",
+      "version": "1",
+      "title": "campaign.atmosphere.audio.set",
+      "description": "Execute the campaign.atmosphere.audio.set application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.atmosphere.audio.set input",
+        "description": "Validated campaign.atmosphere.audio.set command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.atmosphere.audio.set result",
+        "description": "Result emitted by the campaign.atmosphere.audio.set command handler."
+      }
+    },
+    {
+      "id": "campaign.atmosphere.effect.set",
+      "version": "1",
+      "title": "campaign.atmosphere.effect.set",
+      "description": "Execute the campaign.atmosphere.effect.set application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.atmosphere.effect.set input",
+        "description": "Validated campaign.atmosphere.effect.set command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.atmosphere.effect.set result",
+        "description": "Result emitted by the campaign.atmosphere.effect.set command handler."
+      }
+    },
+    {
+      "id": "campaign.create",
+      "version": "1",
+      "title": "campaign.create",
+      "description": "Execute the campaign.create application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.create input",
+        "description": "Validated campaign.create command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.create result",
+        "description": "Result emitted by the campaign.create command handler."
+      }
+    },
+    {
+      "id": "campaign.delete",
+      "version": "1",
+      "title": "campaign.delete",
+      "description": "Execute the campaign.delete application capability.",
+      "risk": "HIGH",
+      "permissions": [
+        "WRITE",
+        "ADMIN"
+      ],
+      "operatingRoles": [
+        "SYSTEM"
+      ],
+      "approvalPolicy": "RISK_BASED",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.delete input",
+        "description": "Validated campaign.delete command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.delete result",
+        "description": "Result emitted by the campaign.delete command handler."
+      }
+    },
+    {
+      "id": "campaign.invitation.accept",
+      "version": "1",
+      "title": "campaign.invitation.accept",
+      "description": "Execute the campaign.invitation.accept application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.invitation.accept input",
+        "description": "Validated campaign.invitation.accept command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.invitation.accept result",
+        "description": "Result emitted by the campaign.invitation.accept command handler."
+      }
+    },
+    {
+      "id": "campaign.invitation.decline",
+      "version": "1",
+      "title": "campaign.invitation.decline",
+      "description": "Execute the campaign.invitation.decline application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.invitation.decline input",
+        "description": "Validated campaign.invitation.decline command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.invitation.decline result",
+        "description": "Result emitted by the campaign.invitation.decline command handler."
+      }
+    },
+    {
+      "id": "campaign.invite",
+      "version": "1",
+      "title": "campaign.invite",
+      "description": "Execute the campaign.invite application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.invite input",
+        "description": "Validated campaign.invite command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.invite result",
+        "description": "Result emitted by the campaign.invite command handler."
+      }
+    },
+    {
+      "id": "campaign.member.change-role",
+      "version": "1",
+      "title": "campaign.member.change-role",
+      "description": "Execute the campaign.member.change-role application capability.",
+      "risk": "HIGH",
+      "permissions": [
+        "WRITE",
+        "ADMIN"
+      ],
+      "operatingRoles": [
+        "SYSTEM"
+      ],
+      "approvalPolicy": "RISK_BASED",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.member.change-role input",
+        "description": "Validated campaign.member.change-role command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.member.change-role result",
+        "description": "Result emitted by the campaign.member.change-role command handler."
+      }
+    },
+    {
+      "id": "campaign.member.remove",
+      "version": "1",
+      "title": "campaign.member.remove",
+      "description": "Execute the campaign.member.remove application capability.",
+      "risk": "HIGH",
+      "permissions": [
+        "WRITE",
+        "ADMIN"
+      ],
+      "operatingRoles": [
+        "SYSTEM"
+      ],
+      "approvalPolicy": "RISK_BASED",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.member.remove input",
+        "description": "Validated campaign.member.remove command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.member.remove result",
+        "description": "Result emitted by the campaign.member.remove command handler."
+      }
+    },
+    {
+      "id": "campaign.session.end",
+      "version": "1",
+      "title": "campaign.session.end",
+      "description": "Execute the campaign.session.end application capability.",
+      "risk": "HIGH",
+      "permissions": [
+        "WRITE",
+        "ADMIN"
+      ],
+      "operatingRoles": [
+        "SYSTEM"
+      ],
+      "approvalPolicy": "RISK_BASED",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.session.end input",
+        "description": "Validated campaign.session.end command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.session.end result",
+        "description": "Result emitted by the campaign.session.end command handler."
+      }
+    },
+    {
+      "id": "campaign.session.pause",
+      "version": "1",
+      "title": "campaign.session.pause",
+      "description": "Execute the campaign.session.pause application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "ADMIN"
+      ],
+      "operatingRoles": [
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.session.pause input",
+        "description": "Validated campaign.session.pause command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.session.pause result",
+        "description": "Result emitted by the campaign.session.pause command handler."
+      }
+    },
+    {
+      "id": "campaign.session.resume",
+      "version": "1",
+      "title": "campaign.session.resume",
+      "description": "Execute the campaign.session.resume application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "ADMIN"
+      ],
+      "operatingRoles": [
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.session.resume input",
+        "description": "Validated campaign.session.resume command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.session.resume result",
+        "description": "Result emitted by the campaign.session.resume command handler."
+      }
+    },
+    {
+      "id": "campaign.session.start",
+      "version": "1",
+      "title": "campaign.session.start",
+      "description": "Execute the campaign.session.start application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "ADMIN"
+      ],
+      "operatingRoles": [
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.session.start input",
+        "description": "Validated campaign.session.start command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.session.start result",
+        "description": "Result emitted by the campaign.session.start command handler."
+      }
+    },
+    {
+      "id": "campaign.update",
+      "version": "1",
+      "title": "campaign.update",
+      "description": "Execute the campaign.update application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.update input",
+        "description": "Validated campaign.update command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.update result",
+        "description": "Result emitted by the campaign.update command handler."
+      }
+    },
+    {
+      "id": "campaign.vibe.set",
+      "version": "1",
+      "title": "campaign.vibe.set",
+      "description": "Execute the campaign.vibe.set application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.vibe.set input",
+        "description": "Validated campaign.vibe.set command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.vibe.set result",
+        "description": "Result emitted by the campaign.vibe.set command handler."
+      }
+    },
+    {
+      "id": "campaign.vibe.update",
+      "version": "1",
+      "title": "campaign.vibe.update",
+      "description": "Execute the campaign.vibe.update application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "campaign.vibe.update input",
+        "description": "Validated campaign.vibe.update command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "campaign.vibe.update result",
+        "description": "Result emitted by the campaign.vibe.update command handler."
+      }
+    },
+    {
+      "id": "character.assign",
+      "version": "1",
+      "title": "character.assign",
+      "description": "Execute the character.assign application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "character.assign input",
+        "description": "Validated character.assign command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "character.assign result",
+        "description": "Result emitted by the character.assign command handler."
+      }
+    },
+    {
+      "id": "character.copy",
+      "version": "1",
+      "title": "character.copy",
+      "description": "Execute the character.copy application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "character.copy input",
+        "description": "Validated character.copy command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "character.copy result",
+        "description": "Result emitted by the character.copy command handler."
+      }
+    },
+    {
+      "id": "character.create",
+      "version": "1",
+      "title": "character.create",
+      "description": "Execute the character.create application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "character.create input",
+        "description": "Validated character.create command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "character.create result",
+        "description": "Result emitted by the character.create command handler."
+      }
+    },
+    {
+      "id": "character.delete",
+      "version": "1",
+      "title": "character.delete",
+      "description": "Execute the character.delete application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "character.delete input",
+        "description": "Validated character.delete command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "character.delete result",
+        "description": "Result emitted by the character.delete command handler."
+      }
+    },
+    {
+      "id": "character.hp.update",
+      "version": "1",
+      "title": "character.hp.update",
+      "description": "Execute the character.hp.update application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "character.hp.update input",
+        "description": "Validated character.hp.update command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "character.hp.update result",
+        "description": "Result emitted by the character.hp.update command handler."
+      }
+    },
+    {
+      "id": "character.update",
+      "version": "1",
+      "title": "character.update",
+      "description": "Execute the character.update application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "character.update input",
+        "description": "Validated character.update command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "character.update result",
+        "description": "Result emitted by the character.update command handler."
+      }
+    },
+    {
+      "id": "chat.message.send",
+      "version": "1",
+      "title": "chat.message.send",
+      "description": "Execute the chat.message.send application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "chat.message.send input",
+        "description": "Validated chat.message.send command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "chat.message.send result",
+        "description": "Result emitted by the chat.message.send command handler."
+      }
+    },
+    {
+      "id": "chat.system.create",
+      "version": "1",
+      "title": "chat.system.create",
+      "description": "Execute the chat.system.create application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "chat.system.create input",
+        "description": "Validated chat.system.create command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "chat.system.create result",
+        "description": "Result emitted by the chat.system.create command handler."
+      }
+    },
+    {
+      "id": "creature.create",
+      "version": "1",
+      "title": "creature.create",
+      "description": "Execute the creature.create application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "creature.create input",
+        "description": "Validated creature.create command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "creature.create result",
+        "description": "Result emitted by the creature.create command handler."
+      }
+    },
+    {
+      "id": "creature.delete",
+      "version": "1",
+      "title": "creature.delete",
+      "description": "Execute the creature.delete application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "creature.delete input",
+        "description": "Validated creature.delete command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "creature.delete result",
+        "description": "Result emitted by the creature.delete command handler."
+      }
+    },
+    {
+      "id": "creature.duplicate",
+      "version": "1",
+      "title": "creature.duplicate",
+      "description": "Execute the creature.duplicate application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "creature.duplicate input",
+        "description": "Validated creature.duplicate command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "creature.duplicate result",
+        "description": "Result emitted by the creature.duplicate command handler."
+      }
+    },
+    {
+      "id": "creature.favorite.toggle",
+      "version": "1",
+      "title": "creature.favorite.toggle",
+      "description": "Execute the creature.favorite.toggle application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "creature.favorite.toggle input",
+        "description": "Validated creature.favorite.toggle command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "creature.favorite.toggle result",
+        "description": "Result emitted by the creature.favorite.toggle command handler."
+      }
+    },
+    {
+      "id": "creature.srd.seed",
+      "version": "1",
+      "title": "creature.srd.seed",
+      "description": "Execute the creature.srd.seed application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "creature.srd.seed input",
+        "description": "Validated creature.srd.seed command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "creature.srd.seed result",
+        "description": "Result emitted by the creature.srd.seed command handler."
+      }
+    },
+    {
+      "id": "creature.update",
+      "version": "1",
+      "title": "creature.update",
+      "description": "Execute the creature.update application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "creature.update input",
+        "description": "Validated creature.update command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "creature.update result",
+        "description": "Result emitted by the creature.update command handler."
+      }
+    },
+    {
+      "id": "dice.roll",
+      "version": "1",
+      "title": "dice.roll",
+      "description": "Execute the dice.roll application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "dice.roll input",
+        "description": "Validated dice.roll command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "dice.roll result",
+        "description": "Result emitted by the dice.roll command handler."
+      }
+    },
+    {
+      "id": "identity.change-password",
+      "version": "1",
+      "title": "identity.change-password",
+      "description": "Execute the identity.change-password application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "identity.change-password input",
+        "description": "Validated identity.change-password command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "identity.change-password result",
+        "description": "Result emitted by the identity.change-password command handler."
+      }
+    },
+    {
+      "id": "identity.delete-account",
+      "version": "1",
+      "title": "identity.delete-account",
+      "description": "Execute the identity.delete-account application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "identity.delete-account input",
+        "description": "Validated identity.delete-account command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "identity.delete-account result",
+        "description": "Result emitted by the identity.delete-account command handler."
+      }
+    },
+    {
+      "id": "identity.forgot-password",
+      "version": "1",
+      "title": "identity.forgot-password",
+      "description": "Execute the identity.forgot-password application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "identity.forgot-password input",
+        "description": "Validated identity.forgot-password command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "identity.forgot-password result",
+        "description": "Result emitted by the identity.forgot-password command handler."
+      }
+    },
+    {
+      "id": "identity.login",
+      "version": "1",
+      "title": "identity.login",
+      "description": "Execute the identity.login application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "identity.login input",
+        "description": "Validated identity.login command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "identity.login result",
+        "description": "Result emitted by the identity.login command handler."
+      }
+    },
+    {
+      "id": "identity.mfa-backup-codes",
+      "version": "1",
+      "title": "identity.mfa-backup-codes",
+      "description": "Execute the identity.mfa-backup-codes application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "identity.mfa-backup-codes input",
+        "description": "Validated identity.mfa-backup-codes command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "identity.mfa-backup-codes result",
+        "description": "Result emitted by the identity.mfa-backup-codes command handler."
+      }
+    },
+    {
+      "id": "identity.mfa-disable",
+      "version": "1",
+      "title": "identity.mfa-disable",
+      "description": "Execute the identity.mfa-disable application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "identity.mfa-disable input",
+        "description": "Validated identity.mfa-disable command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "identity.mfa-disable result",
+        "description": "Result emitted by the identity.mfa-disable command handler."
+      }
+    },
+    {
+      "id": "identity.mfa-setup",
+      "version": "1",
+      "title": "identity.mfa-setup",
+      "description": "Execute the identity.mfa-setup application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "identity.mfa-setup input",
+        "description": "Validated identity.mfa-setup command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "identity.mfa-setup result",
+        "description": "Result emitted by the identity.mfa-setup command handler."
+      }
+    },
+    {
+      "id": "identity.mfa-verify",
+      "version": "1",
+      "title": "identity.mfa-verify",
+      "description": "Execute the identity.mfa-verify application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "identity.mfa-verify input",
+        "description": "Validated identity.mfa-verify command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "identity.mfa-verify result",
+        "description": "Result emitted by the identity.mfa-verify command handler."
+      }
+    },
+    {
+      "id": "identity.mfa-verify-login",
+      "version": "1",
+      "title": "identity.mfa-verify-login",
+      "description": "Execute the identity.mfa-verify-login application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "identity.mfa-verify-login input",
+        "description": "Validated identity.mfa-verify-login command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "identity.mfa-verify-login result",
+        "description": "Result emitted by the identity.mfa-verify-login command handler."
+      }
+    },
+    {
+      "id": "identity.register",
+      "version": "1",
+      "title": "identity.register",
+      "description": "Execute the identity.register application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "identity.register input",
+        "description": "Validated identity.register command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "identity.register result",
+        "description": "Result emitted by the identity.register command handler."
+      }
+    },
+    {
+      "id": "identity.reset-password",
+      "version": "1",
+      "title": "identity.reset-password",
+      "description": "Execute the identity.reset-password application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "identity.reset-password input",
+        "description": "Validated identity.reset-password command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "identity.reset-password result",
+        "description": "Result emitted by the identity.reset-password command handler."
+      }
+    },
+    {
+      "id": "initiative.add",
+      "version": "1",
+      "title": "initiative.add",
+      "description": "Execute the initiative.add application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "initiative.add input",
+        "description": "Validated initiative.add command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "initiative.add result",
+        "description": "Result emitted by the initiative.add command handler."
+      }
+    },
+    {
+      "id": "initiative.end",
+      "version": "1",
+      "title": "initiative.end",
+      "description": "Execute the initiative.end application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "initiative.end input",
+        "description": "Validated initiative.end command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "initiative.end result",
+        "description": "Result emitted by the initiative.end command handler."
+      }
+    },
+    {
+      "id": "initiative.next",
+      "version": "1",
+      "title": "initiative.next",
+      "description": "Execute the initiative.next application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "initiative.next input",
+        "description": "Validated initiative.next command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "initiative.next result",
+        "description": "Result emitted by the initiative.next command handler."
+      }
+    },
+    {
+      "id": "initiative.remove",
+      "version": "1",
+      "title": "initiative.remove",
+      "description": "Execute the initiative.remove application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "initiative.remove input",
+        "description": "Validated initiative.remove command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "initiative.remove result",
+        "description": "Result emitted by the initiative.remove command handler."
+      }
+    },
+    {
+      "id": "initiative.reorder",
+      "version": "1",
+      "title": "initiative.reorder",
+      "description": "Execute the initiative.reorder application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "initiative.reorder input",
+        "description": "Validated initiative.reorder command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "initiative.reorder result",
+        "description": "Result emitted by the initiative.reorder command handler."
+      }
+    },
+    {
+      "id": "initiative.roll",
+      "version": "1",
+      "title": "initiative.roll",
+      "description": "Execute the initiative.roll application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "initiative.roll input",
+        "description": "Validated initiative.roll command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "initiative.roll result",
+        "description": "Result emitted by the initiative.roll command handler."
+      }
+    },
+    {
+      "id": "initiative.set",
+      "version": "1",
+      "title": "initiative.set",
+      "description": "Execute the initiative.set application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "initiative.set input",
+        "description": "Validated initiative.set command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "initiative.set result",
+        "description": "Result emitted by the initiative.set command handler."
+      }
+    },
+    {
+      "id": "initiative.start",
+      "version": "1",
+      "title": "initiative.start",
+      "description": "Execute the initiative.start application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "initiative.start input",
+        "description": "Validated initiative.start command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "initiative.start result",
+        "description": "Result emitted by the initiative.start command handler."
+      }
+    },
+    {
+      "id": "map-token.create",
+      "version": "1",
+      "title": "map-token.create",
+      "description": "Execute the map-token.create application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "map-token.create input",
+        "description": "Validated map-token.create command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "map-token.create result",
+        "description": "Result emitted by the map-token.create command handler."
+      }
+    },
+    {
+      "id": "map-token.delete",
+      "version": "1",
+      "title": "map-token.delete",
+      "description": "Execute the map-token.delete application capability.",
+      "risk": "HIGH",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "RISK_BASED",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "map-token.delete input",
+        "description": "Validated map-token.delete command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "map-token.delete result",
+        "description": "Result emitted by the map-token.delete command handler."
+      }
+    },
+    {
+      "id": "map-token.update",
+      "version": "1",
+      "title": "map-token.update",
+      "description": "Execute the map-token.update application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "map-token.update input",
+        "description": "Validated map-token.update command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "map-token.update result",
+        "description": "Result emitted by the map-token.update command handler."
+      }
+    },
+    {
+      "id": "map.change",
+      "version": "1",
+      "title": "map.change",
+      "description": "Execute the map.change application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "map"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "map.change input",
+        "description": "Validated map.change command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "map.change result",
+        "description": "Result emitted by the map.change command handler."
+      }
+    },
+    {
+      "id": "map.create",
+      "version": "1",
+      "title": "map.create",
+      "description": "Execute the map.create application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "map"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "map.create input",
+        "description": "Validated map.create command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "map.create result",
+        "description": "Result emitted by the map.create command handler."
+      }
+    },
+    {
+      "id": "map.delete",
+      "version": "1",
+      "title": "map.delete",
+      "description": "Execute the map.delete application capability.",
+      "risk": "HIGH",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "RISK_BASED",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "map"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "map.delete input",
+        "description": "Validated map.delete command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "map.delete result",
+        "description": "Result emitted by the map.delete command handler."
+      }
+    },
+    {
+      "id": "map.import-remote",
+      "version": "1",
+      "title": "map.import-remote",
+      "description": "Execute the map.import-remote application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "map"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "map.import-remote input",
+        "description": "Validated map.import-remote command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "map.import-remote result",
+        "description": "Result emitted by the map.import-remote command handler."
+      }
+    },
+    {
+      "id": "map.set-current",
+      "version": "1",
+      "title": "map.set-current",
+      "description": "Execute the map.set-current application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "map"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "map.set-current input",
+        "description": "Validated map.set-current command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "map.set-current result",
+        "description": "Result emitted by the map.set-current command handler."
+      }
+    },
+    {
+      "id": "map.update",
+      "version": "1",
+      "title": "map.update",
+      "description": "Execute the map.update application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "map"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "map.update input",
+        "description": "Validated map.update command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "map.update result",
+        "description": "Result emitted by the map.update command handler."
+      }
+    },
+    {
+      "id": "map.uvtt.import",
+      "version": "1",
+      "title": "map.uvtt.import",
+      "description": "Execute the map.uvtt.import application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "map"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "map.uvtt.import input",
+        "description": "Validated map.uvtt.import command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "map.uvtt.import result",
+        "description": "Result emitted by the map.uvtt.import command handler."
+      }
+    },
+    {
+      "id": "scene.fog.apply-operation",
+      "version": "1",
+      "title": "scene.fog.apply-operation",
+      "description": "Execute the scene.fog.apply-operation application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "scene"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "scene.fog.apply-operation input",
+        "description": "Validated scene.fog.apply-operation command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "scene.fog.apply-operation result",
+        "description": "Result emitted by the scene.fog.apply-operation command handler."
+      }
+    },
+    {
+      "id": "scene.light.add",
+      "version": "1",
+      "title": "scene.light.add",
+      "description": "Execute the scene.light.add application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "scene"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "scene.light.add input",
+        "description": "Validated scene.light.add command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "scene.light.add result",
+        "description": "Result emitted by the scene.light.add command handler."
+      }
+    },
+    {
+      "id": "scene.light.remove",
+      "version": "1",
+      "title": "scene.light.remove",
+      "description": "Execute the scene.light.remove application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "scene"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "scene.light.remove input",
+        "description": "Validated scene.light.remove command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "scene.light.remove result",
+        "description": "Result emitted by the scene.light.remove command handler."
+      }
+    },
+    {
+      "id": "scene.light.update",
+      "version": "1",
+      "title": "scene.light.update",
+      "description": "Execute the scene.light.update application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "scene"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "scene.light.update input",
+        "description": "Validated scene.light.update command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "scene.light.update result",
+        "description": "Result emitted by the scene.light.update command handler."
+      }
+    },
+    {
+      "id": "scene.lighting.set-enabled",
+      "version": "1",
+      "title": "scene.lighting.set-enabled",
+      "description": "Execute the scene.lighting.set-enabled application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "scene"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "scene.lighting.set-enabled input",
+        "description": "Validated scene.lighting.set-enabled command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "scene.lighting.set-enabled result",
+        "description": "Result emitted by the scene.lighting.set-enabled command handler."
+      }
+    },
+    {
+      "id": "scene.lights.replace",
+      "version": "1",
+      "title": "scene.lights.replace",
+      "description": "Execute the scene.lights.replace application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "scene"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "scene.lights.replace input",
+        "description": "Validated scene.lights.replace command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "scene.lights.replace result",
+        "description": "Result emitted by the scene.lights.replace command handler."
+      }
+    },
+    {
+      "id": "scene.wall.add",
+      "version": "1",
+      "title": "scene.wall.add",
+      "description": "Execute the scene.wall.add application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "scene"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "scene.wall.add input",
+        "description": "Validated scene.wall.add command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "scene.wall.add result",
+        "description": "Result emitted by the scene.wall.add command handler."
+      }
+    },
+    {
+      "id": "scene.wall.remove",
+      "version": "1",
+      "title": "scene.wall.remove",
+      "description": "Execute the scene.wall.remove application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "scene"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "scene.wall.remove input",
+        "description": "Validated scene.wall.remove command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "scene.wall.remove result",
+        "description": "Result emitted by the scene.wall.remove command handler."
+      }
+    },
+    {
+      "id": "scene.wall.update",
+      "version": "1",
+      "title": "scene.wall.update",
+      "description": "Execute the scene.wall.update application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "scene"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "scene.wall.update input",
+        "description": "Validated scene.wall.update command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "scene.wall.update result",
+        "description": "Result emitted by the scene.wall.update command handler."
+      }
+    },
+    {
+      "id": "scene.walls.replace",
+      "version": "1",
+      "title": "scene.walls.replace",
+      "description": "Execute the scene.walls.replace application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "scene"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "scene.walls.replace input",
+        "description": "Validated scene.walls.replace command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "scene.walls.replace result",
+        "description": "Result emitted by the scene.walls.replace command handler."
+      }
+    },
+    {
+      "id": "spirit.layer.set-enabled",
+      "version": "1",
+      "title": "spirit.layer.set-enabled",
+      "description": "Execute the spirit.layer.set-enabled application capability.",
+      "risk": "HIGH",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "RISK_BASED",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "scene"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "spirit.layer.set-enabled input",
+        "description": "Validated spirit.layer.set-enabled command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "spirit.layer.set-enabled result",
+        "description": "Result emitted by the spirit.layer.set-enabled command handler."
+      }
+    },
+    {
+      "id": "spirit.token.set-visible",
+      "version": "1",
+      "title": "spirit.token.set-visible",
+      "description": "Execute the spirit.token.set-visible application capability.",
+      "risk": "HIGH",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "RISK_BASED",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "scene"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "spirit.token.set-visible input",
+        "description": "Validated spirit.token.set-visible command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "spirit.token.set-visible result",
+        "description": "Result emitted by the spirit.token.set-visible command handler."
+      }
+    },
+    {
+      "id": "token-template.copy-to",
+      "version": "1",
+      "title": "token-template.copy-to",
+      "description": "Execute the token-template.copy-to application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "token-template.copy-to input",
+        "description": "Validated token-template.copy-to command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "token-template.copy-to result",
+        "description": "Result emitted by the token-template.copy-to command handler."
+      }
+    },
+    {
+      "id": "token-template.create",
+      "version": "1",
+      "title": "token-template.create",
+      "description": "Execute the token-template.create application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "token-template.create input",
+        "description": "Validated token-template.create command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "token-template.create result",
+        "description": "Result emitted by the token-template.create command handler."
+      }
+    },
+    {
+      "id": "token-template.delete",
+      "version": "1",
+      "title": "token-template.delete",
+      "description": "Execute the token-template.delete application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "token-template.delete input",
+        "description": "Validated token-template.delete command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "token-template.delete result",
+        "description": "Result emitted by the token-template.delete command handler."
+      }
+    },
+    {
+      "id": "token-template.save-from-token",
+      "version": "1",
+      "title": "token-template.save-from-token",
+      "description": "Execute the token-template.save-from-token application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "token-template.save-from-token input",
+        "description": "Validated token-template.save-from-token command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "token-template.save-from-token result",
+        "description": "Result emitted by the token-template.save-from-token command handler."
+      }
+    },
+    {
+      "id": "token-template.update",
+      "version": "1",
+      "title": "token-template.update",
+      "description": "Execute the token-template.update application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "token-template.update input",
+        "description": "Validated token-template.update command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "token-template.update result",
+        "description": "Result emitted by the token-template.update command handler."
+      }
+    },
+    {
+      "id": "token.move.finalize",
+      "version": "1",
+      "title": "token.move.finalize",
+      "description": "Execute the token.move.finalize application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "token"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "token.move.finalize input",
+        "description": "Validated token.move.finalize command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "token.move.finalize result",
+        "description": "Result emitted by the token.move.finalize command handler."
+      }
+    },
+    {
+      "id": "token.move.preview",
+      "version": "1",
+      "title": "token.move.preview",
+      "description": "Execute the token.move.preview application capability.",
+      "risk": "LOW",
+      "permissions": [
+        "READ"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": false,
+      "inputSchema": {
+        "type": "object",
+        "title": "token.move.preview input",
+        "description": "Validated token.move.preview command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "token.move.preview result",
+        "description": "Result emitted by the token.move.preview command handler."
+      }
+    },
+    {
+      "id": "token.move.start",
+      "version": "1",
+      "title": "token.move.start",
+      "description": "Execute the token.move.start application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "token"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "token.move.start input",
+        "description": "Validated token.move.start command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "token.move.start result",
+        "description": "Result emitted by the token.move.start command handler."
+      }
+    },
+    {
+      "id": "user.admin-delete",
+      "version": "1",
+      "title": "user.admin-delete",
+      "description": "Execute the user.admin-delete application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "user.admin-delete input",
+        "description": "Validated user.admin-delete command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "user.admin-delete result",
+        "description": "Result emitted by the user.admin-delete command handler."
+      }
+    },
+    {
+      "id": "user.admin-reset-password",
+      "version": "1",
+      "title": "user.admin-reset-password",
+      "description": "Execute the user.admin-reset-password application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "user.admin-reset-password input",
+        "description": "Validated user.admin-reset-password command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "user.admin-reset-password result",
+        "description": "Result emitted by the user.admin-reset-password command handler."
+      }
+    },
+    {
+      "id": "user.send-password-reset-link",
+      "version": "1",
+      "title": "user.send-password-reset-link",
+      "description": "Execute the user.send-password-reset-link application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "user.send-password-reset-link input",
+        "description": "Validated user.send-password-reset-link command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "user.send-password-reset-link result",
+        "description": "Result emitted by the user.send-password-reset-link command handler."
+      }
+    },
+    {
+      "id": "user.update-preferences",
+      "version": "1",
+      "title": "user.update-preferences",
+      "description": "Execute the user.update-preferences application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "user.update-preferences input",
+        "description": "Validated user.update-preferences command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "user.update-preferences result",
+        "description": "Result emitted by the user.update-preferences command handler."
+      }
+    },
+    {
+      "id": "user.update-profile",
+      "version": "1",
+      "title": "user.update-profile",
+      "description": "Execute the user.update-profile application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "user.update-profile input",
+        "description": "Validated user.update-profile command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "user.update-profile result",
+        "description": "Result emitted by the user.update-profile command handler."
+      }
+    },
+    {
+      "id": "vtt.actor.move",
+      "version": "1",
+      "title": "vtt.actor.move",
+      "description": "Execute the vtt.actor.move application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.actor.move input",
+        "description": "Validated vtt.actor.move command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.actor.move result",
+        "description": "Result emitted by the vtt.actor.move command handler."
+      }
+    },
+    {
+      "id": "vtt.actor.roll",
+      "version": "1",
+      "title": "vtt.actor.roll",
+      "description": "Execute the vtt.actor.roll application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.actor.roll input",
+        "description": "Validated vtt.actor.roll command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.actor.roll result",
+        "description": "Result emitted by the vtt.actor.roll command handler."
+      }
+    },
+    {
+      "id": "vtt.actor.spawn",
+      "version": "1",
+      "title": "vtt.actor.spawn",
+      "description": "Execute the vtt.actor.spawn application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.actor.spawn input",
+        "description": "Validated vtt.actor.spawn command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.actor.spawn result",
+        "description": "Result emitted by the vtt.actor.spawn command handler."
+      }
+    },
+    {
+      "id": "vtt.actor.speak",
+      "version": "1",
+      "title": "vtt.actor.speak",
+      "description": "Execute the vtt.actor.speak application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.actor.speak input",
+        "description": "Validated vtt.actor.speak command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.actor.speak result",
+        "description": "Result emitted by the vtt.actor.speak command handler."
+      }
+    },
+    {
+      "id": "vtt.actor.update",
+      "version": "1",
+      "title": "vtt.actor.update",
+      "description": "Execute the vtt.actor.update application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.actor.update input",
+        "description": "Validated vtt.actor.update command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.actor.update result",
+        "description": "Result emitted by the vtt.actor.update command handler."
+      }
+    },
+    {
+      "id": "vtt.atmosphere.audio.set",
+      "version": "1",
+      "title": "vtt.atmosphere.audio.set",
+      "description": "Execute the vtt.atmosphere.audio.set application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.atmosphere.audio.set input",
+        "description": "Validated vtt.atmosphere.audio.set command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.atmosphere.audio.set result",
+        "description": "Result emitted by the vtt.atmosphere.audio.set command handler."
+      }
+    },
+    {
+      "id": "vtt.atmosphere.effect.set",
+      "version": "1",
+      "title": "vtt.atmosphere.effect.set",
+      "description": "Execute the vtt.atmosphere.effect.set application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.atmosphere.effect.set input",
+        "description": "Validated vtt.atmosphere.effect.set command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.atmosphere.effect.set result",
+        "description": "Result emitted by the vtt.atmosphere.effect.set command handler."
+      }
+    },
+    {
+      "id": "vtt.campaign.vibe.set",
+      "version": "1",
+      "title": "vtt.campaign.vibe.set",
+      "description": "Execute the vtt.campaign.vibe.set application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.campaign.vibe.set input",
+        "description": "Validated vtt.campaign.vibe.set command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.campaign.vibe.set result",
+        "description": "Result emitted by the vtt.campaign.vibe.set command handler."
+      }
+    },
+    {
+      "id": "vtt.character.create",
+      "version": "1",
+      "title": "vtt.character.create",
+      "description": "Execute the vtt.character.create application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.character.create input",
+        "description": "Validated vtt.character.create command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.character.create result",
+        "description": "Result emitted by the vtt.character.create command handler."
+      }
+    },
+    {
+      "id": "vtt.character.hp.adjust",
+      "version": "1",
+      "title": "vtt.character.hp.adjust",
+      "description": "Execute the vtt.character.hp.adjust application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.character.hp.adjust input",
+        "description": "Validated vtt.character.hp.adjust command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.character.hp.adjust result",
+        "description": "Result emitted by the vtt.character.hp.adjust command handler."
+      }
+    },
+    {
+      "id": "vtt.combat.add",
+      "version": "1",
+      "title": "vtt.combat.add",
+      "description": "Execute the vtt.combat.add application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.combat.add input",
+        "description": "Validated vtt.combat.add command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.combat.add result",
+        "description": "Result emitted by the vtt.combat.add command handler."
+      }
+    },
+    {
+      "id": "vtt.combat.end",
+      "version": "1",
+      "title": "vtt.combat.end",
+      "description": "Execute the vtt.combat.end application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.combat.end input",
+        "description": "Validated vtt.combat.end command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.combat.end result",
+        "description": "Result emitted by the vtt.combat.end command handler."
+      }
+    },
+    {
+      "id": "vtt.combat.next",
+      "version": "1",
+      "title": "vtt.combat.next",
+      "description": "Execute the vtt.combat.next application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.combat.next input",
+        "description": "Validated vtt.combat.next command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.combat.next result",
+        "description": "Result emitted by the vtt.combat.next command handler."
+      }
+    },
+    {
+      "id": "vtt.combat.remove",
+      "version": "1",
+      "title": "vtt.combat.remove",
+      "description": "Execute the vtt.combat.remove application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.combat.remove input",
+        "description": "Validated vtt.combat.remove command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.combat.remove result",
+        "description": "Result emitted by the vtt.combat.remove command handler."
+      }
+    },
+    {
+      "id": "vtt.combat.start",
+      "version": "1",
+      "title": "vtt.combat.start",
+      "description": "Execute the vtt.combat.start application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.combat.start input",
+        "description": "Validated vtt.combat.start command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.combat.start result",
+        "description": "Result emitted by the vtt.combat.start command handler."
+      }
+    },
+    {
+      "id": "vtt.map.activate",
+      "version": "1",
+      "title": "vtt.map.activate",
+      "description": "Execute the vtt.map.activate application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.map.activate input",
+        "description": "Validated vtt.map.activate command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.map.activate result",
+        "description": "Result emitted by the vtt.map.activate command handler."
+      }
+    },
+    {
+      "id": "vtt.scene.fog.apply",
+      "version": "1",
+      "title": "vtt.scene.fog.apply",
+      "description": "Execute the vtt.scene.fog.apply application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.scene.fog.apply input",
+        "description": "Validated vtt.scene.fog.apply command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.scene.fog.apply result",
+        "description": "Result emitted by the vtt.scene.fog.apply command handler."
+      }
+    },
+    {
+      "id": "vtt.scene.light.add",
+      "version": "1",
+      "title": "vtt.scene.light.add",
+      "description": "Execute the vtt.scene.light.add application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.scene.light.add input",
+        "description": "Validated vtt.scene.light.add command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.scene.light.add result",
+        "description": "Result emitted by the vtt.scene.light.add command handler."
+      }
+    },
+    {
+      "id": "vtt.scene.light.remove",
+      "version": "1",
+      "title": "vtt.scene.light.remove",
+      "description": "Execute the vtt.scene.light.remove application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.scene.light.remove input",
+        "description": "Validated vtt.scene.light.remove command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.scene.light.remove result",
+        "description": "Result emitted by the vtt.scene.light.remove command handler."
+      }
+    },
+    {
+      "id": "vtt.scene.light.update",
+      "version": "1",
+      "title": "vtt.scene.light.update",
+      "description": "Execute the vtt.scene.light.update application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.scene.light.update input",
+        "description": "Validated vtt.scene.light.update command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.scene.light.update result",
+        "description": "Result emitted by the vtt.scene.light.update command handler."
+      }
+    },
+    {
+      "id": "vtt.scene.lighting.set",
+      "version": "1",
+      "title": "vtt.scene.lighting.set",
+      "description": "Execute the vtt.scene.lighting.set application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.scene.lighting.set input",
+        "description": "Validated vtt.scene.lighting.set command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.scene.lighting.set result",
+        "description": "Result emitted by the vtt.scene.lighting.set command handler."
+      }
+    },
+    {
+      "id": "vtt.scene.wall.add",
+      "version": "1",
+      "title": "vtt.scene.wall.add",
+      "description": "Execute the vtt.scene.wall.add application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.scene.wall.add input",
+        "description": "Validated vtt.scene.wall.add command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.scene.wall.add result",
+        "description": "Result emitted by the vtt.scene.wall.add command handler."
+      }
+    },
+    {
+      "id": "vtt.scene.wall.remove",
+      "version": "1",
+      "title": "vtt.scene.wall.remove",
+      "description": "Execute the vtt.scene.wall.remove application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.scene.wall.remove input",
+        "description": "Validated vtt.scene.wall.remove command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.scene.wall.remove result",
+        "description": "Result emitted by the vtt.scene.wall.remove command handler."
+      }
+    },
+    {
+      "id": "vtt.scene.wall.update",
+      "version": "1",
+      "title": "vtt.scene.wall.update",
+      "description": "Execute the vtt.scene.wall.update application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.scene.wall.update input",
+        "description": "Validated vtt.scene.wall.update command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.scene.wall.update result",
+        "description": "Result emitted by the vtt.scene.wall.update command handler."
+      }
+    },
+    {
+      "id": "vtt.session.end",
+      "version": "1",
+      "title": "vtt.session.end",
+      "description": "Execute the vtt.session.end application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.session.end input",
+        "description": "Validated vtt.session.end command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.session.end result",
+        "description": "Result emitted by the vtt.session.end command handler."
+      }
+    },
+    {
+      "id": "vtt.session.pause",
+      "version": "1",
+      "title": "vtt.session.pause",
+      "description": "Execute the vtt.session.pause application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.session.pause input",
+        "description": "Validated vtt.session.pause command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.session.pause result",
+        "description": "Result emitted by the vtt.session.pause command handler."
+      }
+    },
+    {
+      "id": "vtt.session.resume",
+      "version": "1",
+      "title": "vtt.session.resume",
+      "description": "Execute the vtt.session.resume application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.session.resume input",
+        "description": "Validated vtt.session.resume command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.session.resume result",
+        "description": "Result emitted by the vtt.session.resume command handler."
+      }
+    },
+    {
+      "id": "vtt.session.start",
+      "version": "1",
+      "title": "vtt.session.start",
+      "description": "Execute the vtt.session.start application capability.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "operatingRoles": [
+        "GM",
+        "PLAYER",
+        "NPC",
+        "SYSTEM"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "command"
+      },
+      "inputSchema": {
+        "type": "object",
+        "title": "vtt.session.start input",
+        "description": "Validated vtt.session.start command payload.",
+        "additionalProperties": true
+      },
+      "outputSchema": {
+        "title": "vtt.session.start result",
+        "description": "Result emitted by the vtt.session.start command handler."
+      }
+    }
+  ],
+  "queries": [
+    {
+      "id": "campaign.assets.list",
+      "version": "1",
+      "risk": "READ",
+      "title": "campaign assets list",
+      "description": "Read the campaign-scoped campaign.assets.list view.",
+      "requiredPermissions": [
+        "READ"
+      ],
+      "operatingRoles": [
+        "DM",
+        "PLAYER",
+        "SPECTATOR"
+      ],
+      "resultRedactionPolicy": "campaign-role-v1",
+      "bounds": {
+        "maxResultBytes": 262144,
+        "maxItems": 100
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "id": "campaign.characters.list",
+      "version": "1",
+      "risk": "READ",
+      "title": "campaign characters list",
+      "description": "Read the campaign-scoped campaign.characters.list view.",
+      "requiredPermissions": [
+        "READ"
+      ],
+      "operatingRoles": [
+        "DM",
+        "PLAYER",
+        "SPECTATOR"
+      ],
+      "resultRedactionPolicy": "campaign-role-v1",
+      "bounds": {
+        "maxResultBytes": 262144,
+        "maxItems": 100
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "id": "campaign.chat.recent",
+      "version": "1",
+      "risk": "READ",
+      "title": "campaign chat recent",
+      "description": "Read the campaign-scoped campaign.chat.recent view.",
+      "requiredPermissions": [
+        "READ"
+      ],
+      "operatingRoles": [
+        "DM",
+        "PLAYER",
+        "SPECTATOR"
+      ],
+      "resultRedactionPolicy": "campaign-role-v1",
+      "bounds": {
+        "maxResultBytes": 262144,
+        "maxItems": 100
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "id": "campaign.creatures.list",
+      "version": "1",
+      "risk": "READ",
+      "title": "campaign creatures list",
+      "description": "Read the campaign-scoped campaign.creatures.list view.",
+      "requiredPermissions": [
+        "READ"
+      ],
+      "operatingRoles": [
+        "DM",
+        "PLAYER",
+        "SPECTATOR"
+      ],
+      "resultRedactionPolicy": "campaign-role-v1",
+      "bounds": {
+        "maxResultBytes": 262144,
+        "maxItems": 100
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "id": "campaign.dice.recent",
+      "version": "1",
+      "risk": "READ",
+      "title": "campaign dice recent",
+      "description": "Read the campaign-scoped campaign.dice.recent view.",
+      "requiredPermissions": [
+        "READ"
+      ],
+      "operatingRoles": [
+        "DM",
+        "PLAYER",
+        "SPECTATOR"
+      ],
+      "resultRedactionPolicy": "campaign-role-v1",
+      "bounds": {
+        "maxResultBytes": 262144,
+        "maxItems": 100
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "id": "campaign.events.read",
+      "version": "1",
+      "risk": "READ",
+      "title": "Campaign events",
+      "description": "Read the bounded role-filtered campaign event feed.",
+      "requiredPermissions": [
+        "READ"
+      ],
+      "operatingRoles": [
+        "DM",
+        "PLAYER",
+        "SPECTATOR"
+      ],
+      "resultRedactionPolicy": "campaign-events-role-v1",
+      "bounds": {
+        "maxResultBytes": 262144,
+        "maxItems": 100,
+        "maxWaitMs": 25000
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "afterCursor": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "types": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          },
+          "waitMs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 25000
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "id": "campaign.initiative.get",
+      "version": "1",
+      "risk": "READ",
+      "title": "campaign initiative get",
+      "description": "Read the campaign-scoped campaign.initiative.get view.",
+      "requiredPermissions": [
+        "READ"
+      ],
+      "operatingRoles": [
+        "DM",
+        "PLAYER",
+        "SPECTATOR"
+      ],
+      "resultRedactionPolicy": "campaign-role-v1",
+      "bounds": {
+        "maxResultBytes": 262144,
+        "maxItems": 1
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": [
+          "object",
+          "null"
+        ]
+      }
+    },
+    {
+      "id": "campaign.map.current.get",
+      "version": "1",
+      "risk": "READ",
+      "title": "campaign map current get",
+      "description": "Read the campaign-scoped campaign.map.current.get view.",
+      "requiredPermissions": [
+        "READ"
+      ],
+      "operatingRoles": [
+        "DM",
+        "PLAYER",
+        "SPECTATOR"
+      ],
+      "resultRedactionPolicy": "campaign-role-v1",
+      "bounds": {
+        "maxResultBytes": 262144,
+        "maxItems": 1
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": [
+          "object",
+          "null"
+        ]
+      }
+    },
+    {
+      "id": "campaign.maps.list",
+      "version": "1",
+      "risk": "READ",
+      "title": "campaign maps list",
+      "description": "Read the campaign-scoped campaign.maps.list view.",
+      "requiredPermissions": [
+        "READ"
+      ],
+      "operatingRoles": [
+        "DM",
+        "PLAYER",
+        "SPECTATOR"
+      ],
+      "resultRedactionPolicy": "campaign-role-v1",
+      "bounds": {
+        "maxResultBytes": 262144,
+        "maxItems": 100
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "id": "campaign.roster.list",
+      "version": "1",
+      "risk": "READ",
+      "title": "campaign roster list",
+      "description": "Read the campaign-scoped campaign.roster.list view.",
+      "requiredPermissions": [
+        "READ"
+      ],
+      "operatingRoles": [
+        "DM",
+        "PLAYER",
+        "SPECTATOR"
+      ],
+      "resultRedactionPolicy": "campaign-role-v1",
+      "bounds": {
+        "maxResultBytes": 262144,
+        "maxItems": 100
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "id": "campaign.snapshot.get",
+      "version": "1",
+      "risk": "READ",
+      "title": "Campaign snapshot",
+      "description": "Read one authoritative role-filtered campaign snapshot.",
+      "requiredPermissions": [
+        "READ"
+      ],
+      "operatingRoles": [
+        "DM",
+        "PLAYER",
+        "SPECTATOR"
+      ],
+      "resultRedactionPolicy": "campaign-snapshot-role-v1",
+      "bounds": {
+        "maxResultBytes": 524288,
+        "maxItems": 1
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": [
+          "object",
+          "null"
+        ]
+      }
+    },
+    {
+      "id": "campaign.summary.get",
+      "version": "1",
+      "risk": "READ",
+      "title": "campaign summary get",
+      "description": "Read the campaign-scoped campaign.summary.get view.",
+      "requiredPermissions": [
+        "READ"
+      ],
+      "operatingRoles": [
+        "DM",
+        "PLAYER",
+        "SPECTATOR"
+      ],
+      "resultRedactionPolicy": "campaign-role-v1",
+      "bounds": {
+        "maxResultBytes": 262144,
+        "maxItems": 1
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": [
+          "object",
+          "null"
+        ]
+      }
+    },
+    {
+      "id": "campaign.templates.list",
+      "version": "1",
+      "risk": "READ",
+      "title": "campaign templates list",
+      "description": "Read the campaign-scoped campaign.templates.list view.",
+      "requiredPermissions": [
+        "READ"
+      ],
+      "operatingRoles": [
+        "DM",
+        "PLAYER",
+        "SPECTATOR"
+      ],
+      "resultRedactionPolicy": "campaign-role-v1",
+      "bounds": {
+        "maxResultBytes": 262144,
+        "maxItems": 100
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    }
+  ]
+}

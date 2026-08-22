@@ -133,6 +133,19 @@ describe("ThemeHost", () => {
     expect(host.get("trusted-night")).toBeUndefined();
   });
 
+  it("rolls back a partial contribution snapshot when registration fails", async () => {
+    const host = new ThemeHost();
+    await expect(
+      registerActiveThemeContributions(host, {
+        loadActiveThemeManifests: async () => [
+          manifest(),
+          { ...manifest(), id: "invalid-version", contractVersion: "2.0.0" },
+        ],
+      }),
+    ).rejects.toThrow();
+    expect(host.get("trusted-night")).toBeUndefined();
+  });
+
   it("accepts only complete server token palettes as extension theme manifests", () => {
     const tokens = Object.fromEntries(
       Object.entries(manifest().colors).map(([name, value]) => [

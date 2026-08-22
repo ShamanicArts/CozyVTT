@@ -5,7 +5,7 @@ import { VibePeriod } from "../utils/vibe-presets";
  *
  * The application layer owns when these events happen; a transport adapter
  * decides how connected clients receive them. Keeping the wire payloads here
- * prevents an agent invocation from becoming a persistence-only mutation.
+ * prevents an capability invocation from becoming a persistence-only mutation.
  */
 export interface CampaignRealtimeEventPublisher {
   atmosphereEffectUpdated(

@@ -1,4 +1,4 @@
-export type DurablePrincipalType = "USER" | "AGENT" | "SYSTEM";
+export type DurablePrincipalType = "USER" | "PLUGIN" | "SYSTEM";
 export type DurablePermission = "READ" | "WRITE" | "EXECUTE" | "ADMIN";
 export interface ExtensionGrantPort {
   hasGrant(input: {
@@ -10,7 +10,7 @@ export interface ExtensionGrantPort {
     now?: Date;
   }): Promise<boolean>;
 }
-export interface DelegatedAgentAccessPort {
+export interface DelegatedCapabilityAccessPort {
   activeCredentialDelegates(input: {
     credentialId: string;
     delegatedUserId: string;
@@ -18,7 +18,7 @@ export interface DelegatedAgentAccessPort {
     now: Date;
   }): Promise<boolean>;
 }
-export interface AgentAuditPort {
+export interface CapabilityAuditPort {
   append(input: {
     principalType: DurablePrincipalType;
     principalId: string;
@@ -49,8 +49,38 @@ export interface IdempotencyPort {
     campaignId?: string;
     commandType: string;
     idempotencyKey: string;
+    requestDigest: string;
+    capabilityVersion: string;
+    result: unknown;
     resultDigest: string;
+    expiresAt: Date;
   }): Promise<void>;
+  fail(input: {
+    principalType: DurablePrincipalType;
+    principalId: string;
+    campaignId?: string;
+    commandType: string;
+    idempotencyKey: string;
+    requestDigest: string;
+    capabilityVersion: string;
+    errorCode: string;
+    errorMessage: string;
+    expiresAt: Date;
+  }): Promise<void>;
+  getOutcome(input: {
+    principalType: DurablePrincipalType;
+    principalId: string;
+    campaignId?: string;
+    commandType: string;
+    idempotencyKey: string;
+    requestDigest?: string;
+  }): Promise<
+    | { status: "COMPLETED"; result: unknown }
+    | { status: "FAILED"; errorCode: string; errorMessage: string }
+    | { status: "CONFLICT" }
+    | null
+  >;
+  cleanupExpired(now: Date): Promise<number>;
 }
 export interface OutboxPort {
   enqueue(input: {

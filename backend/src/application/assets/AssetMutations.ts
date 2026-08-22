@@ -51,7 +51,7 @@ export interface UpdateAssetScopeCommand extends Command<AssetView> {
   readonly input: { scope?: unknown; campaignId?: unknown };
 }
 
-/** Shared authorization policy so HTTP, agents, and future plugin adapters cannot drift. */
+/** Shared authorization policy so HTTP, capabilities, and future adapters cannot drift. */
 abstract class AssetCommandBase {
   constructor(protected readonly repository: AssetMutationRepository) {}
 

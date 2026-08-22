@@ -86,7 +86,6 @@ export class WorkspaceLayoutHost {
       .map(({ contribution, placement, sequence }) => ({
         ...contribution,
         order: placement.order ?? contribution.order ?? sequence,
-        preferredSize: placement.preferredSize ?? contribution.preferredSize,
         hidden: placement.hidden ?? false,
         sequence,
       }))
@@ -135,10 +134,7 @@ export class WorkspaceLayoutHost {
         `Workspace contribution "${contribution.id}" targets an unknown region.`,
       );
     }
-    this.validatePlacement(contribution, {
-      order: contribution.order,
-      preferredSize: contribution.preferredSize,
-    });
+    this.validatePlacement(contribution, { order: contribution.order });
   }
 
   private validatePlacement(
@@ -148,19 +144,6 @@ export class WorkspaceLayoutHost {
     if (placement.order !== undefined && !Number.isFinite(placement.order)) {
       throw new WorkspaceLayoutRegistrationError(
         `Workspace contribution "${contribution.id}" has a non-finite order.`,
-      );
-    }
-    if (
-      placement.preferredSize !== undefined &&
-      (!Number.isFinite(placement.preferredSize) ||
-        placement.preferredSize <= 0 ||
-        (contribution.minSize !== undefined &&
-          placement.preferredSize < contribution.minSize) ||
-        (contribution.maxSize !== undefined &&
-          placement.preferredSize > contribution.maxSize))
-    ) {
-      throw new WorkspaceLayoutRegistrationError(
-        `Workspace contribution "${contribution.id}" has an invalid preferred size.`,
       );
     }
   }

@@ -5,15 +5,16 @@ contracts without relying on a package store or remote catalogue.
 
 It contributes:
 
-- one agent tool, `lantern_echo`, backed by the `lantern.echo` command;
+- one published capability, `lantern_echo`, backed by the `lantern.echo` command;
 - one complete, data-only semantic theme, `lantern-night`;
-- one browser-side overlay renderer, `lantern-glow`;
+- one browser-side overlay renderer, `lantern-glow`, which decorates an
+  existing map but does not add a map;
 - a versioned NDJSON runner that handles lifecycle and command requests.
 
-Install it in **SANDBOXED** mode to run only the isolated agent tool and theme.
+Install it in **SANDBOXED** mode to run only the isolated command and theme.
 Install it in explicitly approved **TRUSTED** mode to additionally load the
 reviewed browser renderer. Sandboxed installations never execute browser code.
-The agent tool remains unavailable until an administrator grants the
+The published capability remains unavailable until an administrator grants the
 extension's `campaign.read` permission for the agent and campaign.
 
 The package checksum covers this README, `runner.js`, and `renderer.mjs`. If a

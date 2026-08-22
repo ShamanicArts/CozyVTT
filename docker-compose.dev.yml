@@ -43,6 +43,7 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       CORS_ORIGIN: ${CORS_ORIGIN}
       APP_URL: ${APP_URL:-http://localhost:3000}
+      OAUTH_ISSUER_URL: ${OAUTH_ISSUER_URL:-http://localhost:4000}
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
       SMTP_USER: ${SMTP_USER}
@@ -61,6 +62,8 @@ services:
       # Optional read-only package catalogue. Omit EXTENSION_PACKAGE_ROOT to
       # run a normal extension-disabled development server.
       EXTENSION_PACKAGE_ROOT: ${EXTENSION_PACKAGE_ROOT:-}
+      TRUSTED_EXTENSION_ALLOWLIST: ${TRUSTED_EXTENSION_ALLOWLIST:-}
+      TRUSTED_EXTENSION_REVIEW_KEY: ${TRUSTED_EXTENSION_REVIEW_KEY:-}
     ports:
       - "4000:4000"
     volumes:

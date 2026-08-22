@@ -36,7 +36,7 @@ describe("extension administration HTTP adapter", () => {
     ).toBe(403);
     upsert.mockResolvedValue({
       id: "grant-1",
-      extensionId: "cozyvtt.core-agent",
+      extensionId: "cozyvtt.public-capabilities",
     });
     const response = await request(app("ADMIN"))
       .post("/api/admin/extensions/grants")
@@ -44,7 +44,7 @@ describe("extension administration HTTP adapter", () => {
         principalType: "USER",
         principalId: "user-1",
         scopeCampaignId: "campaign-1",
-        extensionId: "cozyvtt.core-agent",
+        extensionId: "cozyvtt.public-capabilities",
         permission: "EXECUTE",
       });
     expect(response.status).toBe(201);

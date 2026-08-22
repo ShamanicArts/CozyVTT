@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { MapToken, MapTokenError, MapTokenMap } from '../../domain/mapTokens/MapToken';
-import { MapTokenAssetUrlNormalizer } from '../../ports/MapTokenAssetUrlNormalizer';
 import { MapTokenRepository } from '../../ports/MapTokenRepository';
+import { normalizeAssetUrl } from '../../utils/asset-urls';
 import { Command, CommandHandler } from '../commands/CommandBus';
 
 export const CREATE_MAP_TOKEN = 'map-token.create' as const;
@@ -53,7 +53,7 @@ abstract class MapTokenCommandBase {
 }
 
 export class CreateMapToken extends MapTokenCommandBase implements CommandHandler<CreateMapTokenCommand, MapTokenMutationResult> {
-  constructor(repository: MapTokenRepository, private readonly assetUrls: MapTokenAssetUrlNormalizer) {
+  constructor(repository: MapTokenRepository) {
     super(repository);
   }
 
@@ -89,7 +89,7 @@ export class CreateMapToken extends MapTokenCommandBase implements CommandHandle
     const displayMode = data.displayMode || 'pog';
     if (!VALID_DISPLAY_MODES.includes(displayMode)) throw new MapTokenError(400, 'Validation Error', 'Invalid display mode');
 
-    const imageUrl = data.imageUrl ? this.assetUrls.normalizeTokenImageUrl(data.imageUrl) : null;
+    const imageUrl = data.imageUrl ? normalizeAssetUrl(data.imageUrl, 'tokens') : null;
     const token: MapToken = {
       id: randomUUID(),
       characterId: data.characterId || null,
@@ -119,7 +119,7 @@ export class CreateMapToken extends MapTokenCommandBase implements CommandHandle
 }
 
 export class UpdateMapToken extends MapTokenCommandBase implements CommandHandler<UpdateMapTokenCommand, MapTokenMutationResult> {
-  constructor(repository: MapTokenRepository, private readonly assetUrls: MapTokenAssetUrlNormalizer) {
+  constructor(repository: MapTokenRepository) {
     super(repository);
   }
 
@@ -160,8 +160,11 @@ export class UpdateMapToken extends MapTokenCommandBase implements CommandHandle
     if (updates.displayMode !== undefined && !VALID_DISPLAY_MODES.includes(updates.displayMode)) {
       throw new MapTokenError(400, 'Validation Error', 'Invalid display mode');
     }
+    if (updates.characterId !== undefined && updates.characterId !== null && typeof updates.characterId !== 'string') {
+      throw new MapTokenError(400, 'Validation Error', 'Character ID must be a string or null');
+    }
     if (!isDM) {
-      const restrictedFields = ['hp', 'notes', 'showHpBar', 'type', 'disposition', 'initiative', 'visible', 'name', 'imageUrl', 'layer', 'controlledBy', 'displayMode', 'statBlock', 'creatureTemplateId'];
+      const restrictedFields = ['hp', 'notes', 'showHpBar', 'type', 'disposition', 'initiative', 'visible', 'name', 'imageUrl', 'layer', 'controlledBy', 'displayMode', 'statBlock', 'creatureTemplateId', 'characterId'];
       for (const field of restrictedFields) {
         if (updates[field] !== undefined) {
           throw new MapTokenError(403, 'Forbidden', `Only DM can update token field: ${field}`);
@@ -172,7 +175,7 @@ export class UpdateMapToken extends MapTokenCommandBase implements CommandHandle
     const token: MapToken = {
       ...existingToken,
       ...(updates.name && { name: updates.name }),
-      ...(updates.imageUrl !== undefined && { imageUrl: updates.imageUrl ? (this.assetUrls.normalizeTokenImageUrl(updates.imageUrl) || existingToken.imageUrl) : '' }),
+      ...(updates.imageUrl !== undefined && { imageUrl: updates.imageUrl ? (normalizeAssetUrl(updates.imageUrl, 'tokens') || existingToken.imageUrl) : '' }),
       ...(updates.position && { position: updates.position }),
       ...(updates.size && { size: updates.size }),
       ...(updates.layer && { layer: updates.layer }),
@@ -190,6 +193,7 @@ export class UpdateMapToken extends MapTokenCommandBase implements CommandHandle
       ...(updates.displayMode !== undefined && { displayMode: updates.displayMode }),
       ...(updates.statBlock !== undefined && { statBlock: updates.statBlock }),
       ...(updates.creatureTemplateId !== undefined && { creatureTemplateId: updates.creatureTemplateId }),
+      ...(updates.characterId !== undefined && { characterId: updates.characterId }),
     } as MapToken;
     const tokens = [...map.tokens];
     tokens[tokenIndex] = token;

@@ -1,7 +1,7 @@
 // ============================================
 // Register Page
 // Handles new user registration
-// Includes password strength validation and confirmation
+// Includes password strength validation and approval
 // ============================================
 
 import { useState, FormEvent } from "react";

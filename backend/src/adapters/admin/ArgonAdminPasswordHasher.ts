@@ -1,4 +1,4 @@
-import { AdminPasswordHasher } from "../../ports/AdminPasswordHasher";
+import { AdminPasswordHasher } from "../../ports/AdminPorts";
 import { hashPassword } from "../../services/auth";
 
 export class ArgonAdminPasswordHasher implements AdminPasswordHasher {

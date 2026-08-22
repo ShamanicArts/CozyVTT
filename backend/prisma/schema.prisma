@@ -79,10 +79,10 @@ enum InvitationStatus {
 }
 
 /// Principals are deliberately generic: an extension may be granted to a
-/// human user, an agent identity, or a system worker without implying access.
+/// human user, a plugin identity, or a system worker without implying access.
 enum ExtensionPrincipalType {
   USER
-  AGENT
+  PLUGIN
   SYSTEM
 }
 
@@ -93,7 +93,7 @@ enum ExtensionPermission {
   ADMIN
 }
 
-enum AgentAuditDecision {
+enum CapabilityAuditDecision {
   ALLOWED
   DENIED
   EXECUTED
@@ -127,11 +127,13 @@ enum ExtensionInstallMode {
   SANDBOXED
 }
 
-enum AgentConfirmationState {
+enum CapabilityApprovalState {
   PENDING
   APPROVED
   CONSUMED
   EXPIRED
+  REJECTED
+  CANCELLED
 }
 
 // ============================================
@@ -238,8 +240,8 @@ model Campaign {
   chatCooldownEnabled Boolean @default(false)
   chatCooldownSeconds Int     @default(5)
 
-  // Authoritative combat tracker state. This is VTT state rather than agent
-  // runtime state: every UI, MCP client, and extension observes the same
+  // Authoritative combat tracker state. This is VTT state rather than capability
+  // runtime state: every UI, plugin client, and extension observes the same
   // initiative order across server restarts.
   initiativeState    Json @default("{\"active\":false,\"round\":0,\"currentTokenId\":null,\"combatants\":[]}")
   initiativeRevision Int  @default(0)
@@ -268,7 +270,7 @@ model Campaign {
 }
 
 /// Durable, campaign-scoped event journal for public API consumers and local
-/// extensions. Visibility is evaluated before delivery; this is not an agent
+/// extensions. Visibility is evaluated before delivery; this is not an capability
 /// memory or task queue.
 model CampaignEventRecord {
   sequence      BigInt   @id @default(autoincrement())
@@ -667,7 +669,7 @@ model SystemSettings {
 }
 
 // ============================================
-// EXTENSION / AGENT DURABLE FOUNDATIONS
+// EXTENSION / PLUGIN DURABLE FOUNDATIONS
 // ============================================
 
 /// Default-deny capability grant. Absence of a row is denial. scopeCampaignId
@@ -711,9 +713,9 @@ model ExtensionInstallation {
   @@index([state])
 }
 
-/// A hash-only bearer credential used by an agent acting for one human inside
-/// one campaign. The plaintext token is issued once and never retained.
-model AgentCredential {
+/// A hash-only bearer credential delegated by one human inside one campaign.
+/// The plaintext token is issued once and never retained.
+model DelegatedPluginCredential {
   id              String    @id @default(uuid())
   credentialHash  String    @unique
   delegatedUserId String
@@ -730,9 +732,9 @@ model AgentCredential {
   @@index([expiresAt])
 }
 
-/// Dynamically registered MCP clients. CozyVTT supports public PKCE clients,
+/// Dynamically registered public PKCE clients.
 /// so no reusable client secret needs to be retained.
-model McpOAuthClient {
+model OAuthClient {
   clientId  String   @id
   metadata  Json
   createdAt DateTime @default(now())
@@ -741,13 +743,15 @@ model McpOAuthClient {
 
 /// Short-lived browser authorization handoff. The authorization code is
 /// stored only as a digest and atomically consumed during token exchange.
-model McpOAuthAuthorization {
+model OAuthAuthorization {
   id                    String    @id @default(uuid())
   clientId              String
   clientState           String?
   redirectUri           String
   codeChallenge         String
   resource              String
+  pluginId              String
+  resourceId            String
   scopes                Json
   authorizationCodeHash String?   @unique
   delegatedUserId       String?
@@ -762,9 +766,9 @@ model McpOAuthAuthorization {
   @@index([delegatedUserId, campaignId])
 }
 
-/// Rotating OAuth refresh token. Like agent credentials, only a digest is
+/// Rotating OAuth refresh token. Like delegated credentials, only a digest is
 /// retained; rotation revokes both the old refresh and access credentials.
-model McpOAuthRefreshToken {
+model OAuthRefreshToken {
   id              String    @id @default(uuid())
   tokenHash       String    @unique
   clientId        String
@@ -772,6 +776,8 @@ model McpOAuthRefreshToken {
   delegatedUserId String
   campaignId      String
   resource        String
+  pluginId        String
+  resourceId      String
   scopes          Json
   expiresAt       DateTime
   revokedAt       DateTime?
@@ -782,32 +788,36 @@ model McpOAuthRefreshToken {
   @@index([credentialId])
 }
 
-/// A human approval request created by an agent. A receipt hash is written
+/// A human approval request created by an capability. A receipt hash is written
 /// only after the delegated user approves it, then atomically consumed once.
-model AgentConfirmation {
-  id              String                 @id @default(uuid())
-  credentialId    String
-  delegatedUserId String
-  campaignId      String
-  extensionId     String
-  commandId       String
-  inputDigest     String
-  state           AgentConfirmationState @default(PENDING)
-  receiptHash     String?                @unique
-  expiresAt       DateTime
-  approvedById    String?
-  approvedAt      DateTime?
-  consumedAt      DateTime?
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
+model CapabilityApproval {
+  id                 String                 @id @default(uuid())
+  credentialId       String
+  delegatedUserId    String
+  campaignId         String
+  extensionId        String
+  commandId          String
+  inputDigest        String
+  displayMetadata    Json
+  state              CapabilityApprovalState @default(PENDING)
+  receiptHash        String?                @unique
+  expiresAt          DateTime
+  approvedById       String?
+  approvedAt         DateTime?
+  consumedAt         DateTime?
+  rejectedAt         DateTime?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
 
   @@index([credentialId, campaignId, state, expiresAt])
   @@index([delegatedUserId, state, expiresAt])
 }
 
 /// Immutable, value-free decision record: payloads are represented only by a
-/// digest, never persisted alongside delegated identity or agent decisions.
-model AgentAuditRecord {
+/// digest, never persisted alongside delegated identity or capability decisions.
+model CapabilityAuditRecord {
   id                String                 @id @default(uuid())
   principalType     ExtensionPrincipalType
   principalId       String
@@ -816,7 +826,7 @@ model AgentAuditRecord {
   extensionId       String?
   commandType       String
   inputDigest       String
-  decision          AgentAuditDecision
+  decision          CapabilityAuditDecision
   reasonCode        String?
   correlationId     String?
   createdAt         DateTime               @default(now())
@@ -847,6 +857,29 @@ model CommandIdempotencyRecord {
 
   @@unique([principalType, principalId, scopeCampaignId, commandType, idempotencyKey])
   @@index([status, leaseExpiresAt])
+  @@index([expiresAt])
+}
+
+/// Bounded public result returned for a completed idempotent replay. Internal
+/// exceptions, credentials, and transport data are never stored here.
+model CommandExecutionOutcome {
+  id                 String                 @id @default(uuid())
+  principalType      ExtensionPrincipalType
+  principalId        String
+  scopeCampaignId    String                 @default("")
+  commandType        String
+  idempotencyKey     String
+  requestDigest      String
+  capabilityVersion  String
+  status             IdempotencyStatus
+  resultJson         Json?
+  resultDigest       String?
+  publicErrorCode    String?
+  publicErrorMessage String?
+  completedAt        DateTime               @default(now())
+  expiresAt          DateTime
+
+  @@unique([principalType, principalId, scopeCampaignId, commandType, idempotencyKey])
   @@index([expiresAt])
 }
 

@@ -40,10 +40,9 @@ review/security decision rather than an ordinary permission grant.
 All `/api/admin/extensions` endpoints require authenticated platform-admin
 access. The API can list available packages and persisted installations;
 install as `trusted` or `sandboxed`; activate, deactivate, and uninstall; and
-manage advanced grants for unattended service/system principals. Ordinary MCP
-users authorize themselves with their existing campaign membership and do not
-need these grants. The React admin screen is a client for the same control
-plane.
+manage advanced grants for unattended service/system principals. OAuth plugin
+clients authorize with the user's existing campaign membership and do not need
+these grants. The React admin screen is a client for the same control plane.
 
 An `ExtensionInstallation` persists package identity/digest, parsed manifest,
 install mode, state, and safe lifecycle error information. Startup calls
@@ -82,19 +81,14 @@ the extension runner as a separately hardened service with an equivalent user
 namespace policy. The package catalogue mount is read-only at
 `/app/extensions`; package installation records live in PostgreSQL.
 
-## Agent and contribution boundaries
+## Plugin and contribution boundaries
 
-MCP clients connect to `/api/mcp`, complete standard OAuth discovery/PKCE, and
-receive access only after the signed-in user chooses a campaign and clicks
-Allow. Credentials are hash-only at rest and handled by the client. No manual
-bearer or extension-grant ceremony is required. The delegated human must remain
-a campaign member; existing campaign roles govern commands. Writes use
-idempotency, and a sensitive command may wait on a one-click confirmation ID.
-
-The built-in core-agent path uses the production application host and its
-transactional durable audit/idempotency/outbox middleware. Active sandbox tools
-use the extension bridge's separate registry/command bus; do not assume the
-same core-host transaction/outbox coverage for that path.
+Plugin clients complete standard OAuth discovery and PKCE against a declared
+extension resource. After the signed-in user chooses a campaign and approves
+access, the extension's HTTP handler receives authorization metadata and direct
+campaign-scoped capabilities. Credentials are hash-only at rest. The delegated
+user must remain a campaign member; campaign roles govern every command.
+Writes use idempotency, and sensitive commands may require a one-click approval.
 
 Authenticated clients may fetch active data-only theme contributions from
 `/api/extensions/contributions`. ThemeHost validates complete semantic palettes
@@ -106,17 +100,11 @@ registering or replacing map-canvas layers. Sandboxed installations cannot
 serve renderer code. This does not permit arbitrary CSS, React route/component
 injection, or undeclared frontend files.
 
-The MCP endpoint at `/api/mcp` is another adapter over the existing delegated
-identity, query/command, confirmation, idempotency, and audit boundaries. It
-does not expose arbitrary HTTP, database,
-shell, or Socket.IO access. Packages remain local operator-controlled files;
-there is intentionally no public package marketplace or remote package store.
-
 Extensions add behavior by composing the public campaign application surface,
 not by reaching into transports or storage. Trusted handlers receive a scoped
-`context.core` gateway for typed command/query discovery and dispatch.
+`context.capabilities` gateway for typed command/query discovery and dispatch.
 Sandboxed handlers can return at most 32 declarative `coreActions`; the host
 validates and dispatches them after the isolated process returns. Both paths
 use the caller's fixed campaign and delegated user, and can therefore implement
-GM assistants, player agents, NPC controllers, or system orchestration without
-Prisma, Express, Socket.IO, or browser automation access.
+campaign helpers and system orchestration without Prisma, Express, Socket.IO,
+or browser automation access.

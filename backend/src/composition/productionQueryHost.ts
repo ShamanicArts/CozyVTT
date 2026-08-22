@@ -2,17 +2,21 @@ import { prisma } from "../config/database";
 import { PrismaCampaignQueryRepository } from "../adapters/persistence/PrismaCampaignQueryRepository";
 import { CampaignQueries } from "../application/queries/CampaignQueries";
 import { QueryHost } from "../application/queries/QueryHost";
-import { AgentCampaignQueries } from "../application/queries/AgentCampaignQueries";
+import { PublicCampaignQueries } from "../application/queries/PublicCampaignQueries";
 import { PrismaCampaignSnapshotRepository } from "../adapters/persistence/PrismaCampaignSnapshotRepository";
 import { productionCampaignEventJournal } from "./productionCampaignEventJournal";
 
 export const productionQueryHost = new QueryHost();
+export const productionPublicQueryHost = new QueryHost();
 const campaignQueries = new PrismaCampaignQueryRepository(prisma);
 for (const query of new CampaignQueries(campaignQueries).all())
   productionQueryHost.register(query);
-for (const query of new AgentCampaignQueries(
+const publicQueries = new PublicCampaignQueries(
   campaignQueries,
   new PrismaCampaignSnapshotRepository(prisma),
   productionCampaignEventJournal,
-).all())
+).all();
+for (const query of publicQueries) {
   productionQueryHost.register(query);
+  productionPublicQueryHost.register(query);
+}

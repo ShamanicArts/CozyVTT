@@ -6,9 +6,11 @@ import {
   RefreshCw,
   Shield,
   ShieldAlert,
+  SlidersHorizontal,
   Trash2,
   X,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { api } from "@/services/api";
 import type { Campaign } from "@/types";
 import type {
@@ -27,7 +29,7 @@ const grantPermissions: ExtensionGrantPermission[] = [
   "EXECUTE",
   "ADMIN",
 ];
-const grantPrincipals: ExtensionGrantPrincipal[] = ["USER", "AGENT", "SYSTEM"];
+const grantPrincipals: ExtensionGrantPrincipal[] = ["USER", "PLUGIN", "SYSTEM"];
 
 function date(value: string | null): string {
   return value
@@ -47,6 +49,7 @@ function lifecycleNotice(installation: ExtensionInstallation): string {
 }
 
 export default function ExtensionManagement() {
+  const navigate = useNavigate();
   const [packages, setPackages] = useState<ExtensionPackage[]>([]);
   const [installations, setInstallations] = useState<ExtensionInstallation[]>(
     [],
@@ -222,7 +225,7 @@ export default function ExtensionManagement() {
         <div>
           <h2 className="text-xl font-semibold text-moss-green">Extensions</h2>
           <p className="mt-1 max-w-2xl text-sm text-warm-gray">
-            Review local packages and choose their execution boundary. MCP users
+            Review local packages and choose their execution boundary. plugin users
             authorize themselves through their existing campaign role.
           </p>
         </div>
@@ -369,6 +372,18 @@ export default function ExtensionManagement() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() =>
+                      navigate(
+                        `/admin/extensions/${encodeURIComponent(installation.extensionId)}`,
+                      )
+                    }
+                    variant="secondary"
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                    Settings
+                  </Button>
                   {installation.state !== "active" && (
                     <Button
                       onClick={() => void lifecycle(installation, "activate")}
@@ -420,7 +435,7 @@ export default function ExtensionManagement() {
             </h3>
             <p className="mt-1 text-sm text-warm-gray">
               Optional grants for unattended system or service principals.
-              Normal user MCP connections do not require anything here.
+              Normal user plugin connections do not require anything here.
             </p>
           </div>
         </div>
@@ -456,7 +471,7 @@ export default function ExtensionManagement() {
                 }))
               }
               className="input-cozy mt-1 w-full"
-              placeholder="User, agent, or extension ID"
+              placeholder="User, capability, or extension ID"
               required
             />
           </label>

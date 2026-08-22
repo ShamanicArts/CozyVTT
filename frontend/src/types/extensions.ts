@@ -1,6 +1,6 @@
 export type ExtensionInstallMode = "trusted" | "sandboxed";
 export type ExtensionInstallationState = "installed" | "active" | "error";
-export type ExtensionGrantPrincipal = "USER" | "AGENT" | "SYSTEM";
+export type ExtensionGrantPrincipal = "USER" | "PLUGIN" | "SYSTEM";
 export type ExtensionGrantPermission = "READ" | "WRITE" | "EXECUTE" | "ADMIN";
 
 export interface ExtensionThemeContribution {
@@ -63,6 +63,24 @@ export interface ExtensionInstallation {
       name?: string;
       version?: string;
       description?: string;
+      capabilities?: string[];
+      permissions?: string[];
+      commands?: Array<{
+        id: string;
+        title: string;
+        description: string;
+      }>;
+      publishedCapabilities?: Array<{
+        id: string;
+        title: string;
+        description: string;
+        commandId: string;
+      }>;
+      httpRoutes?: Array<{
+        id: string;
+        method: string;
+        path: string;
+      }>;
     };
     contributions?: {
       themes?: ExtensionThemeContribution[];
@@ -88,7 +106,7 @@ export interface ExtensionGrant {
   createdAt?: string;
 }
 
-export interface AgentCredential {
+export interface PluginCredential {
   id: string;
   campaignId: string;
   label: string;
@@ -96,18 +114,28 @@ export interface AgentCredential {
   revokedAt: string | null;
 }
 
-export interface PendingAgentConfirmation {
+export interface PendingCapabilityApproval {
   id: string;
   campaignId: string;
   extensionId: string;
   commandId: string;
+  state: "PENDING";
+  displayMetadata: {
+    capabilityTitle: string;
+    capabilityVersion: string;
+    campaignLabel: string;
+    integrationLabel: string;
+    riskExplanation: string;
+    summary: Record<string, string | number | boolean>;
+  };
   expiresAt: string;
   createdAt: string;
 }
 
-export interface McpAuthorizationRequest {
+export interface OAuthConsentRequest {
   requestId: string;
   clientName: string;
+  resource: { pluginId: string; resourceId: string; scopes: string[] };
   campaigns: Array<{ id: string; name: string; role: string }>;
   expiresAt: string;
 }

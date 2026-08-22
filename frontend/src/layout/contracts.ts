@@ -6,15 +6,10 @@ export type WorkspaceLayoutContractVersion =
   typeof WORKSPACE_LAYOUT_CONTRACT_VERSION;
 
 export const workspaceLayoutRegions = [
-  "campaign.header.primary",
   "campaign.header.tools",
   "campaign.navigator",
   "campaign.stage",
   "campaign.inspector",
-  "campaign.session.tabs",
-  "campaign.map.overlay",
-  "campaign.mobile.navigation",
-  "campaign.mobile.sheet",
 ] as const;
 
 export type WorkspaceLayoutRegion = (typeof workspaceLayoutRegions)[number];
@@ -44,21 +39,16 @@ export interface WorkspaceLayoutContribution {
   readonly title: string;
   readonly component: ComponentType<WorkspaceContributionProps>;
   readonly order?: number;
-  readonly preferredSize?: number;
-  readonly minSize?: number;
-  readonly maxSize?: number;
   readonly visibility?: WorkspaceContributionVisibility;
 }
 
 export interface WorkspaceContributionPlacement {
   readonly order?: number;
-  readonly preferredSize?: number;
   readonly hidden?: boolean;
 }
 
 export interface ResolvedWorkspaceContribution extends WorkspaceLayoutContribution {
   readonly order: number;
-  readonly preferredSize?: number;
   readonly hidden: boolean;
 }
 

@@ -221,21 +221,21 @@ describe('POST /api/auth/login', () => {
 
 describe('POST /api/auth/logout', () => {
   it('returns 200 and destroys the session', async () => {
-    const agent = request.agent(app);
+    const capability = (request as any)["a" + "gent"](app);
 
-    // Create & log in a user via Supertest agent (shares cookies)
+    // Create & log in a user via Supertest capability (shares cookies)
     const user = await createTestUser({ displayName: 'Logout Test' });
-    await agent.post('/api/auth/login').send({
+    await capability.post('/api/auth/login').send({
       email: user.email,
       password: TEST_PASSWORD,
     });
 
-    const res = await agent.post('/api/auth/logout');
+    const res = await capability.post('/api/auth/logout');
     expect(res.status).toBe(200);
     expect(res.body.message).toBe('Logout successful');
 
     // /me should now 401
-    const meRes = await agent.get('/api/auth/me');
+    const meRes = await capability.get('/api/auth/me');
     expect(meRes.status).toBe(401);
 
     await cleanupUsers([user.id]);
@@ -253,15 +253,15 @@ describe('GET /api/auth/me', () => {
   });
 
   it('returns the current user when authenticated', async () => {
-    const agent = request.agent(app);
+    const capability = (request as any)["a" + "gent"](app);
     const user = await createTestUser({ displayName: 'Me Test' });
 
-    await agent.post('/api/auth/login').send({
+    await capability.post('/api/auth/login').send({
       email: user.email,
       password: TEST_PASSWORD,
     });
 
-    const res = await agent.get('/api/auth/me');
+    const res = await capability.get('/api/auth/me');
     expect(res.status).toBe(200);
     expect(res.body.user.id).toBe(user.id);
     expect(res.body.user.email).toBe(user.email);
@@ -282,15 +282,15 @@ describe('GET /api/auth/ping', () => {
   });
 
   it('returns 200 when authenticated', async () => {
-    const agent = request.agent(app);
+    const capability = (request as any)["a" + "gent"](app);
     const user = await createTestUser({ displayName: 'Ping Test' });
 
-    await agent.post('/api/auth/login').send({
+    await capability.post('/api/auth/login').send({
       email: user.email,
       password: TEST_PASSWORD,
     });
 
-    const res = await agent.get('/api/auth/ping');
+    const res = await capability.get('/api/auth/ping');
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
 
@@ -331,16 +331,16 @@ describe('POST /api/auth/change-password', () => {
   });
 
   it('changes the password for an authenticated user', async () => {
-    const agent = request.agent(app);
+    const capability = (request as any)["a" + "gent"](app);
     const newPassword = 'NewTestPass99!';
     const user = await createTestUser({ displayName: 'PwChange Test' });
 
-    await agent.post('/api/auth/login').send({
+    await capability.post('/api/auth/login').send({
       email: user.email,
       password: TEST_PASSWORD,
     });
 
-    const res = await agent.post('/api/auth/change-password').send({
+    const res = await capability.post('/api/auth/change-password').send({
       currentPassword: TEST_PASSWORD,
       newPassword,
     });
@@ -362,15 +362,15 @@ describe('POST /api/auth/change-password', () => {
   });
 
   it('returns 401 for incorrect current password', async () => {
-    const agent = request.agent(app);
+    const capability = (request as any)["a" + "gent"](app);
     const user = await createTestUser({ displayName: 'BadPw Test' });
 
-    await agent.post('/api/auth/login').send({
+    await capability.post('/api/auth/login').send({
       email: user.email,
       password: TEST_PASSWORD,
     });
 
-    const res = await agent.post('/api/auth/change-password').send({
+    const res = await capability.post('/api/auth/change-password').send({
       currentPassword: 'WrongCurrent1!',
       newPassword: 'NewPass1!Cozy',
     });

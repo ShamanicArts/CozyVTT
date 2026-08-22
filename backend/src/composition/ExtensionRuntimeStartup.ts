@@ -19,7 +19,7 @@ export async function rehydrateConfiguredExtensions(
     return true;
   } catch (error) {
     logger.error(
-      "Extension rehydration failed; extension tools are unavailable",
+      "Extension rehydration failed; extension capabilities are unavailable",
       {
         message: error instanceof Error ? error.message : "Unknown error",
       },

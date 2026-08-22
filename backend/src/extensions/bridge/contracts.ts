@@ -1,29 +1,29 @@
 import type { Command } from "../../application/commands/CommandBus";
 import type {
-  AgentPrincipal,
+  CapabilityPrincipal,
   CampaignScope,
 } from "../../application/policy/ExtensionPolicy";
-import type { AgentRisk, ExtensionPermission, JsonSchema } from "../contracts";
+import type { CapabilityRisk, ExtensionPermission, JsonSchema } from "../contracts";
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue =
   JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 
-export interface AgentToolInvocationContext {
-  principal: AgentPrincipal;
+export interface PublishedCapabilityInvocationContext {
+  principal: CapabilityPrincipal;
   scope: CampaignScope;
 }
 
-export interface ConfirmationReceipt {
+export interface ApprovalReceipt {
   /** An adapter may only set this after an explicit, attributable approval. */
   confirmed: boolean;
   approvedByPrincipalId: string;
 }
 
-export interface AgentToolInvocation extends AgentToolInvocationContext {
-  toolId: string;
+export interface PublishedCapabilityInvocation extends PublishedCapabilityInvocationContext {
+  capabilityId: string;
   input: unknown;
-  confirmation?: ConfirmationReceipt;
+  approval?: ApprovalReceipt;
 }
 
 /** A pre-registered factory is the only way a descriptor can reach the bus. */
@@ -31,53 +31,53 @@ export interface CommandBinding {
   commandId: string;
   createCommand(
     input: Record<string, unknown>,
-    context: AgentToolInvocationContext,
+    context: PublishedCapabilityInvocationContext,
   ): Command;
 }
 
-export interface AgentToolCatalogEntry {
+export interface PublishedCapabilityCatalogEntry {
   id: string;
   extensionId: string;
   title: string;
   description: string;
   inputSchema: JsonSchema;
   requiredPermissions: ExtensionPermission[];
-  risk: AgentRisk;
-  confirmationRequired: boolean;
+  risk: CapabilityRisk;
+  approvalRequired: boolean;
 }
 
-export type AgentToolAuditOutcome =
+export type PublishedCapabilityAuditOutcome =
   "listed" | "succeeded" | "denied" | "rejected" | "failed";
 
 /** Audit events intentionally omit input values and command results. */
-export interface AgentToolAuditEvent {
+export interface PublishedCapabilityAuditEvent {
   occurredAt: string;
-  outcome: AgentToolAuditOutcome;
+  outcome: PublishedCapabilityAuditOutcome;
   principalId: string;
-  principalKind: AgentPrincipal["kind"];
+  principalKind: CapabilityPrincipal["kind"];
   campaignId: string;
   extensionId?: string;
-  toolId?: string;
+  capabilityId?: string;
   commandId?: string;
   reason?: string;
   inputKeys?: string[];
   inputDigest?: string;
 }
 
-export interface AgentToolAuditPort {
-  record(event: AgentToolAuditEvent): Promise<void>;
+export interface PublishedCapabilityAuditPort {
+  record(event: PublishedCapabilityAuditEvent): Promise<void>;
 }
 
-export class NoopAgentToolAudit implements AgentToolAuditPort {
-  async record(_event: AgentToolAuditEvent): Promise<void> {
+export class NoopPublishedCapabilityAudit implements PublishedCapabilityAuditPort {
+  async record(_event: PublishedCapabilityAuditEvent): Promise<void> {
     // Intentional no-op for applications that have not provisioned durable audit storage.
   }
 }
 
-export class InMemoryAgentToolAudit implements AgentToolAuditPort {
-  readonly events: AgentToolAuditEvent[] = [];
+export class InMemoryPublishedCapabilityAudit implements PublishedCapabilityAuditPort {
+  readonly events: PublishedCapabilityAuditEvent[] = [];
 
-  async record(event: AgentToolAuditEvent): Promise<void> {
+  async record(event: PublishedCapabilityAuditEvent): Promise<void> {
     this.events.push({
       ...event,
       inputKeys: event.inputKeys ? [...event.inputKeys] : undefined,
@@ -86,15 +86,15 @@ export class InMemoryAgentToolAudit implements AgentToolAuditPort {
 }
 
 /** JSON-safe output after recursive key-based secret redaction. */
-export interface RedactedAgentToolResult {
-  readonly kind: "redacted-agent-tool-result";
+export interface RedactedPublishedCapabilityResult {
+  readonly kind: "redacted-capability-capability-result";
   readonly data: JsonValue;
   readonly redactedFields: number;
 }
 
-export interface AgentToolInvocationResult {
-  toolId: string;
+export interface PublishedCapabilityInvocationResult {
+  capabilityId: string;
   commandId: string;
   extensionId: string;
-  result: RedactedAgentToolResult;
+  result: RedactedPublishedCapabilityResult;
 }

@@ -5,18 +5,19 @@ import type {
 } from "../../application/commands/CommandBus";
 import type { ExtensionCommandBridge } from "../bridge/ExtensionCommandBridge";
 import type {
-  AgentToolInvocationContext,
+  PublishedCapabilityInvocationContext,
   CommandBinding,
 } from "../bridge/contracts";
 import type { ExtensionModule } from "../contracts";
 import { ExtensionRegistry } from "../registry";
 import type { ExtensionLifecycleRegistry } from "./ports";
 import type { CoreApplicationGatewayFactory } from "../core/CoreApplicationGateway";
+import type { TrustedHttpTransportRegistry } from "./TrustedHttpTransportRegistry";
 
 interface TrustedExtensionCommand extends Command<unknown> {
   readonly type: string;
   readonly input: Record<string, unknown>;
-  readonly context: AgentToolInvocationContext;
+  readonly context: PublishedCapabilityInvocationContext;
 }
 
 /**
@@ -33,6 +34,7 @@ export class TrustedRegistryProxy implements ExtensionLifecycleRegistry {
     private readonly commandBus: CommandBus,
     private readonly bridge: ExtensionCommandBridge,
     private readonly coreGateway?: CoreApplicationGatewayFactory,
+    private readonly httpTransport?: TrustedHttpTransportRegistry,
   ) {}
 
   async install(module: ExtensionModule): Promise<unknown> {
@@ -54,7 +56,11 @@ export class TrustedRegistryProxy implements ExtensionLifecycleRegistry {
           execute: async (command) =>
             execute(command.input, {
               ...command.context,
-              core: this.coreGateway?.create(extensionId, command.context),
+              core: this.coreGateway?.create(
+                extensionId,
+                command.context,
+                module.manifest.permissions,
+              ),
             }),
         };
         disposers.push(this.commandBus.register(type, handler));
@@ -63,6 +69,15 @@ export class TrustedRegistryProxy implements ExtensionLifecycleRegistry {
           createCommand: (input, context) => ({ type, input, context }),
         };
         disposers.push(this.bridge.registerBinding(binding));
+      }
+      if (module.manifest.httpRoutes?.length) {
+        if (!this.httpTransport) throw new Error("Trusted HTTP transport registry is unavailable");
+        disposers.push(this.httpTransport.register(
+          extensionId,
+          module.manifest.httpRoutes,
+          module.manifest.oauthResources ?? [],
+          module.httpHandlers ?? {},
+        ));
       }
       const activated = await this.registry.activate(extensionId);
       this.disposers.set(extensionId, disposers);
@@ -108,6 +123,17 @@ function assertHandlerCoverage(module: ExtensionModule): void {
       `Extension ${module.manifest.id} command handlers do not match its manifest` +
         `${missing.length ? `; missing: ${missing.join(", ")}` : ""}` +
         `${extra.length ? `; undeclared: ${extra.join(", ")}` : ""}`,
+    );
+  }
+  const declaredRoutes = new Set((module.manifest.httpRoutes ?? []).map(({ id }) => id));
+  const implementedRoutes = Object.keys(module.httpHandlers ?? {});
+  const missingRoutes = [...declaredRoutes].filter((id) => !implementedRoutes.includes(id));
+  const extraRoutes = implementedRoutes.filter((id) => !declaredRoutes.has(id));
+  if (missingRoutes.length || extraRoutes.length) {
+    throw new Error(
+      `Extension ${module.manifest.id} HTTP handlers do not match its manifest` +
+        `${missingRoutes.length ? `; missing: ${missingRoutes.join(", ")}` : ""}` +
+        `${extraRoutes.length ? `; undeclared: ${extraRoutes.join(", ")}` : ""}`,
     );
   }
 }

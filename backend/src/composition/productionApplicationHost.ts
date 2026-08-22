@@ -4,7 +4,7 @@ import {
   productionTransactionContext,
 } from "./productionTransactionContext";
 import { productionCampaignEventJournal } from "./productionCampaignEventJournal";
-import { PrismaAgentAccessRepository } from "../adapters/persistence/PrismaAgentAccessRepository";
+import { PrismaPluginAccessRepository } from "../adapters/persistence/PrismaPluginAccessRepository";
 import { CommandBus } from "../application/commands/CommandBus";
 import { TransactionalCommandHandler } from "../application/commands/TransactionalCommandHandler";
 import { ApplicationHost, CommandMetadata } from "./ApplicationHost";
@@ -16,12 +16,13 @@ export {
 } from "./ApplicationHost";
 import { durableExecutionMiddleware } from "./ApplicationHost";
 import {
-  PrismaAgentAuditPort,
+  PrismaCapabilityAuditPort,
   PrismaExtensionGrantPort,
   PrismaIdempotencyPort,
   PrismaOutboxPort,
 } from "../adapters/persistence/PrismaDurableFoundations";
 import { PrismaTokenTemplateRepository } from "../adapters/persistence/PrismaTokenTemplateRepository";
+import { PrismaExtensionInstallationRepository } from "../extensions/host/adapters/PrismaExtensionInstallationRepository";
 import { NoopDomainEventPublisher } from "../adapters/events/NoopDomainEventPublisher";
 import {
   CREATE_TOKEN_TEMPLATE,
@@ -59,7 +60,6 @@ import {
   SetSpiritTokenVisible,
 } from "../application/scene/RealtimeSpiritCommands";
 import { PrismaMapCoreRepository } from "../adapters/persistence/PrismaMapCoreRepository";
-import { AssetUrlMapNormalizer } from "../adapters/assets/AssetUrlMapNormalizer";
 import { HttpRemoteMapAssetIngress } from "../adapters/assets/HttpRemoteMapAssetIngress";
 import {
   CHANGE_MAP,
@@ -78,7 +78,6 @@ import {
   ImportRemoteMap,
 } from "../application/maps/RemoteMapImportCommands";
 import { PrismaMapTokenRepository } from "../adapters/persistence/PrismaMapTokenRepository";
-import { LegacyMapTokenAssetUrlNormalizer } from "../adapters/assets/LegacyMapTokenAssetUrlNormalizer";
 import {
   CREATE_MAP_TOKEN,
   DELETE_MAP_TOKEN,
@@ -176,7 +175,6 @@ import { FileSystemAdminBackupStore } from "../adapters/admin/FileSystemAdminBac
 import { PrismaAssetMutationRepository } from "../adapters/persistence/PrismaAssetMutationRepository";
 import { FileSystemAssetFileStore } from "../adapters/assets/FileSystemAssetFileStore";
 import { PrismaCharacterRepository } from "../adapters/persistence/PrismaCharacterRepository";
-import { LegacyCharacterAssetUrlNormalizer } from "../adapters/assets/LegacyCharacterAssetUrlNormalizer";
 import { WebsocketCharacterEventPublisher } from "../adapters/events/WebsocketCharacterEventPublisher";
 import { WebsocketCampaignRealtimeEventPublisher } from "../adapters/events/WebsocketCampaignRealtimeEventPublisher";
 import { PrismaChatMessageRepository } from "../adapters/persistence/PrismaChatMessageRepository";
@@ -196,88 +194,86 @@ import { LegacyCampaignArchiveService } from "../adapters/campaignArchives/Legac
 import { PrismaCreatureRepository } from "../adapters/persistence/PrismaCreatureRepository";
 import { PrismaUserMutationRepository } from "../adapters/persistence/PrismaUserMutationRepository";
 import { PrismaUvttMapImportRepository } from "../adapters/persistence/PrismaUvttMapImportRepository";
-import { PrismaAgentGameplayMembership } from "../adapters/persistence/PrismaAgentGameplayMembership";
-import { WebsocketAgentGameplayEventPublisher } from "../adapters/events/WebsocketAgentGameplayEventPublisher";
+import { PrismaCapabilityGameplayMembership } from "../adapters/persistence/PrismaCapabilityGameplayMembership";
+import { WebsocketCapabilityGameplayEventPublisher } from "../adapters/events/WebsocketCapabilityGameplayEventPublisher";
 import {
-  AGENT_ADD_TO_COMBAT,
-  AGENT_ADJUST_CHARACTER_HP,
-  AGENT_CREATE_CHARACTER,
-  AGENT_END_COMBAT,
-  AGENT_MOVE_ACTOR,
-  AGENT_NEXT_TURN,
-  AGENT_REMOVE_FROM_COMBAT,
-  AGENT_ROLL_AS_ACTOR,
-  AGENT_SPAWN_ACTOR,
-  AGENT_SPEAK_AS_ACTOR,
-  AGENT_START_COMBAT,
-  AGENT_UPDATE_ACTOR,
-  AddAgentCombatant,
-  AdjustAgentCharacterHp,
-  CreateAgentCharacter,
-  EndAgentCombat,
-  MoveAgentActor,
-  NextAgentTurn,
-  RemoveAgentCombatant,
-  RollAsAgentActor,
-  SpawnAgentActor,
-  SpeakAsAgentActor,
-  StartAgentCombat,
-  UpdateAgentActor,
-} from "../application/agents/AgentGameplayCommands";
+  PUBLIC_ADD_TO_COMBAT,
+  PUBLIC_ADJUST_CHARACTER_HP,
+  PUBLIC_CREATE_CHARACTER,
+  PUBLIC_END_COMBAT,
+  PUBLIC_MOVE_ACTOR,
+  PUBLIC_NEXT_TURN,
+  PUBLIC_REMOVE_FROM_COMBAT,
+  PUBLIC_ROLL_AS_ACTOR,
+  PUBLIC_SPAWN_ACTOR,
+  PUBLIC_SPEAK_AS_ACTOR,
+  PUBLIC_START_COMBAT,
+  PUBLIC_UPDATE_ACTOR,
+  AddCapabilityCombatant,
+  AdjustCapabilityCharacterHp,
+  CreateCapabilityCharacter,
+  EndCapabilityCombat,
+  MoveCapabilityActor,
+  NextCapabilityTurn,
+  RemoveCapabilityCombatant,
+  RollAsCapabilityActor,
+  SpawnCapabilityActor,
+  SpeakAsCapabilityActor,
+  StartCapabilityCombat,
+  UpdateCapabilityActor,
+} from "../application/capabilities/CapabilityGameplayCommands";
 import {
-  AGENT_ACTIVATE_MAP,
-  AGENT_ADD_LIGHT,
-  AGENT_ADD_WALL,
-  AGENT_APPLY_FOG,
-  AGENT_END_SESSION,
-  AGENT_PAUSE_SESSION,
-  AGENT_REMOVE_LIGHT,
-  AGENT_REMOVE_WALL,
-  AGENT_RESUME_SESSION,
-  AGENT_SET_ATMOSPHERE_AUDIO,
-  AGENT_SET_ATMOSPHERE_EFFECT,
-  AGENT_SET_LIGHTING,
-  AGENT_SET_VIBE,
-  AGENT_START_SESSION,
-  AGENT_UPDATE_LIGHT,
-  AGENT_UPDATE_WALL,
-  ActivateAgentMap,
-  AddAgentLight,
-  AddAgentWall,
-  ApplyAgentFog,
-  EndAgentSession,
-  PauseAgentSession,
-  RemoveAgentLight,
-  RemoveAgentWall,
-  ResumeAgentSession,
-  SetAgentAtmosphereAudio,
-  SetAgentAtmosphereEffect,
-  SetAgentLighting,
-  SetAgentVibe,
-  StartAgentSession,
-  UpdateAgentLight,
-  UpdateAgentWall,
-} from "../application/agents/AgentGmCommands";
+  PUBLIC_ACTIVATE_MAP,
+  PUBLIC_ADD_LIGHT,
+  PUBLIC_ADD_WALL,
+  PUBLIC_APPLY_FOG,
+  PUBLIC_END_SESSION,
+  PUBLIC_PAUSE_SESSION,
+  PUBLIC_REMOVE_LIGHT,
+  PUBLIC_REMOVE_WALL,
+  PUBLIC_RESUME_SESSION,
+  PUBLIC_SET_ATMOSPHERE_AUDIO,
+  PUBLIC_SET_ATMOSPHERE_EFFECT,
+  PUBLIC_SET_LIGHTING,
+  PUBLIC_SET_VIBE,
+  PUBLIC_START_SESSION,
+  PUBLIC_UPDATE_LIGHT,
+  PUBLIC_UPDATE_WALL,
+  ActivateCapabilityMap,
+  AddCapabilityLight,
+  AddCapabilityWall,
+  ApplyCapabilityFog,
+  EndCapabilitySession,
+  PauseCapabilitySession,
+  RemoveCapabilityLight,
+  RemoveCapabilityWall,
+  ResumeCapabilitySession,
+  SetCapabilityAtmosphereAudio,
+  SetCapabilityAtmosphereEffect,
+  SetCapabilityLighting,
+  SetCapabilityVibe,
+  StartCapabilitySession,
+  UpdateCapabilityLight,
+  UpdateCapabilityWall,
+} from "../application/capabilities/CapabilityGmCommands";
 
 /** Single process-wide handler graph for commands shared by HTTP and Socket.IO. */
 export const productionCommandBus = new CommandBus();
 const transactionContext = productionTransactionContext;
 const transactionalPrisma = productionPrisma;
 const maps = new PrismaMapCoreRepository(transactionalPrisma);
-const assets = new AssetUrlMapNormalizer();
-productionCommandBus.register(CREATE_MAP, new CreateMap(maps, assets));
-productionCommandBus.register(UPDATE_MAP, new UpdateMap(maps, assets));
+productionCommandBus.register(CREATE_MAP, new CreateMap(maps));
+productionCommandBus.register(UPDATE_MAP, new UpdateMap(maps));
 productionCommandBus.register(DELETE_MAP, new DeleteMap(maps));
 productionCommandBus.register(SET_CURRENT_MAP, new SetCurrentMap(maps));
 const tokens = new PrismaMapTokenRepository(transactionalPrisma);
-const tokenAssets = new LegacyMapTokenAssetUrlNormalizer();
 productionCommandBus.register(
   CREATE_MAP_TOKEN,
-  new CreateMapToken(tokens, tokenAssets),
+  new CreateMapToken(tokens),
 );
 productionCommandBus.register(
   UPDATE_MAP_TOKEN,
-  new UpdateMapToken(tokens, tokenAssets),
+  new UpdateMapToken(tokens),
 );
 productionCommandBus.register(DELETE_MAP_TOKEN, new DeleteMapToken(tokens));
 const scene = new PrismaSceneMutationRepository(transactionalPrisma);
@@ -447,13 +443,25 @@ productionCommandBus.register(
   new ImportUvttMap(new PrismaUvttMapImportRepository(transactionalPrisma)),
 );
 const userMutations = new PrismaUserMutationRepository(transactionalPrisma);
+const extensionInstallations = new PrismaExtensionInstallationRepository(
+  transactionalPrisma,
+);
 productionCommandBus.register(
   Users.UPDATE_USER_PROFILE,
   new Users.UpdateUserProfile(userMutations),
 );
 productionCommandBus.register(
   Users.UPDATE_USER_PREFERENCES,
-  new Users.UpdateUserPreferences(userMutations),
+  new Users.UpdateUserPreferences(userMutations, {
+    hasActiveTheme: async (themeId) =>
+      (await extensionInstallations.list()).some(
+        (installation) =>
+          installation.state === "active" &&
+          installation.packageManifest.contributions.themes.some(
+            (theme) => `${installation.extensionId}-${theme.id}` === themeId,
+          ),
+      ),
+  }),
 );
 productionCommandBus.register(
   Users.DELETE_USER_AS_ADMIN,
@@ -620,7 +628,6 @@ productionCommandBus.register(
     assetsRepository,
     new HttpRemoteMapAssetIngress(),
     maps,
-    assets,
   ),
 );
 productionCommandBus.register(
@@ -640,13 +647,11 @@ productionCommandBus.register(
   new Assets.UpdateAssetScope(assetsRepository),
 );
 const characterRepository = new PrismaCharacterRepository(transactionalPrisma);
-const characterAssets = new LegacyCharacterAssetUrlNormalizer();
 const characterEvents = new WebsocketCharacterEventPublisher();
 productionCommandBus.register(
   Characters.CREATE_CHARACTER,
   new Characters.CreateCharacter(
     characterRepository,
-    characterAssets,
     characterEvents,
   ),
 );
@@ -654,7 +659,6 @@ productionCommandBus.register(
   Characters.UPDATE_CHARACTER,
   new Characters.UpdateCharacter(
     characterRepository,
-    characterAssets,
     characterEvents,
   ),
 );
@@ -662,7 +666,6 @@ productionCommandBus.register(
   Characters.DELETE_CHARACTER,
   new Characters.DeleteCharacter(
     characterRepository,
-    characterAssets,
     characterEvents,
   ),
 );
@@ -670,7 +673,6 @@ productionCommandBus.register(
   Characters.ASSIGN_CHARACTER,
   new Characters.AssignCharacter(
     characterRepository,
-    characterAssets,
     characterEvents,
   ),
 );
@@ -678,7 +680,6 @@ productionCommandBus.register(
   Characters.COPY_CHARACTER,
   new Characters.CopyCharacter(
     characterRepository,
-    characterAssets,
     characterEvents,
   ),
 );
@@ -783,147 +784,147 @@ productionCommandBus.register(
   new Admin.RestoreAdminBackup(adminRepository, adminRepository, adminBackups),
 );
 
-// Agent-facing orchestration is deliberately another application adapter over
+// Capability-facing orchestration is deliberately another application adapter over
 // the same handlers humans use. It adds role-shaped convenience and live
 // publication without duplicating token/chat/dice/initiative rules.
-const agentMemberships = new PrismaAgentGameplayMembership(transactionalPrisma);
-const agentEvents = new WebsocketAgentGameplayEventPublisher();
+const capabilityMemberships = new PrismaCapabilityGameplayMembership(transactionalPrisma);
+const capabilityEvents = new WebsocketCapabilityGameplayEventPublisher();
 productionCommandBus.register(
-  AGENT_SPAWN_ACTOR,
-  new SpawnAgentActor(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_SPAWN_ACTOR,
+  new SpawnCapabilityActor(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_UPDATE_ACTOR,
-  new UpdateAgentActor(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_UPDATE_ACTOR,
+  new UpdateCapabilityActor(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_MOVE_ACTOR,
-  new MoveAgentActor(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_MOVE_ACTOR,
+  new MoveCapabilityActor(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_SPEAK_AS_ACTOR,
-  new SpeakAsAgentActor(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_SPEAK_AS_ACTOR,
+  new SpeakAsCapabilityActor(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_ROLL_AS_ACTOR,
-  new RollAsAgentActor(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_ROLL_AS_ACTOR,
+  new RollAsCapabilityActor(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_ADJUST_CHARACTER_HP,
-  new AdjustAgentCharacterHp(
+  PUBLIC_ADJUST_CHARACTER_HP,
+  new AdjustCapabilityCharacterHp(
     productionCommandBus,
-    agentMemberships,
-    agentEvents,
+    capabilityMemberships,
+    capabilityEvents,
   ),
 );
 productionCommandBus.register(
-  AGENT_CREATE_CHARACTER,
-  new CreateAgentCharacter(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_CREATE_CHARACTER,
+  new CreateCapabilityCharacter(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_ADD_TO_COMBAT,
-  new AddAgentCombatant(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_ADD_TO_COMBAT,
+  new AddCapabilityCombatant(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_REMOVE_FROM_COMBAT,
-  new RemoveAgentCombatant(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_REMOVE_FROM_COMBAT,
+  new RemoveCapabilityCombatant(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_START_COMBAT,
-  new StartAgentCombat(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_START_COMBAT,
+  new StartCapabilityCombat(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_NEXT_TURN,
-  new NextAgentTurn(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_NEXT_TURN,
+  new NextCapabilityTurn(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_END_COMBAT,
-  new EndAgentCombat(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_END_COMBAT,
+  new EndCapabilityCombat(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_ACTIVATE_MAP,
-  new ActivateAgentMap(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_ACTIVATE_MAP,
+  new ActivateCapabilityMap(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_ADD_WALL,
-  new AddAgentWall(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_ADD_WALL,
+  new AddCapabilityWall(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_UPDATE_WALL,
-  new UpdateAgentWall(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_UPDATE_WALL,
+  new UpdateCapabilityWall(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_REMOVE_WALL,
-  new RemoveAgentWall(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_REMOVE_WALL,
+  new RemoveCapabilityWall(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_APPLY_FOG,
-  new ApplyAgentFog(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_APPLY_FOG,
+  new ApplyCapabilityFog(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_ADD_LIGHT,
-  new AddAgentLight(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_ADD_LIGHT,
+  new AddCapabilityLight(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_UPDATE_LIGHT,
-  new UpdateAgentLight(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_UPDATE_LIGHT,
+  new UpdateCapabilityLight(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_REMOVE_LIGHT,
-  new RemoveAgentLight(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_REMOVE_LIGHT,
+  new RemoveCapabilityLight(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_SET_LIGHTING,
-  new SetAgentLighting(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_SET_LIGHTING,
+  new SetCapabilityLighting(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_SET_ATMOSPHERE_EFFECT,
-  new SetAgentAtmosphereEffect(
+  PUBLIC_SET_ATMOSPHERE_EFFECT,
+  new SetCapabilityAtmosphereEffect(
     productionCommandBus,
-    agentMemberships,
-    agentEvents,
+    capabilityMemberships,
+    capabilityEvents,
   ),
 );
 productionCommandBus.register(
-  AGENT_SET_ATMOSPHERE_AUDIO,
-  new SetAgentAtmosphereAudio(
+  PUBLIC_SET_ATMOSPHERE_AUDIO,
+  new SetCapabilityAtmosphereAudio(
     productionCommandBus,
-    agentMemberships,
-    agentEvents,
+    capabilityMemberships,
+    capabilityEvents,
   ),
 );
 productionCommandBus.register(
-  AGENT_SET_VIBE,
-  new SetAgentVibe(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_SET_VIBE,
+  new SetCapabilityVibe(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_START_SESSION,
-  new StartAgentSession(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_START_SESSION,
+  new StartCapabilitySession(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_PAUSE_SESSION,
-  new PauseAgentSession(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_PAUSE_SESSION,
+  new PauseCapabilitySession(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_RESUME_SESSION,
-  new ResumeAgentSession(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_RESUME_SESSION,
+  new ResumeCapabilitySession(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 productionCommandBus.register(
-  AGENT_END_SESSION,
-  new EndAgentSession(productionCommandBus, agentMemberships, agentEvents),
+  PUBLIC_END_SESSION,
+  new EndCapabilitySession(productionCommandBus, capabilityMemberships, capabilityEvents),
 );
 
 /** Catalog facade delegates to the exact shared CommandBus handlers. */
 export const productionApplicationHost = new ApplicationHost();
-// Agent and extension-originated calls are default-deny: durable grants,
+// Capability and extension-originated calls are default-deny: durable grants,
 // idempotency state, and audit records are all enforced before a handler runs.
 productionApplicationHost.use(
   durableExecutionMiddleware({
     grants: new PrismaExtensionGrantPort(prisma),
-    audit: new PrismaAgentAuditPort(prisma),
+    audit: new PrismaCapabilityAuditPort(prisma),
     idempotency: new PrismaIdempotencyPort(transactionalPrisma),
     outbox: new PrismaOutboxPort(transactionalPrisma),
-    delegatedAgentAccess: new PrismaAgentAccessRepository(prisma),
+    delegatedCapabilityAccess: new PrismaPluginAccessRepository(prisma),
     unitOfWork: transactionContext,
   }),
 );
@@ -966,8 +967,15 @@ function metadataForProductionCommand(id: string): CommandMetadata {
   return {
     id,
     version: "1",
+    title: id,
+    description: `Execute the ${id} application capability.`,
     risk,
     permissions,
+    operatingRoles: administratorCommandIds.has(id)
+      ? ["SYSTEM"]
+      : ["GM", "PLAYER", "NPC", "SYSTEM"],
+    approvalPolicy: risk === "HIGH" ? "RISK_BASED" : "NEVER",
+    outputRedactionPolicy: "campaign-role-v1",
     idempotency: !readOnly,
     outbox: readOnly
       ? undefined

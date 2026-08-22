@@ -1,6 +1,6 @@
 // ============================================
 // ConfirmDialog — accessible replacement for window.confirm()
-// Confirmation dialog with destructive/warning/info variants, rendered on
+// Approval dialog with destructive/warning/info variants, rendered on
 // the shared <Modal> primitive (overlay layer so it stacks above other
 // modals). Public API unchanged from the original hand-rolled version.
 // ============================================

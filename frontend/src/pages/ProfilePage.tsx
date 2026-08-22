@@ -10,7 +10,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { profileService } from "@/services/profile.service";
 import { api } from "@/services/api";
 import MFASection from "@/components/profile/MFASection";
-import AgentAccessPanel from "@/components/profile/AgentAccessPanel";
+import ConnectedPluginsPanel from "@/components/profile/ConnectedPluginsPanel";
 import ThemePicker, {
   DEFAULT_CUSTOM_COLORS,
   type ThemePickerColors,
@@ -659,21 +659,20 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-canvas">
-      {/* Header */}
-      <header className="bg-moss-green/10 border-b border-moss-green/20">
-        <div className="max-w-4xl mx-auto px-4 py-5 flex items-center gap-4">
+      <header className="border-b border-brand/15 bg-surface-light">
+        <div className="mx-auto flex min-h-14 max-w-4xl items-center gap-2 px-3 sm:px-6">
           <button
             onClick={() => navigate("/dashboard")}
-            className="p-2 rounded-lg hover:bg-moss-green/10 transition-colors text-moss-green"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-brand transition-colors hover:bg-brand/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             aria-label="Back to dashboard"
           >
-            <ChevronLeft className="w-5 h-5" aria-hidden="true" />
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
           </button>
-          <div>
-            <h1 className="text-2xl font-bold text-moss-green font-heading">
+          <div className="min-w-0">
+            <h1 className="truncate font-body text-sm font-semibold text-ink sm:text-base">
               Profile & Settings
             </h1>
-            <p className="text-sm text-warm-gray">
+            <p className="hidden truncate text-xs text-ink-muted sm:block">
               Manage your account and preferences
             </p>
           </div>
@@ -1018,7 +1017,7 @@ export default function ProfilePage() {
           )}
         </section>
 
-        <AgentAccessPanel />
+        <ConnectedPluginsPanel />
 
         {/* ── Danger Zone ── */}
         <section className="glass-panel p-6 border-2 border-red-200/60">

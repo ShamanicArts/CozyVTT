@@ -2,8 +2,8 @@ import { createHash } from "crypto";
 import {
   DurablePermission,
   DurablePrincipalType,
-  AgentAuditPort,
-  DelegatedAgentAccessPort,
+  CapabilityAuditPort,
+  DelegatedCapabilityAccessPort,
   ExtensionGrantPort,
   IdempotencyPort,
   OutboxPort,
@@ -27,6 +27,18 @@ export interface CommandMetadata {
       context?: TrustedExecutionContext,
     ) => string;
   };
+  title?: string;
+  description?: string;
+  operatingRoles?: readonly ("GM" | "PLAYER" | "NPC" | "SYSTEM")[];
+  approvalPolicy?: "NEVER" | "RISK_BASED" | "ALWAYS";
+  outputRedactionPolicy?: string;
+}
+export interface PublicCommandDescriptor extends CommandMetadata {
+  title: string;
+  description: string;
+  operatingRoles: readonly ("GM" | "PLAYER" | "NPC" | "SYSTEM")[];
+  approvalPolicy: "NEVER" | "RISK_BASED" | "ALWAYS";
+  outputRedactionPolicy: string;
 }
 export interface TrustedExecutionContext {
   principalType: DurablePrincipalType;
@@ -36,7 +48,7 @@ export interface TrustedExecutionContext {
   delegatedIdentity?: string;
   correlationId?: string;
   idempotencyKey?: string;
-  origin?: "TRANSPORT" | "AGENT" | "EXTENSION";
+  origin?: "TRANSPORT" | "PLUGIN" | "EXTENSION";
 }
 export interface HostCommand<I = unknown, O = unknown> {
   metadata: CommandMetadata;
@@ -64,6 +76,15 @@ export class IdempotencyReplayError extends HostCommandError {
     this.name = "IdempotencyReplayError";
   }
 }
+export class IdempotencyReplayFailureError extends HostCommandError {
+  constructor(
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "IdempotencyReplayFailureError";
+  }
+}
 
 export class ApplicationHost {
   private readonly commands = new Map<string, HostCommand>();
@@ -78,11 +99,14 @@ export class ApplicationHost {
   use(middleware: HostMiddleware): void {
     this.middleware.push(middleware);
   }
-  list(): CommandMetadata[] {
-    return [...this.commands.values()].map((command) => command.metadata);
+  list(): PublicCommandDescriptor[] {
+    return [...this.commands.values()].map((command) =>
+      publicCommandDescriptor(command.metadata),
+    );
   }
-  get(id: string): CommandMetadata | undefined {
-    return this.commands.get(id)?.metadata;
+  get(id: string): PublicCommandDescriptor | undefined {
+    const metadata = this.commands.get(id)?.metadata;
+    return metadata ? publicCommandDescriptor(metadata) : undefined;
   }
   async dispatch<I, O>(dispatch: HostDispatch<I>): Promise<O> {
     const command = this.commands.get(dispatch.id);
@@ -101,13 +125,27 @@ export class ApplicationHost {
   }
 }
 
+function publicCommandDescriptor(
+  metadata: CommandMetadata,
+): PublicCommandDescriptor {
+  return {
+    ...metadata,
+    title: metadata.title ?? metadata.id,
+    description: metadata.description ?? `Execute ${metadata.id}.`,
+    operatingRoles: metadata.operatingRoles ?? ["GM", "PLAYER", "NPC", "SYSTEM"],
+    approvalPolicy:
+      metadata.approvalPolicy ?? (metadata.risk === "HIGH" ? "RISK_BASED" : "NEVER"),
+    outputRedactionPolicy: metadata.outputRedactionPolicy ?? "campaign-role-v1",
+  };
+}
+
 export interface DurableExecutionPorts {
   grants: ExtensionGrantPort;
-  audit: AgentAuditPort;
+  audit: CapabilityAuditPort;
   idempotency: IdempotencyPort;
   outbox: OutboxPort;
-  delegatedAgentAccess?: DelegatedAgentAccessPort;
-  /** Used for agent/extension command persistence, completion, and outbox. */
+  delegatedCapabilityAccess?: DelegatedCapabilityAccessPort;
+  /** Used for capability/extension command persistence, completion, and outbox. */
   unitOfWork?: UnitOfWorkPort;
   now?: () => Date;
 }
@@ -136,22 +174,22 @@ export function durableExecutionMiddleware(
         correlationId: context.correlationId,
       });
     const protectedOrigin =
-      context.origin === "AGENT" || context.origin === "EXTENSION";
-    const selfDelegatedAgent =
-      context.origin === "AGENT" &&
-      context.principalType === "AGENT" &&
+      context.origin === "PLUGIN" || context.origin === "EXTENSION";
+    const selfDelegatedCapability =
+      context.origin === "PLUGIN" &&
+      context.principalType === "PLUGIN" &&
       Boolean(context.delegatedIdentity) &&
       Boolean(context.campaignId) &&
       Boolean(
-        ports.delegatedAgentAccess &&
-          (await ports.delegatedAgentAccess.activeCredentialDelegates({
+        ports.delegatedCapabilityAccess &&
+          (await ports.delegatedCapabilityAccess.activeCredentialDelegates({
             credentialId: context.principalId,
             delegatedUserId: context.delegatedIdentity!,
             campaignId: context.campaignId!,
             now: now(),
           })),
       );
-    if (protectedOrigin && !selfDelegatedAgent) {
+    if (protectedOrigin && !selfDelegatedCapability) {
       if (!context.extensionId) {
         await audit("DENIED", "MISSING_EXTENSION_ID");
         throw new HostCommandError("Extension identity is required");
@@ -171,6 +209,7 @@ export function durableExecutionMiddleware(
         }
     }
     await audit("ALLOWED");
+    let registeredIdempotency = false;
     try {
       const persist = async (): Promise<unknown> => {
         if (metadata.idempotency && context.idempotencyKey) {
@@ -181,7 +220,7 @@ export function durableExecutionMiddleware(
             commandType: metadata.id,
             idempotencyKey: context.idempotencyKey,
             requestDigest: digest,
-            expiresAt: new Date(now().getTime() + 86_400_000),
+            expiresAt: new Date(now().getTime() + 30 * 86_400_000),
             now: now(),
           });
           if (state === "CONFLICT") {
@@ -190,7 +229,24 @@ export function durableExecutionMiddleware(
               "Idempotency key conflicts with a different request",
             );
           }
-          if (state === "REPLAY") throw new IdempotencyReplayError();
+          if (state === "REPLAY") {
+            const outcome = await ports.idempotency.getOutcome({
+              principalType: context.principalType,
+              principalId: context.principalId,
+              campaignId: context.campaignId,
+              commandType: metadata.id,
+              idempotencyKey: context.idempotencyKey,
+              requestDigest: digest,
+            });
+            if (outcome?.status === "COMPLETED") return outcome.result;
+            if (outcome?.status === "FAILED")
+              throw new IdempotencyReplayFailureError(
+                outcome.errorCode,
+                outcome.errorMessage,
+              );
+            throw new IdempotencyReplayError();
+          }
+          registeredIdempotency = true;
         }
         const output = await next();
         if (metadata.idempotency && context.idempotencyKey)
@@ -200,7 +256,11 @@ export function durableExecutionMiddleware(
             campaignId: context.campaignId,
             commandType: metadata.id,
             idempotencyKey: context.idempotencyKey,
+            requestDigest: digest,
+            capabilityVersion: metadata.version,
+            result: output,
             resultDigest: digestCanonical(output),
+            expiresAt: new Date(now().getTime() + 30 * 86_400_000),
           });
         if (metadata.outbox)
           await ports.outbox.enqueue({
@@ -226,6 +286,23 @@ export function durableExecutionMiddleware(
       await audit("EXECUTED");
       return output;
     } catch (error) {
+      if (
+        registeredIdempotency &&
+        metadata.idempotency &&
+        context.idempotencyKey
+      )
+        await ports.idempotency.fail({
+          principalType: context.principalType,
+          principalId: context.principalId,
+          campaignId: context.campaignId,
+          commandType: metadata.id,
+          idempotencyKey: context.idempotencyKey,
+          requestDigest: digest,
+          capabilityVersion: metadata.version,
+          errorCode: error instanceof Error ? error.name : "COMMAND_FAILED",
+          errorMessage: "Command execution failed",
+          expiresAt: new Date(now().getTime() + 30 * 86_400_000),
+        });
       await audit("FAILED", error instanceof Error ? error.name : "UNKNOWN");
       throw error;
     }

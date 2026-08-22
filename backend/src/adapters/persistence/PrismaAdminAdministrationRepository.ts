@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { AdminSettingsUpdate, AdminUser } from "../../domain/admin/Admin";
 import { AdminAdministrationRepository } from "../../ports/AdminAdministrationRepository";
-import { AdminAuditLog } from "../../ports/AdminAuditLog";
+import { AdminAuditLog } from "../../ports/AdminPorts";
 import { updateSystemSettings } from "../../services/systemSettings";
 
 /** Prisma/settings-service adapter for administration commands. */

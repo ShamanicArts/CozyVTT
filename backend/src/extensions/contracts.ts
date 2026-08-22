@@ -12,13 +12,14 @@ export const COZYVTT_PLATFORM_VERSION = "1.1.1";
 
 export const EXTENSION_CAPABILITIES = [
   "commands",
-  "agent-tools",
+  "capability-publications",
   "scene-layers",
   "renderers",
   "themes",
   "game-systems",
   "importers",
   "exporters",
+  "http-transports",
 ] as const;
 
 export type ExtensionCapability = (typeof EXTENSION_CAPABILITIES)[number];
@@ -52,8 +53,7 @@ export type ExtensionPermission = (typeof EXTENSION_PERMISSIONS)[number];
 export type JsonSchema = Record<string, unknown>;
 
 /**
- * An application command is the unit which future REST, WebSocket, UI, MCP,
- * and plugin adapters all invoke. It intentionally has no transport details.
+ * An application command is the unit which future REST, WebSocket, UI, plugin adapters all invoke. It intentionally has no transport details.
  */
 export interface ApplicationCommandDescriptor {
   id: string;
@@ -66,22 +66,22 @@ export interface ApplicationCommandDescriptor {
   idempotent: boolean;
 }
 
-export type AgentConfirmation = "never" | "when-risky" | "always";
-export type AgentRisk = "read" | "low" | "high";
+export type CapabilityApproval = "never" | "when-risky" | "always";
+export type CapabilityRisk = "read" | "low" | "high";
 
 /**
- * A discoverable tool for an agent adapter. `commandId` is the only execution
+ * A discoverable capability for an capability adapter. `commandId` is the only execution
  * target: adapters must dispatch the application command, never issue a
- * privileged HTTP request or emit a raw socket event on the agent's behalf.
+ * privileged HTTP request or emit a raw socket event on the capability's behalf.
  */
-export interface AgentToolDescriptor {
+export interface PublishedCapabilityDescriptor {
   id: string;
   title: string;
   description: string;
   commandId: string;
   requiredPermissions: ExtensionPermission[];
-  risk: AgentRisk;
-  confirmation: AgentConfirmation;
+  risk: CapabilityRisk;
+  approval: CapabilityApproval;
 }
 
 export interface ExtensionCompatibility {
@@ -105,7 +105,27 @@ export interface ExtensionManifest {
   capabilities: ExtensionCapability[];
   permissions: ExtensionPermission[];
   commands: ApplicationCommandDescriptor[];
-  agentTools: AgentToolDescriptor[];
+  publishedCapabilities: PublishedCapabilityDescriptor[];
+  httpRoutes?: HttpRouteDescriptor[];
+  oauthResources?: OAuthResourceDescriptor[];
+}
+
+export type HttpRouteMethod = "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
+
+export interface HttpRouteDescriptor {
+  id: string;
+  method: HttpRouteMethod;
+  /** Path relative to the extension's host-managed transport mount. */
+  path: string;
+  oauthResourceId?: string;
+  requiredScopes: string[];
+}
+
+export interface OAuthResourceDescriptor {
+  id: string;
+  /** Path relative to the extension's host-managed transport mount. */
+  path: string;
+  scopes: string[];
 }
 
 export type ExtensionLifecycleState = "installed" | "active";
@@ -119,7 +139,7 @@ export interface ExtensionLifecycleContext {
 export interface ExtensionCommandExecutionContext {
   readonly principal: {
     readonly id: string;
-    readonly kind: "agent" | "user" | "service";
+    readonly kind: "plugin" | "user" | "service";
   };
   readonly scope: { readonly campaignId: string };
   /** Campaign-scoped application capabilities; no transport or database access. */
@@ -129,16 +149,32 @@ export interface ExtensionCommandExecutionContext {
 export interface CoreExtensionGateway {
   listCommands(): Array<{
     id: string;
+    version: string;
     title: string;
     description: string;
     inputSchema: JsonSchema;
+    outputSchema: JsonSchema;
+    requiredPermissions: readonly ExtensionPermission[];
+    risk: "read" | "medium" | "high";
+    approvalRequired: boolean;
+    idempotencyRequired: boolean;
+    openWorld: boolean;
     operatingRoles: readonly ("GM" | "PLAYER" | "NPC" | "SYSTEM")[];
   }>;
   dispatch(
     commandId: string,
     input: Readonly<Record<string, unknown>>,
+    options?: { idempotencyKey?: string; approvalId?: string },
   ): Promise<unknown>;
-  listQueries(): Array<{ id: string; inputSchema: JsonSchema }>;
+  listQueries(): Array<{
+    id: string;
+    version: string;
+    title: string;
+    description: string;
+    inputSchema: JsonSchema;
+    outputSchema: JsonSchema;
+    requiredPermissions: readonly ExtensionPermission[];
+  }>;
   query(
     queryId: string,
     input: Readonly<Record<string, unknown>>,
@@ -150,6 +186,24 @@ export type ExtensionCommandHandler = (
   context: ExtensionCommandExecutionContext,
 ) => unknown | Promise<unknown>;
 
+export interface ExtensionHttpContext {
+  readonly extensionId: string;
+  readonly routeId: string;
+  readonly authorization?: {
+    readonly credentialId: string;
+    readonly delegatedUserId: string;
+    readonly campaignId: string;
+    readonly resourceId: string;
+    readonly scopes: readonly string[];
+  };
+  readonly capabilities?: CoreExtensionGateway;
+}
+
+export type ExtensionHttpHandler = (
+  request: Request,
+  context: ExtensionHttpContext,
+) => Response | Promise<Response>;
+
 /**
  * First-party/trusted extension module contract. Loading untrusted code is not
  * part of this first slice; it requires a process or WASM sandbox first.
@@ -158,6 +212,7 @@ export interface ExtensionModule {
   manifest: ExtensionManifest;
   /** Executable handlers must exactly match the manifest command IDs. */
   commandHandlers?: Readonly<Record<string, ExtensionCommandHandler>>;
+  httpHandlers?: Readonly<Record<string, ExtensionHttpHandler>>;
   onInstall?(context: ExtensionLifecycleContext): void | Promise<void>;
   onActivate?(context: ExtensionLifecycleContext): void | Promise<void>;
   onDeactivate?(context: ExtensionLifecycleContext): void | Promise<void>;

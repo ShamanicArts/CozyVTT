@@ -32,6 +32,12 @@ const meta = (id: string, collection: boolean) => ({
   id,
   version: "1",
   risk: "READ" as const,
+  title: id.split(".").join(" "),
+  description: `Read the campaign-scoped ${id} view.`,
+  requiredPermissions: ["READ" as const],
+  operatingRoles: ["DM", "PLAYER", "SPECTATOR"] as const,
+  resultRedactionPolicy: "campaign-role-v1",
+  bounds: { maxItems: collection ? 100 : 1, maxResultBytes: 262_144 },
   inputSchema,
   outputSchema: collection
     ? { type: "array", items: { type: "object" } }

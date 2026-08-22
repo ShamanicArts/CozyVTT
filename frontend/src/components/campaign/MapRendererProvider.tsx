@@ -1,6 +1,5 @@
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -25,11 +24,6 @@ const MapRendererHostContext =
   createContext<MapRendererHostContextValue | null>(null);
 const loadProductionRendererContributions = async () =>
   (await api.listActiveExtensionContributions()).renderers;
-
-/** A trusted first-party module may install layers only through this lifecycle. */
-export type MapRendererContribution = (
-  host: MapCanvasRendererHost,
-) => void | (() => void);
 
 /**
  * Campaign-workspace owner for the map renderer extension host.
@@ -100,24 +94,4 @@ export function MapRendererProvider({
 /** Returns the host for the current campaign map workspace, if one is mounted. */
 export function useMapRendererHost(): MapCanvasRendererHost | null {
   return useContext(MapRendererHostContext)?.host ?? null;
-}
-
-/**
- * Controlled registration seam for first-party modules. The caller receives a
- * disposer and owns calling it on unmount; no renderer contribution is global.
- */
-export function useMapRendererContributionRegistration(): (
-  contribution: MapRendererContribution,
-) => () => void {
-  const host = useMapRendererHost();
-  return useCallback(
-    (contribution: MapRendererContribution) => {
-      if (!host)
-        throw new Error(
-          "Map renderer contributions require a MapRendererProvider.",
-        );
-      return contribution(host) ?? (() => {});
-    },
-    [host],
-  );
 }

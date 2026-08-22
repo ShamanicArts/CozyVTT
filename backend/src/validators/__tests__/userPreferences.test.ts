@@ -31,8 +31,15 @@ describe('UserPreferencesSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  test('rejects an unknown themeId', () => {
-    const result = UserPreferencesSchema.safeParse({ themeId: 'not-a-real-theme' });
+  test('accepts a well-formed extension themeId for availability validation', () => {
+    const result = UserPreferencesSchema.safeParse({
+      themeId: 'cozyvtt.sample-lantern-lantern-night',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test('rejects a malformed themeId', () => {
+    const result = UserPreferencesSchema.safeParse({ themeId: '../not-a-theme' });
     expect(result.success).toBe(false);
   });
 

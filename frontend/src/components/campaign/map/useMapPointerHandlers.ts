@@ -29,7 +29,7 @@ import {
   nearestLight,
   placeLight,
   updateLightPosition,
-} from "./lightToolController";
+} from "./mapToolControllers";
 import { resolveMapPointerIntent } from "./pointerIntent";
 import { useMapControls } from "@/hooks/useMapControls";
 

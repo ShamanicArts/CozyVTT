@@ -9,6 +9,7 @@ import {
 import { hashPassword } from "../../services/auth";
 import { sanitizeInput, validateEmail } from "../../utils/validation";
 import {
+  isBuiltInThemeId,
   UpdateUserPreferencesSchema,
   UserPreferences,
 } from "../../validators/userPreferences";
@@ -34,6 +35,9 @@ export interface UpdateUserPreferencesCommand extends Command<unknown> {
   readonly isAdmin: boolean;
   readonly userId: string;
   readonly input: unknown;
+}
+export interface ActiveThemeCatalog {
+  hasActiveTheme(themeId: string): Promise<boolean>;
 }
 export interface DeleteUserAsAdminCommand extends Command<number> {
   readonly type: typeof DELETE_USER_AS_ADMIN;
@@ -128,7 +132,12 @@ export class UpdateUserPreferences implements CommandHandler<
   UpdateUserPreferencesCommand,
   unknown
 > {
-  constructor(private readonly users: UserMutationRepository) {}
+  constructor(
+    private readonly users: UserMutationRepository,
+    private readonly themes: ActiveThemeCatalog = {
+      hasActiveTheme: async () => false,
+    },
+  ) {}
   async execute(command: UpdateUserPreferencesCommand): Promise<unknown> {
     if (command.userId !== command.actorId && !command.isAdmin) {
       throw new UserMutationError(
@@ -145,6 +154,18 @@ export class UpdateUserPreferences implements CommandHandler<
         "Invalid preferences payload",
         parsed.error.flatten(),
       );
+    if (
+      parsed.data.themeId &&
+      !isBuiltInThemeId(parsed.data.themeId) &&
+      !(await this.themes.hasActiveTheme(parsed.data.themeId))
+    ) {
+      throw new UserMutationError(
+        400,
+        "Bad Request",
+        "Invalid preferences payload",
+        { fieldErrors: { themeId: ["Theme is not currently available"] } },
+      );
+    }
     const current = await this.users.findPreferences(command.userId);
     if (!current.exists)
       throw new UserMutationError(404, "Not Found", "User not found");

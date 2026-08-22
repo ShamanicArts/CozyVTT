@@ -4,7 +4,6 @@ import {
   UpdateMapToken,
 } from "./MapTokenMutations";
 import { MapToken, MapTokenMap } from "../../domain/mapTokens/MapToken";
-import { MapTokenAssetUrlNormalizer } from "../../ports/MapTokenAssetUrlNormalizer";
 import { MapTokenRepository } from "../../ports/MapTokenRepository";
 
 const existingToken: MapToken = {
@@ -56,14 +55,10 @@ function repository(
   };
 }
 
-const assets: MapTokenAssetUrlNormalizer = {
-  normalizeTokenImageUrl: jest.fn((url: string) => `/api/assets/tokens/${url}`),
-};
-
 describe("map-token application mutations", () => {
   it("creates a normalized, defaulted token and persists it in the scoped map", async () => {
     const store = repository();
-    const result = await new CreateMapToken(store, assets).execute({
+    const result = await new CreateMapToken(store).execute({
       type: "map-token.create",
       campaignId: "campaign-1",
       mapId: "map-1",
@@ -93,7 +88,7 @@ describe("map-token application mutations", () => {
   });
 
   it("retains legacy validation and map scope responses", async () => {
-    const command = new CreateMapToken(repository(), assets);
+    const command = new CreateMapToken(repository());
     await expect(
       command.execute({
         type: "map-token.create",
@@ -123,7 +118,7 @@ describe("map-token application mutations", () => {
 
   it("enforces controlled-token permissions and preserves player-safe merges", async () => {
     const store = repository(mapWith(), "PLAYER");
-    const command = new UpdateMapToken(store, assets);
+    const command = new UpdateMapToken(store);
     const result = await command.execute({
       type: "map-token.update",
       campaignId: "campaign-1",
@@ -155,11 +150,24 @@ describe("map-token application mutations", () => {
       status: 403,
       message: "Only DM can update token field: hp",
     });
+    await expect(
+      command.execute({
+        type: "map-token.update",
+        campaignId: "campaign-1",
+        mapId: "map-1",
+        tokenId: "token-1",
+        userId: "player-1",
+        updates: { characterId: "character-2" },
+      }),
+    ).rejects.toMatchObject({
+      status: 403,
+      message: "Only DM can update token field: characterId",
+    });
   });
 
   it("allows DM stat-block/image changes and deletes only a present scoped token", async () => {
     const store = repository();
-    const updated = await new UpdateMapToken(store, assets).execute({
+    const updated = await new UpdateMapToken(store).execute({
       type: "map-token.update",
       campaignId: "campaign-1",
       mapId: "map-1",
@@ -169,6 +177,7 @@ describe("map-token application mutations", () => {
         imageUrl: "new-asset",
         statBlock: { ac: 14 },
         creatureTemplateId: "template-1",
+        characterId: "character-1",
         displayMode: "full-art",
       },
     });
@@ -176,6 +185,7 @@ describe("map-token application mutations", () => {
       imageUrl: "/api/assets/tokens/new-asset",
       statBlock: { ac: 14 },
       creatureTemplateId: "template-1",
+      characterId: "character-1",
       displayMode: "full-art",
     });
 

@@ -176,7 +176,11 @@ export default function AdminPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const [activeTab, setActiveTab] = useState<Tab>(() =>
+    new URLSearchParams(window.location.search).get("tab") === "extensions"
+      ? "extensions"
+      : "dashboard",
+  );
 
   // ---- Dashboard ----
   const [stats, setStats] = useState<SystemStats | null>(null);
@@ -927,43 +931,44 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-canvas">
-      {/* ---- Header ---- */}
-      <header className="bg-moss-green/10 border-b border-moss-green/20">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+      <header className="border-b border-brand/15 bg-surface-light">
+        <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
+          <div className="flex min-h-14 items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
               <button
                 onClick={() => navigate("/dashboard")}
                 aria-label="Back to Dashboard"
-                className="flex items-center gap-1 text-sm text-warm-gray hover:text-moss-green transition-colors"
+                className="flex h-9 items-center gap-1 rounded-lg px-2 text-sm text-ink-muted transition-colors hover:bg-brand/10 hover:text-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
               >
-                <ChevronLeft className="w-4 h-4" aria-hidden="true" />
-                Dashboard
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Dashboard</span>
               </button>
-              <div>
-                <h1 className="text-2xl font-bold text-moss-green font-heading flex items-center gap-2">
-                  <Shield className="w-6 h-6" aria-hidden="true" />
+              <div className="min-w-0">
+                <h1 className="flex items-center gap-2 truncate font-body text-sm font-semibold text-ink sm:text-base">
+                  <Shield className="h-4 w-4 flex-shrink-0 text-brand" aria-hidden="true" />
                   Admin Panel
                 </h1>
-                <p className="text-xs text-warm-gray mt-0.5">
+                <p className="hidden truncate text-xs text-ink-muted sm:block">
                   Platform administration
                 </p>
               </div>
             </div>
-            <span className="text-sm text-warm-gray">
+            <span className="hidden truncate text-xs text-ink-muted sm:block">
               Signed in as{" "}
-              <span className="font-medium text-moss-green">
+              <span className="font-medium text-ink">
                 {user?.displayName}
               </span>
             </span>
           </div>
 
-          {/* Tab Navigation */}
-          <nav aria-label="Admin panel sections">
+          <nav
+            className="scrollbar-none overflow-x-auto"
+            aria-label="Admin panel sections"
+          >
             <div
               role="tablist"
               aria-label="Admin tabs"
-              className="flex gap-1 mt-4"
+              className="flex min-w-max gap-1"
             >
               {tabs.map((tab) => (
                 <button
@@ -973,10 +978,10 @@ export default function AdminPage() {
                   aria-selected={activeTab === tab.id}
                   aria-controls={`tabpanel-${tab.id}`}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
                     activeTab === tab.id
-                      ? "bg-paper text-moss-green border border-b-paper border-moss-green/20 -mb-px"
-                      : "text-warm-gray hover:text-moss-green hover:bg-paper/50"
+                      ? "border-brand text-brand"
+                      : "border-transparent text-ink-muted hover:border-brand/30 hover:text-ink"
                   }`}
                 >
                   <span aria-hidden="true">{tab.icon}</span>
@@ -3429,7 +3434,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Restore backup confirmation */}
+      {/* Restore backup approval */}
       <ConfirmDialog
         isOpen={showRestoreConfirm}
         title="Restore Backup"

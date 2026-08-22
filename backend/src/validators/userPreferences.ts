@@ -7,9 +7,9 @@
 
 import { z } from 'zod';
 
-// Allowed theme + font ids (must be kept in sync with frontend/src/themes.ts).
+// Built-in theme and font ids must stay in sync with frontend/src/themes.ts.
 // `custom` is a sentinel meaning the user has dialed in colors via customThemeColors.
-const ALLOWED_THEME_IDS = [
+export const BUILT_IN_THEME_IDS = [
   'cozy-default',
   'autumn-hearth',
   'desert-sand',
@@ -28,6 +28,10 @@ const ALLOWED_THEME_IDS = [
   'arcane-storm',
   'custom',
 ] as const;
+
+export function isBuiltInThemeId(themeId: string): boolean {
+  return (BUILT_IN_THEME_IDS as readonly string[]).includes(themeId);
+}
 
 const ALLOWED_FONT_IDS = [
   'default',
@@ -55,7 +59,12 @@ const CustomThemeColorsSchema = z.object({
  * silently — clients can't smuggle extra fields into the JSON column.
  */
 export const UserPreferencesSchema = z.object({
-  themeId: z.enum(ALLOWED_THEME_IDS).optional(),
+  themeId: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/)
+    .optional(),
   customThemeColors: CustomThemeColorsSchema.nullable().optional(),
   fontId: z.enum(ALLOWED_FONT_IDS).optional(),
 }).strip();

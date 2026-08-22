@@ -4,7 +4,7 @@ import type {
 } from "../../application/commands/CommandBus";
 import type { ExtensionCommandBridge } from "../bridge/ExtensionCommandBridge";
 import type {
-  AgentToolInvocationContext,
+  PublishedCapabilityInvocationContext,
   CommandBinding,
 } from "../bridge/contracts";
 import type { ExtensionModule } from "../contracts";
@@ -16,7 +16,7 @@ import type { CoreApplicationGatewayFactory } from "../core/CoreApplicationGatew
 interface SandboxCommand {
   readonly type: string;
   readonly input: Record<string, unknown>;
-  readonly context: AgentToolInvocationContext;
+  readonly context: PublishedCapabilityInvocationContext;
 }
 
 /** Descriptor-only registration: the module has no lifecycle code and no package import. */
@@ -31,6 +31,9 @@ export class SandboxRegistryProxy {
   ) {}
   async activate(installation: ExtensionInstallation): Promise<void> {
     const manifest = installation.packageManifest.manifest;
+    if ((manifest.httpRoutes?.length ?? 0) > 0 || (manifest.oauthResources?.length ?? 0) > 0) {
+      throw new Error("Sandboxed extensions cannot contribute HTTP transports");
+    }
     const module: ExtensionModule = { manifest };
     if (!this.registry.getExtension(manifest.id))
       await this.registry.install(module);
@@ -56,9 +59,12 @@ export class SandboxRegistryProxy {
               const gateway = this.coreGateway.create(
                 installation.extensionId,
                 command.context,
+                manifest.permissions,
               );
               for (const action of response.coreActions) {
-                await gateway.dispatch(action.commandId, action.input);
+                await gateway.dispatch(action.commandId, action.input, {
+                  idempotencyKey: action.idempotencyKey,
+                });
               }
             }
             return response.result;
@@ -69,7 +75,7 @@ export class SandboxRegistryProxy {
         commandId: descriptor.id,
         createCommand: (
           input: Record<string, unknown>,
-          context: AgentToolInvocationContext,
+          context: PublishedCapabilityInvocationContext,
         ) => ({ type, input, context }),
       };
       disposers.push(this.bridge.registerBinding(binding));

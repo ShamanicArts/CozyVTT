@@ -86,6 +86,12 @@ export async function registerActiveThemeContributions(
   loader: ActiveThemeContributionLoader,
 ): Promise<() => void> {
   const manifests = await loader.loadActiveThemeManifests();
-  const disposers = manifests.map((manifest) => host.register(manifest));
+  const disposers: Array<() => void> = [];
+  try {
+    for (const manifest of manifests) disposers.push(host.register(manifest));
+  } catch (error) {
+    for (const dispose of disposers.reverse()) dispose();
+    throw error;
+  }
   return () => disposers.reverse().forEach((dispose) => dispose());
 }

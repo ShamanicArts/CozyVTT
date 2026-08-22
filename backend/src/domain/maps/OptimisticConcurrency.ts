@@ -1,7 +1,7 @@
 /**
  * These commands mutate Map rows or their JSON token state without an
  * `expectedUpdatedAt`/version precondition in their public transport contract.
- * They are intentionally listed here so agent callers do not assume a lost
+ * They are intentionally listed here so capability callers do not assume a lost
  * update is prevented merely because Map has an `updatedAt` column.
  *
  * Adding compare-and-swap requires a version field to be carried through the

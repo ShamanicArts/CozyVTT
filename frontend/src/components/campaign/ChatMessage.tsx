@@ -10,7 +10,7 @@ import type { Message, MessageType } from "@/types";
 interface ChatMessageProps {
   message: Message;
   isCurrentUser?: boolean;
-  /** True while the message is optimistically displayed before server confirmation */
+  /** True while the message is optimistically displayed before server approval */
   isPending?: boolean;
 }
 

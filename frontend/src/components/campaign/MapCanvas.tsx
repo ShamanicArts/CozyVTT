@@ -46,8 +46,12 @@ import { useRenderLoop, type MapLayer } from './map/useRenderLoop';
 import { useCanvasSurface } from './map/useCanvasSurface';
 import { useMapGestureState } from './map/useMapGestureState';
 import { useMapPointerHandlers } from './map/useMapPointerHandlers';
-import { mergeableWallEndpoint, mergeWallEndpoint } from './map/wallToolController';
-import { hideAllFog, revealAllFog } from './map/fogToolController';
+import {
+  hideAllFog,
+  mergeableWallEndpoint,
+  mergeWallEndpoint,
+  revealAllFog,
+} from './map/mapToolControllers';
 import { useSocketSubscriptions } from './map/useSocketSubscriptions';
 import {
   createMapCanvasRendererHost,
@@ -96,7 +100,8 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
   // socket handlers write there directly (outside React), and this
   // subscription is what re-renders the canvas per token change.
   const tokens = useTokenList();
-  const { socket } = useWebSocket();
+  const { socket, status: socketStatus, reconnectCount } = useWebSocket();
+  const socketRevision = `${socketStatus}:${reconnectCount}`;
   const { user } = useAuth();
   const isDM = userRole === 'DM';
   // Three stacked canvases share one measured surface. The top canvas receives
@@ -659,11 +664,15 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
     if (!imageLoaded || canvasSize.width === 0 || canvasSize.height === 0 || !currentMap?.id) return;
     if (lastFittedMapIdRef.current === currentMap.id) return;
 
-    lastFittedMapIdRef.current = currentMap.id;
     mapControls.fitToScreen(canvasSize.width, canvasSize.height);
-  }, [imageLoaded, currentMap?.id]);  
-  // ^ Intentionally not including canvasSize/mapControls — we only want to fire once
-  //   per map load, not on every resize. Users can use the Reset View button to re-fit.
+    lastFittedMapIdRef.current = currentMap.id;
+  }, [
+    imageLoaded,
+    currentMap?.id,
+    canvasSize.width,
+    canvasSize.height,
+    mapControls.fitToScreen,
+  ]);
 
   // ============================================
   // Token Image Loading
@@ -750,7 +759,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
     };
 
     return [{ event: 'token.moved', handler: handleTokenMoved }];
-  }, [socket])); // handler reads/writes via the store, no reactive deps needed
+  }, [socket]), socketRevision); // handler reads/writes via the store, no reactive deps needed
 
   // ============================================
   // Map Change
@@ -791,7 +800,14 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
     };
 
     return [{ event: 'map.changed', handler: handleMapChanged }];
-  }, [socket, setCurrentMap]));
+  }, [
+    socket,
+    setCurrentMap,
+    userRole,
+    campaign?.spiritLayerEnabled,
+    setPlayerSpiritVisible,
+    playEtherealTransition,
+  ]), socketRevision);
 
   // ============================================
   // Spirit Layer WebSocket Listeners
@@ -824,7 +840,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
       { event: 'spirit_layer.token.toggled', handler: handleSpiritTokenToggled },
       { event: 'spirit_layer.style_changed', handler: handleSpiritStyleChanged },
     ];
-  }, [socket, updateCampaignSpiritLayer, campaign?.spiritLayerEnabled, playEtherealTransition]));
+  }, [socket, updateCampaignSpiritLayer, campaign?.spiritLayerEnabled, playEtherealTransition]), socketRevision);
 
   // ============================================
   // Vibe Tracker WebSocket Listener
@@ -835,7 +851,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
       updateVibe(data.period, data.hue, data.filter);
     };
     return [{ event: 'vibe.updated', handler: handleVibeUpdated }];
-  }, [socket, updateVibe]));
+  }, [socket, updateVibe]), socketRevision);
 
   // ============================================
   // Load Walls & Fog on Map Change
@@ -864,7 +880,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
     wallCacheValidRef.current = false;
     lightingOffscreenRef.current = null;
     lightCoverageOffscreenRef.current = null;
-  }, [currentMap?.id]);  
+  }, [currentMap?.id, socketRevision]);
 
   // ============================================
   // Wall & Fog WebSocket Listeners
@@ -1013,7 +1029,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
       socketInstance.off('light:updated', handleLightUpdated);
       socketInstance.off('lights:replaced', handleLightsReplaced);
     };
-  }, [socket, currentMap?.id]);  
+  }, [socket, currentMap, socketRevision, isDM, setCurrentMap]);
 
   // ============================================
   // Keyboard: Escape, Ctrl+Z (undo), Ctrl+Y / Ctrl+Shift+Z (redo)

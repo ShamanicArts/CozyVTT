@@ -1,4 +1,4 @@
-import { AdminMailer } from "../../ports/AdminMailer";
+import { AdminMailer } from "../../ports/AdminPorts";
 import {
   isSmtpConfigured,
   sendTestEmail,

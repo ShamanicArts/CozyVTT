@@ -1,7 +1,7 @@
 /**
  * Domain model for a reusable map token.  This deliberately has no Prisma,
  * Express, or websocket dependency so it can be created by an HTTP route,
- * an import job, or a future agent adapter.
+ * an import job, or a future capability adapter.
  */
 
 export type TokenTemplateType = 'player' | 'npc' | 'object';

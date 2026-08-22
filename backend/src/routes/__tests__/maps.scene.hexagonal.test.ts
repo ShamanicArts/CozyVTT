@@ -20,6 +20,11 @@ jest.mock("../../middleware/compose", () => ({
     _res: express.Response,
     next: express.NextFunction,
   ) => next(),
+  campaignDMOrPlayer: (
+    _req: express.Request,
+    _res: express.Response,
+    next: express.NextFunction,
+  ) => next(),
 }));
 
 jest.mock("../../websocket/utils", () => ({ broadcastToCampaign }));

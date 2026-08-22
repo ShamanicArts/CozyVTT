@@ -28,7 +28,7 @@ function manifest(id: string, version = "1.0.0"): ExtensionManifest {
     capabilities: [],
     permissions: [],
     commands: [],
-    agentTools: [],
+    publishedCapabilities: [],
   };
 }
 

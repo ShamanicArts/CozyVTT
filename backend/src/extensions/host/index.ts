@@ -3,6 +3,7 @@ export * from "./createTrustedExtensionHost";
 export * from "./ExtensionHostService";
 export * from "./ExtensionTrustPolicy";
 export * from "./TrustedRegistryProxy";
+export * from "./TrustedHttpTransportRegistry";
 export * from "./ports";
 export * from "./schemas";
 export * from "./adapters/ConfiguredExtensionTrust";

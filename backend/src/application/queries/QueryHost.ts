@@ -4,6 +4,20 @@ export interface QueryMetadata {
   risk: "READ";
   inputSchema: unknown;
   outputSchema: unknown;
+  title?: string;
+  description?: string;
+  requiredPermissions?: readonly "READ"[];
+  operatingRoles?: readonly ("DM" | "PLAYER" | "SPECTATOR")[];
+  resultRedactionPolicy?: string;
+  bounds?: { maxItems?: number; maxResultBytes?: number; maxWaitMs?: number };
+}
+export interface PublicQueryDescriptor extends QueryMetadata {
+  title: string;
+  description: string;
+  requiredPermissions: readonly "READ"[];
+  operatingRoles: readonly ("DM" | "PLAYER" | "SPECTATOR")[];
+  resultRedactionPolicy: string;
+  bounds: { maxItems?: number; maxResultBytes: number; maxWaitMs?: number };
 }
 export interface QueryContext {
   principalId: string;
@@ -21,8 +35,20 @@ export class QueryHost {
       throw new Error(`Duplicate query ${query.metadata.id}`);
     this.queries.set(query.metadata.id, query as Query);
   }
-  list(): QueryMetadata[] {
-    return [...this.queries.values()].map((query) => query.metadata);
+  list(): PublicQueryDescriptor[] {
+    return [...this.queries.values()].map((query) => ({
+      ...query.metadata,
+      title: query.metadata.title ?? query.metadata.id,
+      description: query.metadata.description ?? `Read ${query.metadata.id}.`,
+      requiredPermissions: query.metadata.requiredPermissions ?? ["READ"],
+      operatingRoles: query.metadata.operatingRoles ?? ["DM", "PLAYER", "SPECTATOR"],
+      resultRedactionPolicy:
+        query.metadata.resultRedactionPolicy ?? "campaign-role-v1",
+      bounds: {
+        maxResultBytes: 262_144,
+        ...query.metadata.bounds,
+      },
+    }));
   }
   async dispatch<I, O>(
     id: string,
@@ -31,6 +57,16 @@ export class QueryHost {
   ): Promise<O> {
     const query = this.queries.get(id);
     if (!query) throw new Error(`Unknown query ${id}`);
-    return query.execute(input, context) as Promise<O>;
+    if (
+      context.role &&
+      query.metadata.operatingRoles &&
+      !query.metadata.operatingRoles.includes(context.role)
+    )
+      throw new Error("Query role denied");
+    const result = await query.execute(input, context);
+    const maxResultBytes = query.metadata.bounds?.maxResultBytes ?? 262_144;
+    if (Buffer.byteLength(JSON.stringify(result), "utf8") > maxResultBytes)
+      throw new Error("Query result exceeds descriptor bounds");
+    return result as O;
   }
 }

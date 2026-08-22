@@ -7,6 +7,7 @@ import {
 import type {
   ExtensionInstallation,
   ExtensionInstallationState,
+  ExtensionPackageManifest,
 } from "../contracts";
 import type { ExtensionInstallationRepository } from "../ports";
 import { parseExtensionPackageManifest } from "../schemas";
@@ -91,13 +92,25 @@ function toInstallation(record: PrismaInstallation): ExtensionInstallation {
       record.installMode === PrismaInstallMode.SANDBOXED
         ? "sandboxed"
         : "trusted",
-    packageManifest: parseExtensionPackageManifest(record.manifestJson),
+    packageManifest: storedPackageManifest(record),
     state: fromPrismaState(record.state),
     lastError: record.lastError,
     installedAt: record.installedAt,
     activatedAt: record.activatedAt,
     updatedAt: record.updatedAt,
   };
+}
+
+function storedPackageManifest(
+  record: PrismaInstallation,
+): ExtensionPackageManifest {
+  try {
+    return parseExtensionPackageManifest(record.manifestJson);
+  } catch (error) {
+    // Keep quarantined legacy installations visible so an admin can repair or remove them.
+    if (record.state !== PrismaInstallationState.ERROR) throw error;
+    return record.manifestJson as unknown as ExtensionPackageManifest;
+  }
 }
 
 function toPrismaState(

@@ -6,7 +6,7 @@ import {
   HostCommandError,
 } from "./ApplicationHost";
 import {
-  PrismaAgentAuditPort,
+  PrismaCapabilityAuditPort,
   PrismaExtensionGrantPort,
   PrismaIdempotencyPort,
   PrismaOutboxPort,
@@ -29,7 +29,7 @@ const prefix = `host-transaction-${Date.now()}-`;
 databaseDescribe("ApplicationHost durable transaction boundary", () => {
   const createdCampaignIds: string[] = [];
   const transactions = new PrismaTransactionContext(prisma);
-  const audits = new PrismaAgentAuditPort(prisma);
+  const audits = new PrismaCapabilityAuditPort(prisma);
   const grants = new PrismaExtensionGrantPort(prisma);
   const idempotency = new PrismaIdempotencyPort(transactions.client);
   const outbox = new PrismaOutboxPort(transactions.client);
@@ -44,6 +44,14 @@ databaseDescribe("ApplicationHost durable transaction boundary", () => {
         ],
       },
     });
+    await prisma.commandExecutionOutcome.deleteMany({
+      where: {
+        OR: [
+          { commandType: { startsWith: prefix } },
+          { principalId: { startsWith: prefix } },
+        ],
+      },
+    });
     await prisma.commandIdempotencyRecord.deleteMany({
       where: {
         OR: [
@@ -52,7 +60,7 @@ databaseDescribe("ApplicationHost durable transaction boundary", () => {
         ],
       },
     });
-    await prisma.agentAuditRecord.deleteMany({
+    await prisma.capabilityAuditRecord.deleteMany({
       where: { principalId: { startsWith: prefix } },
     });
     await prisma.extensionGrant.deleteMany({
@@ -68,11 +76,11 @@ databaseDescribe("ApplicationHost durable transaction boundary", () => {
   });
 
   const context = (suffix: string) => ({
-    principalType: "AGENT" as const,
-    principalId: `${prefix}agent`,
+    principalType: "PLUGIN" as const,
+    principalId: `${prefix}capability`,
     campaignId: `${prefix}campaign`,
     extensionId: `${prefix}extension`,
-    origin: "AGENT" as const,
+    origin: "PLUGIN" as const,
     idempotencyKey: suffix,
   });
 
@@ -114,7 +122,7 @@ databaseDescribe("ApplicationHost durable transaction boundary", () => {
       execute: async ({ marker }) => {
         await transactions.client.extensionGrant.create({
           data: {
-            principalType: "AGENT",
+            principalType: "PLUGIN",
             principalId: `${prefix}writer`,
             scopeCampaignId: `${prefix}scope`,
             extensionId: marker,
@@ -127,7 +135,7 @@ databaseDescribe("ApplicationHost durable transaction boundary", () => {
     };
   }
 
-  it("rolls back a command write and idempotency record when outbox enqueue fails", async () => {
+  it("rolls back command state and stores a safe failed replay when outbox enqueue fails", async () => {
     const marker = `${prefix}outbox-failure`;
     const failingOutbox: OutboxPort = {
       enqueue: async () => {
@@ -152,10 +160,20 @@ databaseDescribe("ApplicationHost durable transaction boundary", () => {
       prisma.extensionGrant.count({ where: { extensionId: marker } }),
     ).resolves.toBe(0);
     await expect(
-      prisma.commandIdempotencyRecord.count({
+      prisma.commandIdempotencyRecord.findFirstOrThrow({
         where: { commandType: command.metadata.id },
       }),
-    ).resolves.toBe(0);
+    ).resolves.toMatchObject({ status: "FAILED" });
+    await expect(
+      prisma.commandExecutionOutcome.findFirstOrThrow({
+        where: { commandType: command.metadata.id },
+      }),
+    ).resolves.toMatchObject({
+      status: "FAILED",
+      publicErrorCode: "Error",
+      publicErrorMessage: "Command execution failed",
+      resultJson: null,
+    });
   });
 
   it("writes command state, completion, and outbox event in one successful transaction", async () => {
@@ -186,7 +204,7 @@ databaseDescribe("ApplicationHost durable transaction boundary", () => {
     ).resolves.toBe(1);
   });
 
-  it("rolls back failed commands without an outbox event or completion record", async () => {
+  it("rolls back failed commands without an outbox event and retains a safe failure", async () => {
     const marker = `${prefix}command-failure`;
     const command = writeCommand(`${prefix}failed-command`, true);
     const host = hostFor(command);
@@ -203,10 +221,19 @@ databaseDescribe("ApplicationHost durable transaction boundary", () => {
       prisma.extensionGrant.count({ where: { extensionId: marker } }),
     ).resolves.toBe(0);
     await expect(
-      prisma.commandIdempotencyRecord.count({
+      prisma.commandIdempotencyRecord.findFirstOrThrow({
         where: { commandType: command.metadata.id },
       }),
-    ).resolves.toBe(0);
+    ).resolves.toMatchObject({ status: "FAILED" });
+    await expect(
+      prisma.commandExecutionOutcome.findFirstOrThrow({
+        where: { commandType: command.metadata.id },
+      }),
+    ).resolves.toMatchObject({
+      status: "FAILED",
+      publicErrorMessage: "Command execution failed",
+      resultJson: null,
+    });
     await expect(
       prisma.outboxEvent.count({
         where: { topic: `${command.metadata.id}.event` },
@@ -235,7 +262,7 @@ databaseDescribe("ApplicationHost durable transaction boundary", () => {
     ).rejects.toBeInstanceOf(HostCommandError);
 
     await expect(
-      prisma.agentAuditRecord.findFirstOrThrow({
+      prisma.capabilityAuditRecord.findFirstOrThrow({
         where: { commandType: command.metadata.id, decision: "DENIED" },
       }),
     ).resolves.toMatchObject({ reasonCode: "GRANT_DENIED" });
@@ -262,16 +289,16 @@ databaseDescribe("ApplicationHost durable transaction boundary", () => {
     });
     createdCampaignIds.push(campaign.id);
     const productionContext = {
-      principalType: "AGENT" as const,
-      principalId: `${prefix}production-agent`,
+      principalType: "PLUGIN" as const,
+      principalId: `${prefix}production-capability`,
       campaignId: campaign.id,
       extensionId: `${prefix}production-extension`,
-      origin: "AGENT" as const,
+      origin: "PLUGIN" as const,
       idempotencyKey: "production-atmosphere",
     };
     await prisma.extensionGrant.createMany({
       data: (["WRITE", "EXECUTE"] as const).map((permission) => ({
-        principalType: "AGENT",
+        principalType: "PLUGIN",
         principalId: productionContext.principalId,
         scopeCampaignId: campaign.id,
         extensionId: productionContext.extensionId,

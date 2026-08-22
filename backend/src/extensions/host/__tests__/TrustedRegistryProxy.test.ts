@@ -1,15 +1,15 @@
 import { CommandBus } from "../../../application/commands/CommandBus";
 import { InMemoryExtensionPolicy } from "../../../application/policy/ExtensionPolicy";
 import { ExtensionCommandBridge } from "../../bridge/ExtensionCommandBridge";
-import { InMemoryAgentToolAudit } from "../../bridge/contracts";
+import { InMemoryPublishedCapabilityAudit } from "../../bridge/contracts";
 import type { ExtensionManifest, ExtensionModule } from "../../contracts";
 import { ExtensionRegistry } from "../../registry";
 import { TrustedRegistryProxy } from "../TrustedRegistryProxy";
 import { CoreApplicationGatewayFactory } from "../../core/CoreApplicationGateway";
 import { ApplicationHost } from "../../../composition/ApplicationHost";
 import { QueryHost } from "../../../application/queries/QueryHost";
-import { AGENT_SET_ATMOSPHERE_EFFECT } from "../../../application/agents/AgentGmCommands";
-import type { AgentAccessRepository } from "../../../ports/AgentAccessRepository";
+import { PUBLIC_SET_ATMOSPHERE_EFFECT } from "../../../application/capabilities/CapabilityGmCommands";
+import type { PluginAccessRepository } from "../../../ports/PluginAccessRepository";
 
 const manifest: ExtensionManifest = {
   manifestVersion: "1.0",
@@ -18,7 +18,7 @@ const manifest: ExtensionManifest = {
   version: "1.0.0",
   description: "Trusted command fixture",
   compatibility: { extensionApi: "^1.0.0", cozyVtt: "^1.1.0" },
-  capabilities: ["commands", "agent-tools"],
+  capabilities: ["commands", "capability-publications"],
   permissions: ["campaign.write"],
   commands: [
     {
@@ -45,7 +45,7 @@ const manifest: ExtensionManifest = {
       idempotent: false,
     },
   ],
-  agentTools: [
+  publishedCapabilities: [
     {
       id: "trusted_note_create",
       title: "Create note",
@@ -53,7 +53,7 @@ const manifest: ExtensionManifest = {
       commandId: "trusted.note.create",
       requiredPermissions: ["campaign.write"],
       risk: "low",
-      confirmation: "never",
+      approval: "never",
     },
   ],
 };
@@ -64,7 +64,7 @@ describe("TrustedRegistryProxy", () => {
     const bus = new CommandBus();
     const policy = new InMemoryExtensionPolicy([
       {
-        principalId: "agent-1",
+        principalId: "capability-1",
         campaignId: "campaign-1",
         extensionId: manifest.id,
         permissions: ["campaign.write"],
@@ -74,7 +74,7 @@ describe("TrustedRegistryProxy", () => {
       registry,
       bus,
       policy,
-      new InMemoryAgentToolAudit(),
+      new InMemoryPublishedCapabilityAudit(),
       [],
     );
     return {
@@ -100,9 +100,9 @@ describe("TrustedRegistryProxy", () => {
     await proxy.activate(manifest.id);
     await expect(
       bridge.invoke({
-        principal: { id: "agent-1", kind: "agent" },
+        principal: { id: "capability-1", kind: "plugin" },
         scope: { campaignId: "campaign-1" },
-        toolId: "trusted_note_create",
+        capabilityId: "trusted_note_create",
         input: { note: "Ash at the gate" },
       }),
     ).resolves.toMatchObject({
@@ -117,9 +117,9 @@ describe("TrustedRegistryProxy", () => {
     expect(bus.has(`trusted.${manifest.id}.trusted.note.create`)).toBe(false);
     await expect(
       bridge.invoke({
-        principal: { id: "agent-1", kind: "agent" },
+        principal: { id: "capability-1", kind: "plugin" },
         scope: { campaignId: "campaign-1" },
-        toolId: "trusted_note_create",
+        capabilityId: "trusted_note_create",
         input: { note: "No longer reachable" },
       }),
     ).rejects.toMatchObject({ code: "UNKNOWN_TOOL" });
@@ -146,7 +146,7 @@ describe("TrustedRegistryProxy", () => {
     const bus = new CommandBus();
     const policy = new InMemoryExtensionPolicy([
       {
-        principalId: "agent-1",
+        principalId: "capability-1",
         campaignId: "campaign-1",
         extensionId: manifest.id,
         permissions: ["campaign.write"],
@@ -156,14 +156,14 @@ describe("TrustedRegistryProxy", () => {
       registry,
       bus,
       policy,
-      new InMemoryAgentToolAudit(),
+      new InMemoryPublishedCapabilityAudit(),
       [],
     );
     const application = new ApplicationHost();
     const setEffect = jest.fn(async () => "mist");
     application.register({
       metadata: {
-        id: AGENT_SET_ATMOSPHERE_EFFECT,
+        id: PUBLIC_SET_ATMOSPHERE_EFFECT,
         version: "1",
         risk: "MEDIUM",
         permissions: ["WRITE", "EXECUTE"],
@@ -175,20 +175,22 @@ describe("TrustedRegistryProxy", () => {
       new QueryHost(),
       {
         findCredentialById: async () => ({
-          id: "agent-1",
+          id: "capability-1",
           delegatedUserId: "dm-1",
           campaignId: "campaign-1",
         }),
-      } as unknown as AgentAccessRepository,
+      } as unknown as PluginAccessRepository,
     );
     const proxy = new TrustedRegistryProxy(registry, bus, bridge, core);
     await proxy.install({
       manifest,
       commandHandlers: {
         "trusted.note.create": async (input, context) => {
-          await context.core!.dispatch(AGENT_SET_ATMOSPHERE_EFFECT, {
-            effect: "mist",
-          });
+          await context.core!.dispatch(
+            PUBLIC_SET_ATMOSPHERE_EFFECT,
+            { effect: "mist" },
+            { idempotencyKey: "trusted-note-1" },
+          );
           return { note: input.note, campaignId: context.scope.campaignId };
         },
       },
@@ -196,9 +198,9 @@ describe("TrustedRegistryProxy", () => {
     await proxy.activate(manifest.id);
 
     await bridge.invoke({
-      principal: { id: "agent-1", kind: "agent" },
+      principal: { id: "capability-1", kind: "plugin" },
       scope: { campaignId: "campaign-1" },
-      toolId: "trusted_note_create",
+      capabilityId: "trusted_note_create",
       input: { note: "Call the mist" },
     });
     expect(setEffect).toHaveBeenCalledWith(

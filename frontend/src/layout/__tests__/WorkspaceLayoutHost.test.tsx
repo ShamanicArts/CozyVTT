@@ -15,7 +15,7 @@ function contribution(
     contractVersion: WORKSPACE_LAYOUT_CONTRACT_VERSION,
     id: "core.activity",
     ownerId: "cozyvtt.core",
-    region: "campaign.session.tabs",
+    region: "campaign.inspector",
     title: "Activity",
     component: EmptyContribution,
     ...overrides,
@@ -44,7 +44,7 @@ describe("WorkspaceLayoutHost", () => {
     );
 
     expect(
-      host.list("campaign.session.tabs", wideDm).map(({ id }) => id),
+      host.list("campaign.inspector", wideDm).map(({ id }) => id),
     ).toEqual(["dm-first", "later"]);
   });
 
@@ -52,22 +52,19 @@ describe("WorkspaceLayoutHost", () => {
     const host = new WorkspaceLayoutHost();
     const listener = vi.fn();
     host.subscribe(listener);
-    const registration = host.register(
-      contribution({ minSize: 20, maxSize: 40, preferredSize: 25 }),
-    );
+    const registration = host.register(contribution());
 
-    registration.update({ order: -1, preferredSize: 32 });
-    expect(host.list("campaign.session.tabs", wideDm)[0]).toMatchObject({
+    registration.update({ order: -1 });
+    expect(host.list("campaign.inspector", wideDm)[0]).toMatchObject({
       order: -1,
-      preferredSize: 32,
     });
     expect(host.unregister("core.activity", "someone.else")).toBe(false);
     registration.dispose();
-    expect(host.list("campaign.session.tabs", wideDm)).toEqual([]);
+    expect(host.list("campaign.inspector", wideDm)).toEqual([]);
     expect(listener).toHaveBeenCalledTimes(3);
   });
 
-  it("rejects duplicate, incompatible, and out-of-range contributions", () => {
+  it("rejects duplicate, incompatible, and invalid-order contributions", () => {
     const host = new WorkspaceLayoutHost();
     host.register(contribution());
 
@@ -84,8 +81,8 @@ describe("WorkspaceLayoutHost", () => {
     ).toThrow(/supports 1/);
     expect(() =>
       new WorkspaceLayoutHost().register(
-        contribution({ minSize: 20, maxSize: 30, preferredSize: 40 }),
+        contribution({ order: Number.NaN }),
       ),
-    ).toThrow(/invalid preferred size/);
+    ).toThrow(/non-finite order/);
   });
 });

@@ -68,6 +68,7 @@ backups/
 
 # ---- Test artifacts ---------------------------------------------------------
 coverage/
+.impeccable/
 cookies.txt
 *.tmp
 *.tmp.*

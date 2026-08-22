@@ -44,7 +44,7 @@ function extractAssetId(url: string | null | undefined): string {
 }
 
 // ============================================
-// Token Transfer Confirmation
+// Token Transfer Approval
 // ============================================
 
 interface TokenTransferProps {
@@ -55,7 +55,7 @@ interface TokenTransferProps {
   isSwitching: boolean;
 }
 
-function TokenTransferConfirmation({
+function TokenTransferApproval({
   tokens,
   targetMap,
   onConfirm,
@@ -434,7 +434,7 @@ export default function MapManager({ isOpen, onClose }: MapManagerProps) {
         setCurrentMapTokens(actualTokens);
         setIsSwitching(false);
         if (actualTokens.length > 0) {
-          // Show token transfer confirmation UI
+          // Show token transfer approval UI
           setSwitchingToMap(map);
         } else {
           performSwitch(map, []);
@@ -645,9 +645,9 @@ export default function MapManager({ isOpen, onClose }: MapManagerProps) {
                             tokens={currentMapTokens}
                             currentMap={currentMap}
                           />
-                          {/* Token transfer confirmation (shown under the target card) */}
+                          {/* Token transfer approval (shown under the target card) */}
                           {switchingToMap?.id === map.id && (
-                            <TokenTransferConfirmation
+                            <TokenTransferApproval
                               tokens={currentMapTokens}
                               targetMap={map}
                               onConfirm={handleTransferConfirm}

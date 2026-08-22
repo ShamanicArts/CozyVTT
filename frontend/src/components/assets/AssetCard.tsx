@@ -76,7 +76,7 @@ function AssetCardInner({ asset, viewMode, onView, onDelete }: AssetCardProps) {
     }
   };
 
-  // Handle delete with confirmation
+  // Handle delete with approval
   const handleDelete = () => {
     setConfirmOpen(true);
   };

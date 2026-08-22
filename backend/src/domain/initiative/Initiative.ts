@@ -1,7 +1,7 @@
 /**
  * Ephemeral combat state and the persisted token fields it derives from.
  * These types deliberately contain no Socket.IO, Prisma, or dice-parser
- * dependencies so the same commands can later power agent and HTTP adapters.
+ * dependencies so the same commands can later power capability and HTTP adapters.
  */
 export interface InitiativeHp {
   current: number;

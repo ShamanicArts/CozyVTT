@@ -147,20 +147,20 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         });
 
         // Reconnect attempt (socket.io is actively retrying)
-        socket.on('reconnect_attempt', () => {
+        socket.io.on('reconnect_attempt', () => {
           if (!isMountedRef.current) return;
           setStatus('connecting');
         });
 
         // Successful reconnect — flip back to 'connected' and signal consumers
-        socket.on('reconnect', () => {
+        socket.io.on('reconnect', () => {
           if (!isMountedRef.current) return;
           setStatus('connected');
           setReconnectCount((c) => c + 1);
         });
 
         // Final reconnect failure (socket.io gave up)
-        socket.on('reconnect_failed', () => {
+        socket.io.on('reconnect_failed', () => {
           if (!isMountedRef.current) return;
           setStatus('error');
           setError('Connection lost. Click Retry to try again.');

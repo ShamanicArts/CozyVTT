@@ -120,8 +120,11 @@ function sendMapLifecycleError(res: Response, error: unknown): boolean {
 // HTTP validation, status codes, payloads, and broadcasts.
 const sceneCommands = productionCommandBus;
 
-function sceneActor(campaignId: string) {
-  return { campaignId, role: "DM" as SceneRole };
+function sceneActor(campaignId: string, req?: AuthenticatedRequest) {
+  return {
+    campaignId,
+    role: (req?.campaignMembership?.role ?? "DM") as SceneRole,
+  };
 }
 
 const mapTokenCommands = productionCommandBus;
@@ -959,19 +962,25 @@ router.delete(
 
 /**
  * PATCH /api/campaigns/:campaignId/maps/:id/walls/:sid
- * Update a single wall segment's type (DM only) — e.g., toggle door open/closed.
+ * Update a wall type. DMs may edit walls; players may toggle unlocked doors.
  * Body: { type: WallType }
  */
 router.patch(
   "/:id/walls/:sid",
-  campaignDM,
+  campaignMember,
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { campaignId, id, sid } = req.params;
       const map = await findMapInCampaign(campaignId, id, res);
       if (!map) return;
 
-      const validTypes = ["wall", "door-closed", "door-open", "window"];
+      const validTypes = [
+        "wall",
+        "door-closed",
+        "door-open",
+        "door-locked",
+        "window",
+      ];
       if (!req.body.type || !validTypes.includes(req.body.type)) {
         return res.status(400).json({
           error: "Validation Error",
@@ -996,7 +1005,7 @@ router.patch(
       } as WallSegment;
       await sceneCommands.dispatch<UpdateWallSegmentCommand, WallSegment[]>({
         type: UPDATE_WALL_SEGMENT,
-        actor: sceneActor(campaignId),
+        actor: sceneActor(campaignId, req),
         mapId: id,
         segment,
       });

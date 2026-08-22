@@ -6,7 +6,6 @@ import {
   UpdateCharacter,
 } from './CharacterMutations';
 import { CharacterRecord } from '../../domain/characters/Character';
-import { CharacterAssetUrlNormalizer } from '../../ports/CharacterAssetUrlNormalizer';
 import { CharacterEventPublisher } from '../../ports/CharacterEventPublisher';
 import { CharacterRepository } from '../../ports/CharacterRepository';
 import { GameSystem } from '../../game-systems';
@@ -31,7 +30,6 @@ function repository(overrides: Partial<CharacterRepository> = {}): CharacterRepo
   };
 }
 
-const assets: CharacterAssetUrlNormalizer = { normalizeTokenImageUrl: jest.fn((url) => `/api/assets/tokens/${url}`) };
 function events(): CharacterEventPublisher & { publish: jest.Mock } {
   return { publish: jest.fn() };
 }
@@ -39,7 +37,7 @@ function events(): CharacterEventPublisher & { publish: jest.Mock } {
 describe('character mutation commands', () => {
   it('creates a flexible character with legacy defaults and image normalization', async () => {
     const store = repository();
-    const result = await new CreateCharacter(store, assets, events()).execute({
+    const result = await new CreateCharacter(store, events()).execute({
       type: 'character.create', userId: 'owner-1', input: { name: 'New Hero', tokenImageUrl: 'asset-1' },
     });
     expect(result.character).toMatchObject({ name: 'New Hero', data: {}, tokenImageUrl: '/api/assets/tokens/asset-1', campaignId: null });
@@ -49,7 +47,7 @@ describe('character mutation commands', () => {
     const store = repository({
       findCampaign: jest.fn(async () => ({ id: 'campaign-1', name: 'D&D', gameSystem: GameSystem.DND_5E })),
     });
-    await new CreateCharacter(store, assets, events()).execute({
+    await new CreateCharacter(store, events()).execute({
       type: 'character.create',
       userId: 'owner-1',
       input: { name: 'Fighter', campaignId: 'campaign-1', data: getBlankCharacterTemplate(GameSystem.DND_5E) },
@@ -61,11 +59,11 @@ describe('character mutation commands', () => {
 
   it('keeps schema errors and owner/DM update policy at the application boundary', async () => {
     const store = repository();
-    await expect(new UpdateCharacter(store, assets, events()).execute({
+    await expect(new UpdateCharacter(store, events()).execute({
       type: 'character.update', userId: 'owner-1', characterId: character.id, input: { name: '' },
     })).rejects.toMatchObject({ status: 400, error: 'Validation Error', message: 'Character name is required', validationErrors: undefined });
 
-    await expect(new UpdateCharacter(repository({ findMembership: jest.fn(async () => null) }), assets, events()).execute({
+    await expect(new UpdateCharacter(repository({ findMembership: jest.fn(async () => null) }), events()).execute({
       type: 'character.update', userId: 'other-user', characterId: character.id, input: { name: 'Nope' },
     })).rejects.toMatchObject({ status: 403, message: 'You do not have permission to edit this character' });
   });
@@ -73,7 +71,7 @@ describe('character mutation commands', () => {
   it('updates an owner character and publishes the unchanged campaign event payload', async () => {
     const store = repository();
     const publisher = events();
-    const result = await new UpdateCharacter(store, assets, publisher).execute({
+    const result = await new UpdateCharacter(store, publisher).execute({
       type: 'character.update', userId: 'owner-1', characterId: character.id, input: { tokenImageUrl: null },
     });
     expect(result.character).toMatchObject({ tokenImageUrl: null });
@@ -82,9 +80,9 @@ describe('character mutation commands', () => {
 
   it('enforces owner-only deletion and copy semantics', async () => {
     const store = repository();
-    await expect(new DeleteCharacter(store, assets, events()).execute({ type: 'character.delete', userId: 'other-user', characterId: character.id }))
+    await expect(new DeleteCharacter(store, events()).execute({ type: 'character.delete', userId: 'other-user', characterId: character.id }))
       .rejects.toMatchObject({ status: 403, message: 'Only the character owner can delete this character' });
-    const copied = await new CopyCharacter(store, assets, events()).execute({ type: 'character.copy', userId: 'owner-1', characterId: character.id });
+    const copied = await new CopyCharacter(store, events()).execute({ type: 'character.copy', userId: 'owner-1', characterId: character.id });
     expect(copied.character).toMatchObject({ name: 'Mira (Copy)', campaignId: null, gameSystem: null });
   });
 
@@ -93,7 +91,7 @@ describe('character mutation commands', () => {
       findMembership: jest.fn(async (_userId, campaignId) => ({ role: 'PLAYER', characterIds: campaignId === 'campaign-new' ? [] : [character.id] })),
     });
     const publisher = events();
-    const command = new AssignCharacter(store, assets, publisher);
+    const command = new AssignCharacter(store, publisher);
     await command.execute({ type: 'character.assign', userId: 'owner-1', characterId: character.id, campaignId: 'campaign-new' });
     expect(store.updateMembershipCharacterIds).toHaveBeenCalledWith('owner-1', 'campaign-old', []);
     expect(store.updateMembershipCharacterIds).toHaveBeenCalledWith('owner-1', 'campaign-new', [character.id]);

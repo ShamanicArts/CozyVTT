@@ -2,10 +2,10 @@ import { CommandBus } from "../../application/commands/CommandBus";
 import { InMemoryExtensionPolicy } from "../../application/policy/ExtensionPolicy";
 import { ApplicationHost } from "../../composition/ApplicationHost";
 import { QueryHost } from "../../application/queries/QueryHost";
-import { AGENT_SET_ATMOSPHERE_EFFECT } from "../../application/agents/AgentGmCommands";
-import type { AgentAccessRepository } from "../../ports/AgentAccessRepository";
+import { PUBLIC_SET_ATMOSPHERE_EFFECT } from "../../application/capabilities/CapabilityGmCommands";
+import type { PluginAccessRepository } from "../../ports/PluginAccessRepository";
 import { ExtensionCommandBridge } from "../bridge/ExtensionCommandBridge";
-import { InMemoryAgentToolAudit } from "../bridge/contracts";
+import { InMemoryPublishedCapabilityAudit } from "../bridge/contracts";
 import { CoreApplicationGatewayFactory } from "../core/CoreApplicationGateway";
 import type { ExtensionManifest } from "../contracts";
 import type { ExtensionInstallation } from "../host/contracts";
@@ -20,7 +20,7 @@ const manifest: ExtensionManifest = {
   version: "1.0.0",
   description: "Fixture",
   compatibility: { extensionApi: "^1.0.0", cozyVtt: "^1.1.0" },
-  capabilities: ["commands", "agent-tools"],
+  capabilities: ["commands", "capability-publications"],
   permissions: ["campaign.write"],
   commands: [
     {
@@ -34,7 +34,7 @@ const manifest: ExtensionManifest = {
       idempotent: true,
     },
   ],
-  agentTools: [
+  publishedCapabilities: [
     {
       id: "director_act",
       title: "Act",
@@ -42,7 +42,7 @@ const manifest: ExtensionManifest = {
       commandId: "director.act",
       requiredPermissions: ["campaign.write"],
       risk: "low",
-      confirmation: "never",
+      approval: "never",
     },
   ],
 };
@@ -62,14 +62,18 @@ describe("SandboxRegistryProxy core actions", () => {
           permissions: ["campaign.write"],
         },
       ]),
-      new InMemoryAgentToolAudit(),
+      new InMemoryPublishedCapabilityAudit(),
       [],
     );
     const sandbox = {
       invokeWithCoreActions: jest.fn(async () => ({
         result: { ok: true },
         coreActions: [
-          { commandId: AGENT_SET_ATMOSPHERE_EFFECT, input: { effect: "rain" } },
+          {
+            commandId: PUBLIC_SET_ATMOSPHERE_EFFECT,
+            input: { effect: "rain" },
+            idempotencyKey: "sandbox-action-1",
+          },
         ],
       })),
     } as unknown as NodeBubblewrapSandbox;
@@ -77,7 +81,7 @@ describe("SandboxRegistryProxy core actions", () => {
     const setEffect = jest.fn(async () => "rain");
     application.register({
       metadata: {
-        id: AGENT_SET_ATMOSPHERE_EFFECT,
+        id: PUBLIC_SET_ATMOSPHERE_EFFECT,
         version: "1",
         risk: "MEDIUM",
         permissions: ["WRITE", "EXECUTE"],
@@ -93,7 +97,7 @@ describe("SandboxRegistryProxy core actions", () => {
           delegatedUserId: "dm-1",
           campaignId: "campaign-1",
         }),
-      } as unknown as AgentAccessRepository,
+      } as unknown as PluginAccessRepository,
     );
     const proxy = new SandboxRegistryProxy(
       registry,
@@ -112,9 +116,9 @@ describe("SandboxRegistryProxy core actions", () => {
     } as unknown as ExtensionInstallation);
 
     await bridge.invoke({
-      principal: { id: "credential-1", kind: "agent" },
+      principal: { id: "credential-1", kind: "plugin" },
       scope: { campaignId: "campaign-1" },
-      toolId: "director_act",
+      capabilityId: "director_act",
       input: {},
     });
     expect(setEffect).toHaveBeenCalledWith(

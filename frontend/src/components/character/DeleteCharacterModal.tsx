@@ -1,6 +1,6 @@
 // ============================================
 // Delete Character Modal
-// Confirmation dialog with campaign assignment validation
+// Approval dialog with campaign assignment validation
 // ============================================
 
 import { useState } from 'react';
@@ -120,7 +120,7 @@ export default function DeleteCharacterModal({
                   </div>
                 )}
 
-                {/* Unassigned Character Confirmation */}
+                {/* Unassigned Character Approval */}
                 {!campaign && (
                   <div className="bg-moss-green/10 border border-moss-green/30 rounded-lg p-4">
                     <p className="text-sm text-stone-gray">

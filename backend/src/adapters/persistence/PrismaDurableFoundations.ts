@@ -1,6 +1,6 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import {
-  AgentAuditPort,
+  CapabilityAuditPort,
   ExtensionGrantPort,
   IdempotencyPort,
   OutboxPort,
@@ -31,10 +31,10 @@ export class PrismaExtensionGrantPort implements ExtensionGrantPort {
   }
 }
 
-export class PrismaAgentAuditPort implements AgentAuditPort {
+export class PrismaCapabilityAuditPort implements CapabilityAuditPort {
   constructor(private readonly client: PrismaClient) {}
-  async append(input: Parameters<AgentAuditPort["append"]>[0]): Promise<void> {
-    await this.client.agentAuditRecord.create({ data: input });
+  async append(input: Parameters<CapabilityAuditPort["append"]>[0]): Promise<void> {
+    await this.client.capabilityAuditRecord.create({ data: input });
   }
 }
 
@@ -54,52 +54,64 @@ export class PrismaIdempotencyPort implements IdempotencyPort {
         idempotencyKey: input.idempotencyKey,
       },
     };
-    try {
-      await this.client.commandIdempotencyRecord.create({
-        data: { ...data, scopeCampaignId },
+    const inserted = await this.client.commandIdempotencyRecord.createMany({
+      data: [{ ...data, scopeCampaignId }],
+      skipDuplicates: true,
+    });
+    if (inserted.count === 1) return "CREATED";
+    const existing =
+      await this.client.commandIdempotencyRecord.findUniqueOrThrow({ where });
+    if (existing.requestDigest !== input.requestDigest) return "CONFLICT";
+    const now = input.now ?? new Date();
+    if (
+      existing.status === "PROCESSING" &&
+      existing.leaseExpiresAt &&
+      existing.leaseExpiresAt < now
+    ) {
+      const result = await this.client.commandIdempotencyRecord.updateMany({
+        where: {
+          id: existing.id,
+          status: "PROCESSING",
+          leaseExpiresAt: { lt: now },
+        },
+        data: { claimToken: null, leaseExpiresAt: null },
       });
-      return "CREATED";
-    } catch (error) {
-      if (
-        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
-        error.code !== "P2002"
-      )
-        throw error;
-      const existing =
-        await this.client.commandIdempotencyRecord.findUniqueOrThrow({ where });
-      if (existing.requestDigest !== input.requestDigest) return "CONFLICT";
-      const now = input.now ?? new Date();
-      if (
-        existing.status === "PROCESSING" &&
-        existing.leaseExpiresAt &&
-        existing.leaseExpiresAt < now
-      ) {
-        const result = await this.client.commandIdempotencyRecord.updateMany({
-          where: {
-            id: existing.id,
-            status: "PROCESSING",
-            leaseExpiresAt: { lt: now },
-          },
-          data: { claimToken: null, leaseExpiresAt: null },
-        });
-        if (result.count) return "RECLAIMED";
-      }
-      return "REPLAY";
+      if (result.count) return "RECLAIMED";
     }
+    return "REPLAY";
   }
   async complete(
     input: Parameters<IdempotencyPort["complete"]>[0],
   ): Promise<void> {
-    await this.client.commandIdempotencyRecord.update({
-      where: {
-        principalType_principalId_scopeCampaignId_commandType_idempotencyKey: {
-          principalType: input.principalType,
-          principalId: input.principalId,
-          scopeCampaignId: input.campaignId ?? "",
-          commandType: input.commandType,
-          idempotencyKey: input.idempotencyKey,
-        },
+    const resultJson = boundedResult(input.result);
+    const key = idempotencyKey(input);
+    await this.client.commandExecutionOutcome.upsert({
+      where: key,
+      create: {
+        principalType: input.principalType,
+        principalId: input.principalId,
+        scopeCampaignId: input.campaignId ?? "",
+        commandType: input.commandType,
+        idempotencyKey: input.idempotencyKey,
+        requestDigest: input.requestDigest,
+        capabilityVersion: input.capabilityVersion,
+        status: "COMPLETED",
+        resultJson,
+        resultDigest: input.resultDigest,
+        expiresAt: input.expiresAt,
       },
+      update: {
+        status: "COMPLETED",
+        resultJson,
+        resultDigest: input.resultDigest,
+        publicErrorCode: null,
+        publicErrorMessage: null,
+        completedAt: new Date(),
+        expiresAt: input.expiresAt,
+      },
+    });
+    await this.client.commandIdempotencyRecord.update({
+      where: key,
       data: {
         status: "COMPLETED",
         resultDigest: input.resultDigest,
@@ -109,6 +121,111 @@ export class PrismaIdempotencyPort implements IdempotencyPort {
       },
     });
   }
+  async fail(input: Parameters<IdempotencyPort["fail"]>[0]): Promise<void> {
+    const key = idempotencyKey(input);
+    await this.client.commandExecutionOutcome.upsert({
+      where: key,
+      create: {
+        principalType: input.principalType,
+        principalId: input.principalId,
+        scopeCampaignId: input.campaignId ?? "",
+        commandType: input.commandType,
+        idempotencyKey: input.idempotencyKey,
+        requestDigest: input.requestDigest,
+        capabilityVersion: input.capabilityVersion,
+        status: "FAILED",
+        publicErrorCode: input.errorCode.slice(0, 120),
+        publicErrorMessage: input.errorMessage.slice(0, 240),
+        expiresAt: input.expiresAt,
+      },
+      update: {
+        status: "FAILED",
+        resultJson: Prisma.DbNull,
+        resultDigest: null,
+        publicErrorCode: input.errorCode.slice(0, 120),
+        publicErrorMessage: input.errorMessage.slice(0, 240),
+        completedAt: new Date(),
+        expiresAt: input.expiresAt,
+      },
+    });
+    await this.client.commandIdempotencyRecord.upsert({
+      where: key,
+      create: {
+        principalType: input.principalType,
+        principalId: input.principalId,
+        scopeCampaignId: input.campaignId ?? "",
+        commandType: input.commandType,
+        idempotencyKey: input.idempotencyKey,
+        requestDigest: input.requestDigest,
+        status: "FAILED",
+        completedAt: new Date(),
+        expiresAt: input.expiresAt,
+      },
+      update: {
+        status: "FAILED",
+        completedAt: new Date(),
+        claimToken: null,
+        leaseExpiresAt: null,
+        expiresAt: input.expiresAt,
+      },
+    });
+  }
+  async getOutcome(
+    input: Parameters<IdempotencyPort["getOutcome"]>[0],
+  ): ReturnType<IdempotencyPort["getOutcome"]> {
+    const outcome = await this.client.commandExecutionOutcome.findUnique({
+      where: idempotencyKey(input),
+    });
+    if (!outcome) return null;
+    if (input.requestDigest && outcome.requestDigest !== input.requestDigest)
+      return { status: "CONFLICT" };
+    if (outcome.status === "COMPLETED")
+      return { status: "COMPLETED", result: outcome.resultJson };
+    if (outcome.status === "FAILED")
+      return {
+        status: "FAILED",
+        errorCode: outcome.publicErrorCode ?? "COMMAND_FAILED",
+        errorMessage: outcome.publicErrorMessage ?? "Command execution failed",
+      };
+    return null;
+  }
+  async cleanupExpired(now: Date): Promise<number> {
+    const [outcomes] = await Promise.all([
+      this.client.commandExecutionOutcome.deleteMany({
+        where: { expiresAt: { lte: now } },
+      }),
+      this.client.commandIdempotencyRecord.deleteMany({
+        where: { expiresAt: { lte: now } },
+      }),
+    ]);
+    return outcomes.count;
+  }
+}
+
+function idempotencyKey(input: {
+  principalType: import("../../ports/DurableFoundations").DurablePrincipalType;
+  principalId: string;
+  campaignId?: string;
+  commandType: string;
+  idempotencyKey: string;
+}) {
+  return {
+    principalType_principalId_scopeCampaignId_commandType_idempotencyKey: {
+      principalType: input.principalType,
+      principalId: input.principalId,
+      scopeCampaignId: input.campaignId ?? "",
+      commandType: input.commandType,
+      idempotencyKey: input.idempotencyKey,
+    },
+  };
+}
+
+function boundedResult(result: unknown): Prisma.InputJsonValue {
+  const normalized = result === undefined ? null : result;
+  const serialized = JSON.stringify(normalized);
+  if (Buffer.byteLength(serialized, "utf8") > 65_536)
+    throw new Error("Idempotent command result exceeds 64 KiB");
+  return JSON.parse(serialized) as Prisma.InputJsonValue;
 }
 
 export class PrismaOutboxPort implements OutboxPort {

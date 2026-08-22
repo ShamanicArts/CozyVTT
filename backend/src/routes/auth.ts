@@ -234,7 +234,7 @@ router.get("/me", async (req: Request, res: Response) => {
 
 /**
  * DELETE /api/auth/account
- * Self-service account deletion. Requires password confirmation.
+ * Self-service account deletion. Requires password approval.
  */
 
 // ============================================

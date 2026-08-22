@@ -36,7 +36,7 @@ import {
 const router = Router();
 
 // HTTP owns multipart parsing and byte inspection; the command bus owns asset
-// authorization and mutations so agent/extension adapters can reuse them.
+// authorization and mutations so capability/extension adapters can reuse them.
 const assetCommands = productionCommandBus;
 
 function assetActor(req: AuthenticatedRequest) {

@@ -1,6 +1,6 @@
 import { prisma } from "../../config/database";
 import {
-  PrismaAgentAuditPort,
+  PrismaCapabilityAuditPort,
   PrismaExtensionGrantPort,
   PrismaIdempotencyPort,
   PrismaOutboxPort,
@@ -8,7 +8,7 @@ import {
 
 const prefix = `durable-test-${Date.now()}-`;
 const grants = new PrismaExtensionGrantPort(prisma);
-const audits = new PrismaAgentAuditPort(prisma);
+const audits = new PrismaCapabilityAuditPort(prisma);
 const idempotency = new PrismaIdempotencyPort(prisma);
 const outbox = new PrismaOutboxPort(prisma);
 
@@ -19,7 +19,7 @@ afterAll(async () => {
   await prisma.commandIdempotencyRecord.deleteMany({
     where: { commandType: { startsWith: prefix } },
   });
-  await prisma.agentAuditRecord.deleteMany({
+  await prisma.capabilityAuditRecord.deleteMany({
     where: { commandType: { startsWith: prefix } },
   });
   await prisma.extensionGrant.deleteMany({
@@ -31,8 +31,8 @@ afterAll(async () => {
 describe("Prisma durable foundations adapters", () => {
   it("defaults grants to deny and excludes expired or revoked grants", async () => {
     const input = {
-      principalType: "AGENT" as const,
-      principalId: `${prefix}agent`,
+      principalType: "PLUGIN" as const,
+      principalId: `${prefix}capability`,
       campaignId: "campaign",
       extensionId: `${prefix}extension`,
       permission: "EXECUTE" as const,
@@ -62,15 +62,15 @@ describe("Prisma durable foundations adapters", () => {
 
   it("writes value-free audit rows with only the supplied digest", async () => {
     await audits.append({
-      principalType: "AGENT",
-      principalId: `${prefix}agent`,
+      principalType: "PLUGIN",
+      principalId: `${prefix}capability`,
       delegatedIdentity: "delegated",
       commandType: `${prefix}audit`,
       inputDigest: "sha256:abc",
       decision: "DENIED",
       reasonCode: "NO_GRANT",
     });
-    const record = await prisma.agentAuditRecord.findFirstOrThrow({
+    const record = await prisma.capabilityAuditRecord.findFirstOrThrow({
       where: { commandType: `${prefix}audit` },
     });
     expect(record.inputDigest).toBe("sha256:abc");
@@ -80,8 +80,8 @@ describe("Prisma durable foundations adapters", () => {
 
   it("rejects idempotent replays and records completion without storing result values", async () => {
     const input = {
-      principalType: "AGENT" as const,
-      principalId: `${prefix}agent`,
+      principalType: "PLUGIN" as const,
+      principalId: `${prefix}capability`,
       campaignId: "campaign",
       commandType: `${prefix}command`,
       idempotencyKey: "same-key",
@@ -93,7 +93,12 @@ describe("Prisma durable foundations adapters", () => {
     await expect(
       idempotency.register({ ...input, requestDigest: "sha256:other" }),
     ).resolves.toBe("CONFLICT");
-    await idempotency.complete({ ...input, resultDigest: "sha256:result" });
+    await idempotency.complete({
+      ...input,
+      capabilityVersion: "1",
+      result: { ok: true },
+      resultDigest: "sha256:result",
+    });
     const record = await prisma.commandIdempotencyRecord.findFirstOrThrow({
       where: { commandType: input.commandType },
     });
@@ -103,8 +108,8 @@ describe("Prisma durable foundations adapters", () => {
 
   it("reclaims an expired processing lease with the same digest", async () => {
     const input = {
-      principalType: "AGENT" as const,
-      principalId: `${prefix}lease-agent`,
+      principalType: "PLUGIN" as const,
+      principalId: `${prefix}lease-capability`,
       campaignId: "campaign",
       commandType: `${prefix}lease`,
       idempotencyKey: "lease-key",

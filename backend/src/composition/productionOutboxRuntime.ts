@@ -1,5 +1,8 @@
 import type { PrismaClient } from "@prisma/client";
-import { PrismaOutboxPort } from "../adapters/persistence/PrismaDurableFoundations";
+import {
+  PrismaIdempotencyPort,
+  PrismaOutboxPort,
+} from "../adapters/persistence/PrismaDurableFoundations";
 import { OutboxDispatcher } from "../application/events/OutboxDispatcher";
 import logger from "../utils/logger";
 
@@ -45,4 +48,20 @@ export async function outboxHealth(
     prisma.outboxEvent.count({ where: { status: "DEAD_LETTER" } }),
   ]);
   return { pending, deadLetter };
+}
+
+export function startIdempotencyCleanup(prisma: PrismaClient): NodeJS.Timeout {
+  const idempotency = new PrismaIdempotencyPort(prisma);
+  const clean = () =>
+    idempotency
+      .cleanupExpired(new Date())
+      .catch((error) =>
+        logger.error("idempotency cleanup failed", {
+          message: error instanceof Error ? error.message : "unknown",
+        }),
+      );
+  void clean();
+  const timer = setInterval(clean, 24 * 60 * 60 * 1_000);
+  timer.unref();
+  return timer;
 }

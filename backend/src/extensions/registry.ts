@@ -1,7 +1,7 @@
 import {
   COZYVTT_PLATFORM_VERSION,
   EXTENSION_API_VERSION,
-  type AgentToolDescriptor,
+  type PublishedCapabilityDescriptor,
   type ApplicationCommandDescriptor,
   type ExtensionHostVersion,
   type ExtensionLifecycleContext,
@@ -24,9 +24,9 @@ interface ExtensionRecord {
   state: RegisteredExtension['state'];
 }
 
-interface RegisteredAgentTool {
+interface RegisteredPublishedCapability {
   extensionId: string;
-  descriptor: AgentToolDescriptor;
+  descriptor: PublishedCapabilityDescriptor;
 }
 
 /**
@@ -37,7 +37,7 @@ interface RegisteredAgentTool {
 export class ExtensionRegistry {
   private readonly extensions = new Map<string, ExtensionRecord>();
   private readonly commands = new Map<string, ApplicationCommandDescriptor>();
-  private readonly agentTools = new Map<string, RegisteredAgentTool>();
+  private readonly publishedCapabilities = new Map<string, RegisteredPublishedCapability>();
   private readonly transitions = new Set<string>();
 
   public constructor(
@@ -90,8 +90,8 @@ export class ExtensionRegistry {
       for (const command of record.module.manifest.commands) {
         this.commands.set(command.id, command);
       }
-      for (const tool of record.module.manifest.agentTools) {
-        this.agentTools.set(tool.id, { extensionId: record.module.manifest.id, descriptor: tool });
+      for (const capability of record.module.manifest.publishedCapabilities) {
+        this.publishedCapabilities.set(capability.id, { extensionId: record.module.manifest.id, descriptor: capability });
       }
       record.state = 'active';
       return toRegisteredExtension(record);
@@ -117,8 +117,8 @@ export class ExtensionRegistry {
       for (const command of record.module.manifest.commands) {
         this.commands.delete(command.id);
       }
-      for (const tool of record.module.manifest.agentTools) {
-        this.agentTools.delete(tool.id);
+      for (const capability of record.module.manifest.publishedCapabilities) {
+        this.publishedCapabilities.delete(capability.id);
       }
       record.state = 'installed';
       return toRegisteredExtension(record);
@@ -162,9 +162,9 @@ export class ExtensionRegistry {
     return this.commands.get(commandId);
   }
 
-  /** Agent adapters should enumerate this catalog, then dispatch tool.commandId through the command bus. */
-  public listAgentTools(): Array<AgentToolDescriptor & { extensionId: string }> {
-    return [...this.agentTools.values()].map(({ extensionId, descriptor }) => ({
+  /** Capability adapters should enumerate this catalog, then dispatch capability.commandId through the command bus. */
+  public listPublishedCapabilities(): Array<PublishedCapabilityDescriptor & { extensionId: string }> {
+    return [...this.publishedCapabilities.values()].map(({ extensionId, descriptor }) => ({
       ...descriptor,
       extensionId,
     }));
@@ -172,11 +172,11 @@ export class ExtensionRegistry {
 
   private assertDescriptorIdsAvailable(manifest: ExtensionManifest): void {
     const knownCommandIds = new Set<string>();
-    const knownToolIds = new Set<string>();
+    const knownCapabilityIds = new Set<string>();
     for (const record of this.extensions.values()) {
       for (const command of record.module.manifest.commands) knownCommandIds.add(command.id);
-      for (const tool of record.module.manifest.agentTools) {
-        knownToolIds.add(tool.id);
+      for (const capability of record.module.manifest.publishedCapabilities) {
+        knownCapabilityIds.add(capability.id);
       }
     }
     for (const command of manifest.commands) {
@@ -184,9 +184,9 @@ export class ExtensionRegistry {
         throw new ExtensionRegistryError(`Command ${command.id} is already declared`, 'DUPLICATE_COMMAND');
       }
     }
-    for (const tool of manifest.agentTools) {
-      if (knownToolIds.has(tool.id)) {
-        throw new ExtensionRegistryError(`Agent tool ${tool.id} is already declared`, 'DUPLICATE_AGENT_TOOL');
+    for (const capability of manifest.publishedCapabilities) {
+      if (knownCapabilityIds.has(capability.id)) {
+        throw new ExtensionRegistryError(`Published capability ${capability.id} is already declared`, 'DUPLICATE_PUBLIC_TOOL');
       }
     }
   }

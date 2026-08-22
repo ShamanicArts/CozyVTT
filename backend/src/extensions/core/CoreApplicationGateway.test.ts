@@ -1,7 +1,7 @@
 import { ApplicationHost } from "../../composition/ApplicationHost";
 import { QueryHost } from "../../application/queries/QueryHost";
-import { AGENT_SET_ATMOSPHERE_EFFECT } from "../../application/agents/AgentGmCommands";
-import type { AgentAccessRepository } from "../../ports/AgentAccessRepository";
+import { PUBLIC_SET_ATMOSPHERE_EFFECT } from "../../application/capabilities/CapabilityGmCommands";
+import type { PluginAccessRepository } from "../../ports/PluginAccessRepository";
 import { CoreApplicationGatewayFactory } from "./CoreApplicationGateway";
 
 describe("CoreApplicationGatewayFactory", () => {
@@ -12,13 +12,13 @@ describe("CoreApplicationGatewayFactory", () => {
         principalId: "credential-1",
         delegatedIdentity: "dm-1",
         campaignId: "campaign-1",
-        origin: "AGENT",
+        origin: "PLUGIN",
       });
       return (input as { effect: string | null }).effect;
     });
     application.register({
       metadata: {
-        id: AGENT_SET_ATMOSPHERE_EFFECT,
+        id: PUBLIC_SET_ATMOSPHERE_EFFECT,
         version: "1",
         risk: "MEDIUM",
         permissions: ["WRITE", "EXECUTE"],
@@ -45,18 +45,22 @@ describe("CoreApplicationGatewayFactory", () => {
         expiresAt: null,
         revokedAt: null,
       }),
-    } as unknown as AgentAccessRepository;
+    } as unknown as PluginAccessRepository;
     const gateway = new CoreApplicationGatewayFactory(
       application,
       queries,
       access,
     ).create("cozyvtt.encounter-director", {
-      principal: { id: "credential-1", kind: "agent" },
+      principal: { id: "credential-1", kind: "plugin" },
       scope: { campaignId: "campaign-1" },
-    });
+    }, ["campaign.read", "campaign.write", "tokens.write"]);
 
     await expect(
-      gateway.dispatch(AGENT_SET_ATMOSPHERE_EFFECT, { effect: "mist" }),
+      gateway.dispatch(
+        PUBLIC_SET_ATMOSPHERE_EFFECT,
+        { effect: "mist" },
+        { idempotencyKey: "gateway-test-1" },
+      ),
     ).resolves.toBe("mist");
     await expect(gateway.query("campaign.summary.get", {})).resolves.toEqual({
       campaignId: "campaign-1",
@@ -67,7 +71,7 @@ describe("CoreApplicationGatewayFactory", () => {
     );
     expect(gateway.listCommands()).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: "agent.actor.spawn" }),
+        expect.objectContaining({ id: "vtt.actor.spawn" }),
       ]),
     );
   });
@@ -82,19 +86,45 @@ describe("CoreApplicationGatewayFactory", () => {
           delegatedUserId: "dm-1",
           campaignId: "campaign-1",
         }),
-      } as unknown as AgentAccessRepository,
+      } as unknown as PluginAccessRepository,
     ).create("cozyvtt.fixture", {
-      principal: { id: "credential-1", kind: "agent" },
+      principal: { id: "credential-1", kind: "plugin" },
       scope: { campaignId: "campaign-1" },
-    });
+    }, ["campaign.write"]);
     await expect(gateway.dispatch("admin.backup.delete", {})).rejects.toThrow(
       "not extension-callable",
     );
     await expect(
-      gateway.dispatch(AGENT_SET_ATMOSPHERE_EFFECT, {
+      gateway.dispatch(PUBLIC_SET_ATMOSPHERE_EFFECT, {
         campaignId: "other-campaign",
         effect: "rain",
-      }),
+      }, { idempotencyKey: "gateway-test-2" }),
     ).rejects.toThrow("cannot escape");
+  });
+
+  it("hides and denies capabilities outside the plugin manifest permissions", async () => {
+    const gateway = new CoreApplicationGatewayFactory(
+      new ApplicationHost(),
+      new QueryHost(),
+      {
+        findCredentialById: async () => ({
+          id: "credential-1",
+          delegatedUserId: "dm-1",
+          campaignId: "campaign-1",
+        }),
+      } as unknown as PluginAccessRepository,
+    ).create("cozyvtt.read-only", {
+      principal: { id: "credential-1", kind: "plugin" },
+      scope: { campaignId: "campaign-1" },
+    }, ["campaign.read"]);
+
+    expect(gateway.listCommands()).toEqual([]);
+    await expect(
+      gateway.dispatch(
+        PUBLIC_SET_ATMOSPHERE_EFFECT,
+        { effect: "rain" },
+        { idempotencyKey: "permission-test-1" },
+      ),
+    ).rejects.toThrow("Plugin permission");
   });
 });

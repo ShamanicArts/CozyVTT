@@ -57,7 +57,7 @@ export function registerSpiritHandlers(
         visible,
       });
 
-      // Broadcast to all campaign members (including sender for confirmation)
+      // Broadcast to all campaign members (including sender for approval)
       io.to(socket.campaignId).emit("spirit_layer.toggled", {
         visible,
         toggledBy: socket.userId,

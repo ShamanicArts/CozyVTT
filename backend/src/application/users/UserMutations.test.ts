@@ -107,6 +107,38 @@ describe("user mutation commands", () => {
     });
   });
 
+  it("accepts only themes contributed by active extensions", async () => {
+    const repository = users();
+    const themes = {
+      hasActiveTheme: jest.fn(
+        async (id: string) => id === "cozyvtt.sample-lantern-lantern-night",
+      ),
+    };
+    await expect(
+      new UpdateUserPreferences(repository, themes).execute({
+        type: "user.update-preferences",
+        actorId: "user-1",
+        isAdmin: false,
+        userId: "user-1",
+        input: { themeId: "cozyvtt.sample-lantern-lantern-night" },
+      }),
+    ).resolves.toMatchObject({
+      preferences: { themeId: "cozyvtt.sample-lantern-lantern-night" },
+    });
+    await expect(
+      new UpdateUserPreferences(repository, themes).execute({
+        type: "user.update-preferences",
+        actorId: "user-1",
+        isAdmin: false,
+        userId: "user-1",
+        input: { themeId: "missing-theme" },
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Invalid preferences payload",
+    });
+  });
+
   it("preserves admin deletion accounting and reset-link SMTP behavior", async () => {
     const repository = users();
     await expect(

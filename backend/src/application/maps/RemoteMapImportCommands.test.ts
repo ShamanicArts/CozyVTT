@@ -115,9 +115,7 @@ function fixture() {
       },
     })),
   } satisfies jest.Mocked<MapCoreRepository>;
-  const command = new ImportRemoteMap(assetRepository, ingress, mapRepository, {
-    normalizeMapAssetUrl: (value) => `/api/assets/maps/${value}`,
-  });
+  const command = new ImportRemoteMap(assetRepository, ingress, mapRepository);
   return { assetRepository, ingress, mapRepository, command };
 }
 

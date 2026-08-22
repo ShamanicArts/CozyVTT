@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Message } from "@/types";
 import ChatMessage from "../ChatMessage";
 
-describe("ChatMessage agent actor identity", () => {
+describe("ChatMessage capability actor identity", () => {
   it("shows the in-world actor while keeping control metadata out of chat", () => {
     render(
       <ChatMessage

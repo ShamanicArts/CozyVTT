@@ -79,6 +79,10 @@ export class PrismaCampaignAdministrationRepository implements CampaignAdministr
   }
 
   async deleteCampaign(campaignId: string): Promise<void> {
+    await this.client.capabilityApproval.updateMany({
+      where: { campaignId, state: { in: ['PENDING', 'APPROVED'] } },
+      data: { state: 'CANCELLED', cancelledAt: new Date(), cancellationReason: 'CAMPAIGN_DELETED' },
+    });
     await this.client.campaign.delete({ where: { id: campaignId } });
   }
 
@@ -117,6 +121,10 @@ export class PrismaCampaignAdministrationRepository implements CampaignAdministr
   }
 
   async deleteMembership(userId: string, campaignId: string): Promise<void> {
+    await this.client.capabilityApproval.updateMany({
+      where: { delegatedUserId: userId, campaignId, state: { in: ['PENDING', 'APPROVED'] } },
+      data: { state: 'CANCELLED', cancelledAt: new Date(), cancellationReason: 'MEMBERSHIP_REMOVED' },
+    });
     await this.client.campaignMembership.delete({ where: { userId_campaignId: { userId, campaignId } } });
   }
 

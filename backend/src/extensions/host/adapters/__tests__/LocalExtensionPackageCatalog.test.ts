@@ -38,7 +38,7 @@ describe("LocalExtensionPackageCatalog", () => {
     const body = `module.exports = {
   manifest: {
     manifestVersion: '1.0', id: 'cozyvtt.lantern', name: 'Lantern', version: '1.0.0', description: 'Fixture',
-    compatibility: { extensionApi: '^1.0.0', cozyVtt: '^1.1.0' }, capabilities: [], permissions: [], commands: [], agentTools: [],
+    compatibility: { extensionApi: '^1.0.0', cozyVtt: '^1.1.0' }, capabilities: [], permissions: [], commands: [], publishedCapabilities: [],
   },
 };\n`;
     await fs.writeFile(path.join(packageDirectory, entrypoint), body);
@@ -55,7 +55,7 @@ describe("LocalExtensionPackageCatalog", () => {
         capabilities: [],
         permissions: [],
         commands: [],
-        agentTools: [],
+        publishedCapabilities: [],
       },
       entrypoint,
       checksum: digest,
@@ -73,6 +73,9 @@ describe("LocalExtensionPackageCatalog", () => {
           "cozyvtt.lantern.light": async (input: Record<string, unknown>) =>
             input,
         },
+        httpHandlers: {
+          status: async () => Response.json({ status: "lit" }),
+        },
       },
     }));
 
@@ -87,11 +90,16 @@ describe("LocalExtensionPackageCatalog", () => {
       reviewed.module.commandHandlers?.["cozyvtt.lantern.light"]?.(
         { brightness: 3 },
         {
-          principal: { id: "agent-1", kind: "agent" },
+          principal: { id: "capability-1", kind: "plugin" },
           scope: { campaignId: "campaign-1" },
         },
       ),
     ).resolves.toEqual({ brightness: 3 });
+    const statusResponse = await reviewed.module.httpHandlers?.status?.(
+      new Request("https://example.test/status"),
+      { extensionId: "cozyvtt.lantern", routeId: "status" },
+    );
+    await expect(statusResponse?.json()).resolves.toEqual({ status: "lit" });
     await fs.writeFile(
       path.join(packageDirectory, entrypoint),
       `${body}// changed\n`,

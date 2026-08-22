@@ -8,7 +8,7 @@ export interface PersistedChatMessage {
 
 /**
  * Expected failures are deliberately stable so HTTP, websocket, and future
- * agent adapters can preserve their own user-facing contracts.
+ * capability adapters can preserve their own user-facing contracts.
  */
 export class ChatMessageError extends Error {
   constructor(

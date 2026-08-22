@@ -28,6 +28,10 @@ export function synchronizeSocketSubscriptions(
 export function useSocketSubscriptions(
   source: SocketSource,
   subscriptions: readonly SocketSubscription[],
+  connectionRevision: unknown,
 ): void {
-  useEffect(() => synchronizeSocketSubscriptions(source?.getSocket() ?? null, subscriptions), [source, subscriptions]);
+  useEffect(
+    () => synchronizeSocketSubscriptions(source?.getSocket() ?? null, subscriptions),
+    [source, subscriptions, connectionRevision],
+  );
 }

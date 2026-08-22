@@ -34,7 +34,7 @@ class ProfileService {
     await api.changePassword({ currentPassword, newPassword });
   }
 
-  /** Delete the current user's account (requires password confirmation) */
+  /** Delete the current user's account (requires password approval) */
   async deleteAccount(password: string): Promise<void> {
     await api.deleteAccount(password);
   }

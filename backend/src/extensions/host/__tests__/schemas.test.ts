@@ -15,7 +15,7 @@ function packageManifest() {
       capabilities: [],
       permissions: [],
       commands: [],
-      agentTools: [],
+      publishedCapabilities: [],
     },
     entrypoint: "index.js",
     checksum,

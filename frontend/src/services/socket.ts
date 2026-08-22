@@ -147,18 +147,18 @@ class SocketClient {
       });
 
       // Reconnection attempt
-      this.socket.on('reconnect_attempt', (attemptNumber) => {
+      this.socket.io.on('reconnect_attempt', (attemptNumber) => {
         this.reconnectAttempts = attemptNumber;
       });
 
       // Reconnection successful
-      this.socket.on('reconnect', () => {
+      this.socket.io.on('reconnect', () => {
         this.reconnectAttempts = 0;
         // Re-authentication happens automatically when backend emits 'connected' event
       });
 
       // Reconnection failed
-      this.socket.on('reconnect_failed', () => {
+      this.socket.io.on('reconnect_failed', () => {
         console.error('[Socket] Reconnection failed after max attempts');
         clearTimeout(connectionTimeout);
         reject(new Error('Failed to reconnect after maximum attempts'));

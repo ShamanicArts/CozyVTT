@@ -63,6 +63,7 @@ services:
       SMTP_FROM: ${SMTP_FROM:-}
       SMTP_SECURE: ${SMTP_SECURE:-false}
       APP_URL: ${APP_URL:-${CORS_ORIGIN}}
+      OAUTH_ISSUER_URL: ${OAUTH_ISSUER_URL:-${APP_URL:-${CORS_ORIGIN}}}
       # Upload limits
       MAX_MAP_SIZE_MB: ${MAX_MAP_SIZE_MB:-50}
       MAX_TOKEN_SIZE_MB: ${MAX_TOKEN_SIZE_MB:-5}
@@ -76,6 +77,8 @@ services:
       # Optional read-only extension package catalogue. Leaving this empty
       # keeps the extension host disabled.
       EXTENSION_PACKAGE_ROOT: ${EXTENSION_PACKAGE_ROOT:-}
+      TRUSTED_EXTENSION_ALLOWLIST: ${TRUSTED_EXTENSION_ALLOWLIST:-}
+      TRUSTED_EXTENSION_REVIEW_KEY: ${TRUSTED_EXTENSION_REVIEW_KEY:-}
     volumes:
       # Uploads persist on the host — back this directory up regularly
       - ./backend/uploads:/app/uploads

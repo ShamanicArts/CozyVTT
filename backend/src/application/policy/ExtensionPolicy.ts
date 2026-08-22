@@ -1,18 +1,18 @@
 import type { ExtensionPermission } from '../../extensions/contracts';
 
 /** Identity supplied by a trusted transport adapter, never by an extension. */
-export interface AgentPrincipal {
+export interface CapabilityPrincipal {
   id: string;
-  kind: 'user' | 'service' | 'agent';
+  kind: 'user' | 'service' | 'plugin';
 }
 
-/** Every agent call is explicitly bound to one campaign. */
+/** Every capability call is explicitly bound to one campaign. */
 export interface CampaignScope {
   campaignId: string;
 }
 
 export interface ExtensionPermissionCheck {
-  principal: AgentPrincipal;
+  principal: CapabilityPrincipal;
   scope: CampaignScope;
   extensionId: string;
   permissions: readonly ExtensionPermission[];

@@ -16,7 +16,8 @@
     "prisma:seed": "ts-node prisma/seed.ts",
     "migrate:characters": "ts-node src/scripts/migrate-characters.ts",
     "validate:characters": "ts-node src/scripts/validate-characters.ts",
-    "migrate:avatar-scope": "ts-node src/scripts/migrate-avatar-scope.ts"
+    "migrate:avatar-scope": "ts-node src/scripts/migrate-avatar-scope.ts",
+    "contracts:export": "ts-node src/scripts/export-public-contracts.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -29,7 +30,6 @@
   "author": "CozyVTT Development Team",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
     "@prisma/client": "5.8",
     "@types/lodash": "^4.17.23",
     "@types/mathjs": "^9.4.1",

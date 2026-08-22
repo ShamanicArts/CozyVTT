@@ -3,9 +3,9 @@ import { GameSystem } from '../../game-systems';
 import { validateCharacterData } from '../../validators/game-systems';
 import { CreateCharacterSchema, UpdateCharacterSchema } from '../../validators/characters';
 import { CharacterError, CharacterRecord } from '../../domain/characters/Character';
-import { CharacterAssetUrlNormalizer } from '../../ports/CharacterAssetUrlNormalizer';
 import { CharacterEventPublisher } from '../../ports/CharacterEventPublisher';
 import { CharacterRepository, CharacterUpdateInput } from '../../ports/CharacterRepository';
+import { normalizeAssetUrl } from '../../utils/asset-urls';
 
 export const CREATE_CHARACTER = 'character.create' as const;
 export const UPDATE_CHARACTER = 'character.update' as const;
@@ -76,7 +76,6 @@ function characterNotFound(): CharacterError {
 abstract class CharacterCommandBase {
   constructor(
     protected readonly repository: CharacterRepository,
-    protected readonly assets: CharacterAssetUrlNormalizer,
     protected readonly events: CharacterEventPublisher,
   ) {}
 
@@ -121,7 +120,7 @@ export class CreateCharacter extends CharacterCommandBase implements CommandHand
       userId: command.userId,
       name,
       data: data || {},
-      tokenImageUrl: tokenImageUrl ? this.assets.normalizeTokenImageUrl(tokenImageUrl) : null,
+      tokenImageUrl: tokenImageUrl ? normalizeAssetUrl(tokenImageUrl, 'tokens') : null,
       campaignId: campaignId || null,
       gameSystem: finalGameSystem || null,
     });
@@ -157,7 +156,7 @@ export class UpdateCharacter extends CharacterCommandBase implements CommandHand
     if (name !== undefined) update.name = name;
     if (data !== undefined) update.data = data;
     if (tokenImageUrl !== undefined) {
-      update.tokenImageUrl = tokenImageUrl ? this.assets.normalizeTokenImageUrl(tokenImageUrl) : null;
+      update.tokenImageUrl = tokenImageUrl ? normalizeAssetUrl(tokenImageUrl, 'tokens') : null;
     }
     const updatedCharacter = await this.repository.updateCharacterForEdit(command.characterId, update);
     // This mirrors the existing route: determine event scope from the persisted response.

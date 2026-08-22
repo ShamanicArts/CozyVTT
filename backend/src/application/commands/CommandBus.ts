@@ -1,6 +1,6 @@
 /**
  * Small in-process command dispatcher. It is intentionally transport-neutral:
- * HTTP, websocket, CLI, and agent adapters can all dispatch the same command.
+ * HTTP, websocket, CLI, and capability adapters can all dispatch the same command.
  */
 export interface Command<TResult = unknown> {
   readonly type: string;
