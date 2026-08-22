@@ -16,7 +16,6 @@ import {
   Trash2,
   ChevronRight,
   Plus,
-  Check,
   Upload,
 } from 'lucide-react';
 import { useCampaign } from '@/contexts/CampaignContext';
@@ -26,6 +25,7 @@ import api from '@/services/api';
 import type { Asset, Token, TokenDisplayMode } from '@/types';
 import { AssetType, AssetScope, TokenLayer, TokenType, TokenDisposition } from '@/types';
 import Button from '@/components/ui/Button';
+import AssetGrid from '@/components/assets/AssetGrid';
 
 // ============================================
 // Constants
@@ -455,47 +455,29 @@ export default function TokenManager({ isOpen, onClose }: TokenManagerProps) {
                       </p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-4 gap-2 max-h-44 overflow-y-auto p-0.5">
-                      {/* No-image placeholder option */}
-                      <button
-                        onClick={() => setSelectedAsset(null)}
-                        title="Use colored-letter placeholder"
-                        className={`relative rounded-cozy overflow-hidden border-2 aspect-square transition-all flex items-center justify-center ${
-                          !selectedAsset
-                            ? 'border-moss-green ring-2 ring-moss-green/30 bg-ink-muted/25'
-                            : 'border-transparent hover:border-moss-green/40 bg-ink-muted/20'
-                        }`}
-                      >
-                        <span className="text-lg font-bold text-ink-secondary">?</span>
-                        <span className="absolute bottom-0.5 text-[8px] text-ink-muted">None</span>
-                      </button>
-                      {assets.map((asset) => {
-                        const isSelected = selectedAsset?.id === asset.id;
-                        return (
-                          <button
-                            key={asset.id}
-                            onClick={() => handleSelectAsset(asset)}
-                            title={asset.name || asset.originalName}
-                            className={`relative rounded-cozy overflow-hidden border-2 aspect-square transition-all ${
-                              isSelected
-                                ? 'border-moss-green ring-2 ring-moss-green/30'
-                                : 'border-transparent hover:border-moss-green/40'
-                            }`}
-                          >
-                            <img
-                              src={api.getAssetUrl(asset.id, 'tokens')}
-                              alt={asset.name}
-                              className="w-full h-full object-cover"
-                            />
-                            {isSelected && (
-                              <div className="absolute inset-0 bg-moss-green/25 flex items-center justify-center">
-                                <Check className="w-4 h-4 text-brand-ink drop-shadow" />
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <AssetGrid
+                      type={AssetType.TOKEN}
+                      assets={assets}
+                      selectedId={selectedAsset?.id ?? null}
+                      onSelect={(asset) => (asset ? handleSelectAsset(asset) : setSelectedAsset(null))}
+                      columns={4}
+                      maxHeightClass="max-h-44"
+                      leadingItem={
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAsset(null)}
+                          title="Use colored-letter placeholder"
+                          className={`relative rounded-cozy overflow-hidden border-2 aspect-square transition-all flex items-center justify-center ${
+                            !selectedAsset
+                              ? 'border-moss-green ring-2 ring-moss-green/30 bg-ink-muted/25'
+                              : 'border-transparent hover:border-moss-green/40 bg-ink-muted/20'
+                          }`}
+                        >
+                          <span className="text-lg font-bold text-ink-secondary">?</span>
+                          <span className="absolute bottom-0.5 text-[8px] text-ink-muted">None</span>
+                        </button>
+                      }
+                    />
                   )}
                 </div>
 

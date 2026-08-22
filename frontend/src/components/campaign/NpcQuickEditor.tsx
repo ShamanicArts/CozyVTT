@@ -18,7 +18,6 @@ import {
   Heart,
   Upload,
   Loader2,
-  Check,
   Image as ImageIcon,
   Save,
 } from 'lucide-react';
@@ -29,6 +28,7 @@ import type { Token, TokenHp, NpcStatBlock, Asset } from '@/types';
 import { TokenType, TokenDisposition, AssetType, AssetScope } from '@/types';
 import { StatBlockViewer, StatBlockEditor } from './npc-stat-blocks';
 import Button from '@/components/ui/Button';
+import AssetGrid from '@/components/assets/AssetGrid';
 
 // ============================================
 // Constants
@@ -521,47 +521,32 @@ export default function NpcQuickEditor({ token, campaignId, mapId, onClose, onTo
                     Loading assets...
                   </div>
                 ) : (
-                  <div className="grid grid-cols-5 gap-1.5 max-h-40 overflow-y-auto">
-                    {/* No-image (placeholder) option */}
-                    <button
-                      onClick={handleClearImage}
-                      title="Use colored-letter placeholder"
-                      className={`relative rounded-cozy overflow-hidden border-2 aspect-square transition-all flex items-center justify-center ${
-                        !token.imageUrl
-                          ? 'border-moss-green ring-1 ring-moss-green/30 bg-ink-muted/25'
-                          : 'border-transparent hover:border-moss-green/40 bg-ink-muted/20'
-                      }`}
-                    >
-                      <span className="text-sm font-bold text-ink-secondary">?</span>
-                      <span className="absolute bottom-0 text-[7px] text-ink-muted">None</span>
-                    </button>
-                    {assets.map((asset) => {
-                      const isSelected = token.imageUrl?.includes(asset.id);
-                      return (
-                        <button
-                          key={asset.id}
-                          onClick={() => handleSelectImage(asset.id)}
-                          title={asset.name || asset.originalName}
-                          className={`relative rounded-cozy overflow-hidden border-2 aspect-square transition-all ${
-                            isSelected
-                              ? 'border-moss-green ring-1 ring-moss-green/30'
-                              : 'border-transparent hover:border-moss-green/40'
-                          }`}
-                        >
-                          <img
-                            src={api.getAssetUrl(asset.id, 'tokens')}
-                            alt={asset.name}
-                            className="w-full h-full object-cover"
-                          />
-                          {isSelected && (
-                            <div className="absolute inset-0 bg-moss-green/25 flex items-center justify-center">
-                              <Check className="w-3 h-3 text-brand-ink drop-shadow" />
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <AssetGrid
+                    type={AssetType.TOKEN}
+                    assets={assets}
+                    // imageUrl may hold a bare id or a full /api/assets path,
+                    // so match on containment rather than equality.
+                    selectedId={assets.find((a) => token.imageUrl?.includes(a.id))?.id ?? null}
+                    onSelect={(asset) => (asset ? handleSelectImage(asset.id) : handleClearImage())}
+                    columns={5}
+                    gapClass="gap-1.5"
+                    maxHeightClass="max-h-40"
+                    leadingItem={
+                      <button
+                        type="button"
+                        onClick={handleClearImage}
+                        title="Use colored-letter placeholder"
+                        className={`relative rounded-cozy overflow-hidden border-2 aspect-square transition-all flex items-center justify-center ${
+                          !token.imageUrl
+                            ? 'border-moss-green ring-1 ring-moss-green/30 bg-ink-muted/25'
+                            : 'border-transparent hover:border-moss-green/40 bg-ink-muted/20'
+                        }`}
+                      >
+                        <span className="text-sm font-bold text-ink-secondary">?</span>
+                        <span className="absolute bottom-0 text-[7px] text-ink-muted">None</span>
+                      </button>
+                    }
+                  />
                 )}
 
                 {/* Save to creature template option */}

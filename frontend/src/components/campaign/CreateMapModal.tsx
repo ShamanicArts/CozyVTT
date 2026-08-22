@@ -4,13 +4,12 @@
 // ============================================
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Check, Search, Loader2, Upload, ZoomIn, ZoomOut, Sparkles } from 'lucide-react';
+import { MapPin, Loader2, ZoomIn, ZoomOut, Sparkles } from 'lucide-react';
 import { api } from '@/services/api';
 import mapService from '@/services/map.service';
 import type { Asset, Map, CreateMapRequest } from '@/types';
-import { AssetType, AssetScope } from '@/types';
-import AssetUploadModal from '@/components/assets/AssetUploadModal';
+import { AssetType } from '@/types';
+import AssetPicker from '@/components/assets/AssetPicker';
 import { detectMapGrid, type GridDetectionResult } from '@/utils/detectMapGrid';
 import { Button, Modal } from '@/components/ui';
 
@@ -19,212 +18,6 @@ interface CreateMapModalProps {
   campaignId: string;
   onClose: () => void;
   onCreated: (map: Map) => void;
-}
-
-// ============================================
-// AssetPicker
-// Inline grid for selecting map/spirit layer images
-// ============================================
-
-function AssetPicker({
-  label,
-  required,
-  selectedAssetId,
-  onSelect,
-  campaignId,
-}: {
-  label: string;
-  required?: boolean;
-  selectedAssetId: string | null;
-  onSelect: (asset: Asset | null) => void;
-  campaignId: string;
-}) {
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [search, setSearch] = useState('');
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-
-  const loadAssets = async () => {
-    if (assets.length > 0) return; // already loaded
-    setLoading(true);
-    try {
-      const res = await api.listAssets({ type: AssetType.MAP, limit: 50 });
-      setAssets(res.assets);
-    } catch {
-      // silently ignore
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleBrowse = () => {
-    if (!expanded) loadAssets();
-    setExpanded((v) => !v);
-  };
-
-  const handleUploadSuccess = (asset: Asset) => {
-    setAssets((prev) => [asset, ...prev]);
-    onSelect(asset);
-    setExpanded(false);
-  };
-
-  const filtered = search
-    ? assets.filter((a) => a.name.toLowerCase().includes(search.toLowerCase()))
-    : assets;
-
-  const selectedAsset = selectedAssetId ? assets.find((a) => a.id === selectedAssetId) : null;
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <label className="block text-sm font-medium text-stone-gray">
-          {label}
-          {required && <span className="text-danger-ink ml-1">*</span>}
-        </label>
-        <div className="flex gap-2">
-          {selectedAssetId && (
-            <button
-              type="button"
-              onClick={() => onSelect(null)}
-              className="text-xs text-danger-ink hover:text-danger-ink"
-            >
-              Clear
-            </button>
-          )}
-          <Button
-            type="button"
-            onClick={() => setUploadModalOpen(true)}
-            variant="secondary" className="text-xs py-1 px-2 flex items-center gap-1"
-          >
-            <Upload className="w-3 h-3" />
-            Upload New
-          </Button>
-          <Button
-            type="button"
-            onClick={handleBrowse}
-            variant="secondary" className="text-xs py-1 px-2"
-          >
-            {expanded ? 'Hide' : 'Browse Assets'}
-          </Button>
-        </div>
-      </div>
-
-      {/* Upload modal — pre-locked to MAP/CAMPAIGN/this campaign */}
-      <AssetUploadModal
-        isOpen={uploadModalOpen}
-        onClose={() => setUploadModalOpen(false)}
-        onSuccess={handleUploadSuccess}
-        defaultType={AssetType.MAP}
-        defaultScope={AssetScope.CAMPAIGN}
-        defaultCampaignId={campaignId}
-      />
-
-      {/* Selected preview */}
-      {selectedAsset && (
-        <div className="flex items-center gap-3 p-2 bg-moss-green/10 border border-moss-green/30 rounded-lg">
-          <img
-            src={api.getAssetUrl(selectedAsset.id, 'maps')}
-            alt={selectedAsset.name}
-            className="w-12 h-12 object-cover rounded"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-          <span className="text-sm text-brand-ink font-medium truncate flex-1">
-            {selectedAsset.name}
-          </span>
-          <Check className="w-4 h-4 text-brand-ink flex-shrink-0" />
-        </div>
-      )}
-
-      {/* Asset grid */}
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="border border-moss-green/20 rounded-lg bg-parchment/30 p-3 space-y-3">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-gray/40" />
-                <input
-                  type="text"
-                  placeholder="Search maps..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-sm bg-paper-white border border-moss-green/20 rounded focus:outline-none focus:ring-1 focus:ring-moss-green text-stone-gray"
-                />
-              </div>
-
-              {loading ? (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="w-6 h-6 text-brand-ink animate-spin" />
-                </div>
-              ) : filtered.length === 0 ? (
-                <p className="text-center text-sm text-stone-gray/60 py-4">
-                  {assets.length === 0
-                    ? 'No map assets found. Upload a map image in the Asset Library first.'
-                    : 'No results for your search.'}
-                </p>
-              ) : (
-                <div className="grid grid-cols-3 gap-2 max-h-52 overflow-y-auto">
-                  {filtered.map((asset) => {
-                    const isSelected = selectedAssetId === asset.id;
-                    return (
-                      <button
-                        key={asset.id}
-                        type="button"
-                        onClick={() => {
-                          onSelect(isSelected ? null : asset);
-                          if (!isSelected) setExpanded(false);
-                        }}
-                        className={`relative rounded-lg overflow-hidden border-2 transition-all aspect-square ${
-                          isSelected
-                            ? 'border-moss-green shadow-md'
-                            : 'border-transparent hover:border-moss-green/40'
-                        }`}
-                      >
-                        <img
-                          src={api.getAssetUrl(asset.id, 'maps')}
-                          alt={asset.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const t = e.target as HTMLImageElement;
-                            t.style.display = 'none';
-                            const parent = t.parentElement;
-                            if (parent) {
-                              parent.classList.add('bg-moss-green/10', 'flex', 'items-center', 'justify-center');
-                              // SECURITY: use textContent (not innerHTML) so a
-                              // maliciously-named asset like `<img onerror=...>`
-                              // is rendered as literal text, not executed as HTML.
-                              const span = document.createElement('span');
-                              span.className = 'text-xs text-stone-gray/50 p-1 text-center';
-                              span.textContent = asset.name;
-                              parent.replaceChildren(span);
-                            }
-                          }}
-                        />
-                        {isSelected && (
-                          <div className="absolute inset-0 bg-moss-green/20 flex items-center justify-center">
-                            <Check className="w-6 h-6 text-brand-ink drop-shadow" />
-                          </div>
-                        )}
-                        <div className="absolute bottom-0 inset-x-0 bg-black/60 px-1 py-0.5">
-                          <p className="text-white text-xs truncate">{asset.name}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
 }
 
 // ============================================
@@ -527,6 +320,9 @@ export default function CreateMapModal({
               <AssetPicker
                 label="Map Image"
                 required
+                type={AssetType.MAP}
+                searchPlaceholder="Search maps..."
+                emptyMessage="No map assets found. Upload a map image to get started."
                 selectedAssetId={mapAssetId}
                 onSelect={handleMapAssetSelect}
                 campaignId={campaignId}
@@ -535,6 +331,9 @@ export default function CreateMapModal({
               {/* Spirit Layer */}
               <AssetPicker
                 label="Spirit Layer Image (optional)"
+                type={AssetType.MAP}
+                searchPlaceholder="Search maps..."
+                emptyMessage="No map assets found. Upload a map image to get started."
                 selectedAssetId={spiritAssetId}
                 onSelect={handleSpiritAssetSelect}
                 campaignId={campaignId}
