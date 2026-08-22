@@ -1,7 +1,7 @@
 // ============================================
 // Token layer — token images/placeholders, spirit + disposition rings,
-// HP bars, hidden-token dots, hover outline, condition badges, and the
-// drag ghost.
+// turn highlight, HP bars, hidden-token dots, hover outline, condition
+// badges, and the drag ghost.
 // Pure: no React, no component closures. Ownership checks arrive as a
 // predicate; animation progress uses the caller-provided `now`.
 // ============================================
@@ -10,6 +10,7 @@ import type { Token } from '@/types';
 import { TokenLayer, TokenType, TokenDisposition } from '@/types';
 import type { CharacterHpInfo } from '@/utils/characterHp';
 import type { TokenAnimation, Viewport } from './types';
+import { gridYToTopPx, gridYToFogRow, gridXToFogCol, fogCellIndex } from '../coords';
 
 export interface TokenDrawState {
   tokens: readonly Token[];
@@ -30,6 +31,83 @@ export interface TokenDrawState {
   characterHpCache: Record<string, CharacterHpInfo>;
   /** True when the viewing user owns/controls this token (fog exemption). */
   isOwnToken: (token: Token) => boolean;
+  /**
+   * Token whose turn it is, from `initiative.state`. Null when combat is
+   * inactive. An id matching no drawn token (map switched, token deleted,
+   * token hidden from this viewer) simply draws nothing.
+   */
+  currentTurnTokenId: string | null;
+  /** Turn-ring breath, 0 (tightest) to 1 (widest). Pass 0.5 for a static ring. */
+  pulsePhase: number;
+  /**
+   * Token the user is pointing at from the initiative tracker. Gets a lighter,
+   * static treatment than the turn ring, and can apply at the same time.
+   */
+  peekTokenId: string | null;
+}
+
+// ── Turn highlight ──────────────────────────────────────────────────────────
+// Fixed colors, deliberately not themed. The ring's whole job is to stay
+// legible over an arbitrary user-uploaded map image, and a theme with a dark
+// accent would put a dark core inside a dark casing and vanish on a dark map.
+// Every other draw layer hardcodes for the same reason (disposition rings, HP
+// bars, grid, walls, ruler).
+//
+// The casing is stroked first and wider, the core second and narrower on the
+// same radius, giving a dark│gold│dark band — so one half always has an edge
+// against whatever is underneath. Same trick as the wall endpoint nodes in
+// drawWalls.ts.
+const TURN_RING_CASING = 'rgba(0, 0, 0, 0.9)';
+const TURN_RING_CORE = '#ffd166';
+/** Screen-px from the token edge to the ring, at the two ends of the breath. */
+const TURN_RING_GAP_MIN = 8;
+const TURN_RING_GAP_RANGE = 3;
+const TURN_RING_CASING_WIDTH = 6;
+const TURN_RING_CORE_WIDTH = 3;
+
+// ── Tracker-hover highlight ─────────────────────────────────────────────────
+// Same dark-casing trick so it survives any map, but deliberately quieter than
+// the turn ring: white instead of gold, thinner, and never animated. It sits
+// outside the turn ring's widest breath (which reaches +14) so a token that is
+// both acting and hovered shows two distinct, non-overlapping rings.
+//
+// Paired with a slight wash over the token art itself: the ring says "over
+// here", the brighten confirms *which* token when several are shoulder to
+// shoulder and the rings start to crowd each other.
+const PEEK_RING_CASING = 'rgba(0, 0, 0, 0.75)';
+const PEEK_RING_CORE = 'rgba(255, 255, 255, 0.95)';
+const PEEK_RING_GAP = 17;
+const PEEK_RING_CASING_WIDTH = 4;
+const PEEK_RING_CORE_WIDTH = 2;
+const PEEK_WASH = 'rgba(255, 255, 255, 0.18)';
+
+/**
+ * Trace a token's outline, optionally inflated by `gap`: a circle for
+ * pog/top-down, a rounded rect for full-art. `gap: 0` gives the token's own
+ * shape, for clipping. Mirrors the hover-border branch below.
+ */
+function traceTokenOutline(
+  ctx: CanvasRenderingContext2D,
+  displayMode: string,
+  gap: number,
+  zoom: number,
+  geom: { tokenX: number; tokenY: number; tokenWidth: number; tokenHeight: number; centerX: number; centerY: number; radius: number }
+): void {
+  ctx.beginPath();
+  if (displayMode === 'full-art') {
+    const cornerRadius = Math.max(3, 3 / zoom) + gap;
+    const x = geom.tokenX - gap;
+    const y = geom.tokenY - gap;
+    const w = geom.tokenWidth + gap * 2;
+    const h = geom.tokenHeight + gap * 2;
+    if (ctx.roundRect) {
+      ctx.roundRect(x, y, w, h, cornerRadius);
+    } else {
+      ctx.rect(x, y, w, h);
+    }
+  } else {
+    ctx.arc(geom.centerX, geom.centerY, geom.radius + gap, 0, Math.PI * 2);
+  }
 }
 
 function placeholderColor(token: Token): string {
@@ -58,11 +136,10 @@ export function drawTokens(
     // revealedCells === null means fog data hasn't been received yet — show everything.
     if (!isDM && state.revealedCells) {
       if (!state.isOwnToken(token)) {
-        const fogCols = mapWidth;
-        // Token grid Y is bottom-left origin; fog grid is top-left origin
-        const fogRow = mapHeight - 1 - Math.floor(token.position.y + (token.size.height - 1) / 2);
-        const fogCol = Math.floor(token.position.x + (token.size.width - 1) / 2);
-        const fogIdx = fogRow * fogCols + fogCol;
+        // Token grid Y is bottom-left origin; fog rows are top-left. See map/coords.ts.
+        const fogRow = gridYToFogRow(token.position.y, token.size.height, mapHeight);
+        const fogCol = gridXToFogCol(token.position.x, token.size.width);
+        const fogIdx = fogCellIndex(fogCol, fogRow, { fogCols: mapWidth });
         if (!state.revealedCells.has(fogIdx)) continue;
       }
     }
@@ -89,10 +166,9 @@ export function drawTokens(
     }
 
     // Grid coordinates → world coordinates. position is the bottom-left grid
-    // cell; the token extends upward in grid-Y, so its top-left pixel
-    // corresponds to grid row (posY + height - 1).
+    // cell; the token extends upward in grid-Y. See map/coords.ts.
     const tokenX = posX * gridSize;
-    const tokenY = (mapHeight - posY - token.size.height) * gridSize;
+    const tokenY = gridYToTopPx(posY, token.size.height, mapHeight, gridSize);
 
     const tokenWidth = token.size.width * gridSize;
     const tokenHeight = token.size.height * gridSize;
@@ -151,6 +227,52 @@ export function drawTokens(
       ctx.fillText(initial, centerX, centerY + fontSize * 0.04);
     }
     ctx.restore();
+
+    const geom = { tokenX, tokenY, tokenWidth, tokenHeight, centerX, centerY, radius };
+    const isPeeked = state.peekTokenId === token.id;
+
+    // Tracker-hover wash — lifts the token art itself. Filled on the token's
+    // own outline, so it never bleeds onto the map or a neighbouring token.
+    if (isPeeked) {
+      traceTokenOutline(ctx, displayMode, 0, zoom, geom);
+      ctx.fillStyle = PEEK_WASH;
+      ctx.fill();
+    }
+
+    // Turn highlight — the acting combatant during initiative.
+    // Drawn FIRST among the decorations so the disposition ring, HP bar and
+    // condition badges all layer over it, and drawn INSIDE this loop so it
+    // inherits the visibility guards above: a token hidden or fogged from
+    // this viewer is skipped before reaching here, so the ring can never
+    // betray the position of an NPC the players cannot see.
+    if (state.currentTurnTokenId === token.id) {
+      const gap = (TURN_RING_GAP_MIN + TURN_RING_GAP_RANGE * state.pulsePhase) / zoom;
+
+      ctx.strokeStyle = TURN_RING_CASING;
+      ctx.lineWidth = TURN_RING_CASING_WIDTH / zoom;
+      traceTokenOutline(ctx, displayMode, gap, zoom, geom);
+      ctx.stroke();
+
+      ctx.strokeStyle = TURN_RING_CORE;
+      ctx.lineWidth = TURN_RING_CORE_WIDTH / zoom;
+      traceTokenOutline(ctx, displayMode, gap, zoom, geom);
+      ctx.stroke();
+    }
+
+    // Tracker-hover ring — outside the turn ring, so both can coexist.
+    if (isPeeked) {
+      const gap = PEEK_RING_GAP / zoom;
+
+      ctx.strokeStyle = PEEK_RING_CASING;
+      ctx.lineWidth = PEEK_RING_CASING_WIDTH / zoom;
+      traceTokenOutline(ctx, displayMode, gap, zoom, geom);
+      ctx.stroke();
+
+      ctx.strokeStyle = PEEK_RING_CORE;
+      ctx.lineWidth = PEEK_RING_CORE_WIDTH / zoom;
+      traceTokenOutline(ctx, displayMode, gap, zoom, geom);
+      ctx.stroke();
+    }
 
     // Spirit-layer ring for DM (dashed accent-colored outline)
     if (isDM && token.layer === TokenLayer.SPIRIT) {
@@ -328,7 +450,7 @@ export function drawTokens(
     const ghostPosX = Math.max(0, Math.min(maxPosX, state.hoverCoords.x - state.dragOffset.x));
     const ghostPosY = Math.max(0, Math.min(maxPosY, state.hoverCoords.y - state.dragOffset.y));
     const ghostX = ghostPosX * gridSize;
-    const ghostY = (mapHeight - ghostPosY - draggedToken.size.height) * gridSize;
+    const ghostY = gridYToTopPx(ghostPosY, draggedToken.size.height, mapHeight, gridSize);
 
     const ghostW = draggedToken.size.width * gridSize;
     const ghostH = draggedToken.size.height * gridSize;

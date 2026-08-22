@@ -135,8 +135,10 @@ function dependencies(overrides: Partial<MapPointerHandlerDependencies> = {}) {
     buildWallReplace: () => null,
     distToSegment: () => 99,
     closestPointOnSegment: (x, y) => point(x, y),
-    getCellsUnderBrush: () => [0, 1],
-    flushFogBrush: vi.fn(),
+    beginFogDrag: vi.fn(),
+    updateFogDrag: vi.fn(),
+    commitFogDrag: vi.fn(),
+    cancelFogDrag: vi.fn(),
     closePolygon: vi.fn(),
     pushWallHistory: vi.fn(),
     replaceWallHistory: vi.fn(),
@@ -169,7 +171,6 @@ function dependencies(overrides: Partial<MapPointerHandlerDependencies> = {}) {
     wallBrushPointsRef: { current: [] },
     wallDragEndpointRef: { current: null },
     draggingLightRef: { current: null },
-    fogPendingCellsRef: { current: new Set() },
     hoverMapPxRef: { current: null },
     lastMoveEmitRef: { current: 0 },
     lightSourcesRef: { current: [] },
@@ -220,10 +221,10 @@ describe("useMapPointerHandlers", () => {
     ]);
   });
 
-  it("collects fog brush cells and commits placed and dragged lights", () => {
+  it("starts fog selection and commits placed and dragged lights", () => {
     const fog = dependencies({ fogMode: "fog-reveal" });
     useMapPointerHandlers(fog.deps).handleMouseDown(mouse(20, 20));
-    expect([...fog.deps.fogPendingCellsRef.current]).toEqual([0, 1]);
+    expect(fog.deps.beginFogDrag).toHaveBeenCalledWith({ x: 20, y: 20 });
 
     const placed: Array<SetStateAction<LightSource[]>> = [];
     const light = dependencies({

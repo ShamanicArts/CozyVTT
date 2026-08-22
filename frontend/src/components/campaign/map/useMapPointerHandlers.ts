@@ -95,8 +95,10 @@ export interface MapPointerHandlerDependencies {
     y: number,
     segment: WallSegment,
   ) => ProjectedPoint;
-  getCellsUnderBrush: (x: number, y: number, fog: FogState) => number[];
-  flushFogBrush: () => void;
+  beginFogDrag: (point: Point) => void;
+  updateFogDrag: (point: Point) => void;
+  commitFogDrag: () => void;
+  cancelFogDrag: () => void;
   closePolygon: () => void;
   pushWallHistory: (walls: WallSegment[]) => void;
   replaceWallHistory: (walls: WallSegment[]) => void;
@@ -138,7 +140,6 @@ export interface MapPointerHandlerDependencies {
     startX: number;
     startY: number;
   } | null>;
-  fogPendingCellsRef: MutableRefObject<Set<number>>;
   hoverMapPxRef: MutableRefObject<Point | null>;
   lastMoveEmitRef: MutableRefObject<number>;
   lightSourcesRef: MutableRefObject<LightSource[]>;
@@ -172,6 +173,7 @@ export function useMapPointerHandlers(deps: MapPointerHandlerDependencies) {
       lightMode: d.lightMode,
     });
     if (pointerIntent === "tool-pan") {
+      d.cancelFogDrag();
       d.rightPanActiveRef.current = true;
       d.mapControls.startDrag(e);
       return;
@@ -463,10 +465,7 @@ export function useMapPointerHandlers(deps: MapPointerHandlerDependencies) {
     }
     if (d.fogMode && d.isDM && d.fogState) {
       e.preventDefault();
-      const point = screenToMapPx(screenX, screenY);
-      d.getCellsUnderBrush(point.x, point.y, d.fogState).forEach((cell) =>
-        d.fogPendingCellsRef.current.add(cell),
-      );
+      d.beginFogDrag(screenToMapPx(screenX, screenY));
       return;
     }
     if (d.showRuler && d.isDM) {
@@ -680,10 +679,8 @@ export function useMapPointerHandlers(deps: MapPointerHandlerDependencies) {
         d.markDirty("overlay");
       }
     }
-    if (d.fogMode && d.isDM && d.fogState && e.buttons & 1) {
-      d.getCellsUnderBrush(mapPoint.x, mapPoint.y, d.fogState).forEach((cell) =>
-        d.fogPendingCellsRef.current.add(cell),
-      );
+    if (d.fogMode && d.isDM && d.fogState) {
+      d.updateFogDrag(mapPoint);
       d.markDirty("overlay");
       return;
     }
@@ -763,7 +760,7 @@ export function useMapPointerHandlers(deps: MapPointerHandlerDependencies) {
           ?.getSocket()
           ?.emit("light:update", { mapId: d.currentMap.id, light });
     }
-    if (d.fogMode && d.fogPendingCellsRef.current.size) d.flushFogBrush();
+    if (d.fogMode) d.commitFogDrag();
     if (d.wallMode === "wall-erase" && d.wallEraseBrushActiveRef.current) {
       d.wallEraseBrushActiveRef.current = false;
       const erased = d.wallErasedIdsRef.current;
@@ -819,6 +816,7 @@ export function useMapPointerHandlers(deps: MapPointerHandlerDependencies) {
 
   const handleMouseLeave = () => {
     const d = deps;
+    d.cancelFogDrag();
     if (d.draggedToken) {
       d.setDraggedToken(null);
       d.setDragOffset(null);

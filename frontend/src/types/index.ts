@@ -1065,6 +1065,16 @@ export interface InitiativeReorderEvent {
   orderedTokenIds: string[];
 }
 
+export interface MapPingEvent {
+  mapId: string;
+  x: number;
+  y: number;
+}
+
+export interface MapPingedBroadcast extends MapPingEvent {
+  userId: string;
+}
+
 // ============================================
 // User Preferences (per-user theme + font)
 // ============================================

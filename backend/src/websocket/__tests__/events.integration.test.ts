@@ -738,6 +738,51 @@ describe("initiative", () => {
   });
 });
 
+describe("map pings", () => {
+  it("broadcasts a player ping to every member including its sender", async () => {
+    const dm = await server.connectAndAuth(dmCookie, campaignId);
+    const player = await server.connectAndAuth(player1Cookie, campaignId);
+    const dmSees = waitForEvent<{
+      mapId: string;
+      x: number;
+      y: number;
+      userId: string;
+    }>(dm, "map.pinged");
+    const senderSees = waitForEvent<{ x: number; y: number }>(
+      player,
+      "map.pinged",
+    );
+
+    player.emit("map.ping", { mapId, x: 123.5, y: 456.25 });
+
+    const received = await dmSees;
+    expect(received).toMatchObject({ mapId, x: 123.5, y: 456.25 });
+    expect(received.userId).toBeTruthy();
+    expect(received).not.toHaveProperty("name");
+    expect((await senderSees).x).toBeCloseTo(123.5);
+    dm.disconnect();
+    player.disconnect();
+  });
+
+  it("drops non-finite coordinates without closing the socket", async () => {
+    const dm = await server.connectAndAuth(dmCookie, campaignId);
+    const player = await server.connectAndAuth(player1Cookie, campaignId);
+    player.emit("map.ping", { mapId, x: Number.NaN, y: 10 });
+    player.emit("map.ping", {
+      mapId,
+      x: 10,
+      y: Number.POSITIVE_INFINITY,
+    });
+    player.emit("map.ping", { mapId, x: "5", y: 10 });
+
+    const valid = waitForEvent<{ x: number }>(dm, "map.pinged");
+    player.emit("map.ping", { mapId, x: 7, y: 8 });
+    expect((await valid).x).toBe(7);
+    dm.disconnect();
+    player.disconnect();
+  });
+});
+
 // ── 7. Chat ──────────────────────────────────────────────────────────────────
 
 describe("chat", () => {

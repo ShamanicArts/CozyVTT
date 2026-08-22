@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { CampaignProvider, useCampaign } from "@/contexts/CampaignContext";
 import { WebSocketProvider, useWebSocket } from "@/contexts/WebSocketContext";
 import { useGameStore } from "@/stores/gameStore";
+import { useInitiativeSync } from "@/hooks/useInitiativeSync";
 import {
   ArrowLeft,
   Loader2,
@@ -228,6 +229,7 @@ const MOBILE_DESTINATIONS = [
 // ============================================
 
 function CampaignPageContent() {
+  useInitiativeSync();
   const navigate = useNavigate();
   const {
     campaign,
