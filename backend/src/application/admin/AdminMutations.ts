@@ -19,6 +19,8 @@ import { Command, CommandHandler } from "../commands/CommandBus";
 
 export const UPDATE_ADMIN_SETTINGS = "admin.settings.update" as const;
 export const CREATE_ADMIN_USER = "admin.user.create" as const;
+export const INVITE_ADMIN_USER = "admin.user.invite" as const;
+export const RESEND_ADMIN_USER_INVITE = "admin.user.resend-invite" as const;
 export const APPROVE_ADMIN_USER = "admin.user.approve" as const;
 export const RESET_ADMIN_USER_MFA = "admin.user.reset-mfa" as const;
 export const SEND_ADMIN_SMTP_TEST = "admin.smtp.test" as const;
@@ -40,6 +42,21 @@ export interface CreateAdminUserCommand extends Command<{
   readonly type: typeof CREATE_ADMIN_USER;
   readonly actor: AdminActor;
   readonly input: Record<string, unknown>;
+}
+export interface InviteAdminUserCommand extends Command<{
+  user: AdminUser;
+  expiresInDays: number;
+}> {
+  readonly type: typeof INVITE_ADMIN_USER;
+  readonly actor: AdminActor;
+  readonly input: Record<string, unknown>;
+}
+export interface ResendAdminUserInviteCommand extends Command<{
+  expiresInDays: number;
+}> {
+  readonly type: typeof RESEND_ADMIN_USER_INVITE;
+  readonly actor: AdminActor;
+  readonly userId: string;
 }
 export interface ApproveAdminUserCommand extends Command<void> {
   readonly type: typeof APPROVE_ADMIN_USER;
@@ -156,6 +173,124 @@ export class CreateAdminUser
         .sendWelcomeEmail(user.email, user.displayName, temporaryPassword)
         .catch(() => {});
     return { user, temporaryPassword };
+  }
+}
+
+const INVITE_EXPIRY_DAYS = 7;
+
+function normalizeNewUser(input: Record<string, unknown>): {
+  email: string;
+  displayName: string;
+  platformRole: "ADMIN" | "USER";
+} {
+  const email = input.email;
+  if (!email || typeof email !== "string")
+    throw adminError(400, "Bad Request", "Email is required");
+  if (!validateEmail(email))
+    throw adminError(400, "Bad Request", "Invalid email address");
+  const rawName =
+    typeof input.displayName === "string" && input.displayName.trim()
+      ? input.displayName
+      : email.split("@")[0];
+  return {
+    email: sanitizeInput(email).toLowerCase(),
+    displayName: sanitizeInput(rawName).slice(0, 50),
+    platformRole: input.platformRole === "ADMIN" ? "ADMIN" : "USER",
+  };
+}
+
+abstract class AdminInvitationBase extends AdminCommandBase {
+  constructor(
+    repository: AdminAdministrationRepository,
+    audit: AdminAuditLog,
+    protected readonly passwords: AdminPasswordHasher,
+    protected readonly mailer: AdminMailer,
+  ) {
+    super(repository, audit);
+  }
+
+  protected requireSmtp(): void {
+    if (!this.mailer.isConfigured())
+      throw adminError(
+        503,
+        "Service Unavailable",
+        "SMTP is not configured, so invitations cannot be emailed.",
+      );
+  }
+
+  protected async issueInvitation(user: AdminUser, actor: AdminActor): Promise<void> {
+    const token = crypto.randomUUID();
+    await this.repository.createPasswordResetToken(
+      user.id,
+      token,
+      new Date(Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000),
+    );
+    const inviter = await this.repository.findUserById(actor.userId);
+    await this.mailer.sendInvitationEmail(
+      user.email,
+      token,
+      user.displayName,
+      inviter?.displayName || "An administrator",
+      INVITE_EXPIRY_DAYS,
+    );
+  }
+}
+
+export class InviteAdminUser
+  extends AdminInvitationBase
+  implements CommandHandler<InviteAdminUserCommand, { user: AdminUser; expiresInDays: number }>
+{
+  async execute(
+    command: InviteAdminUserCommand,
+  ): Promise<{ user: AdminUser; expiresInDays: number }> {
+    this.requireSmtp();
+    const input = normalizeNewUser(command.input);
+    if (await this.repository.findUserByEmail(input.email))
+      throw adminError(409, "Conflict", "Email is already in use");
+    const discardedPassword = crypto.randomBytes(32).toString("hex");
+    const user = await this.repository.createUser({
+      ...input,
+      passwordHash: await this.passwords.hash(discardedPassword),
+      mustChangePassword: false,
+    });
+    try {
+      await this.issueInvitation(user, command.actor);
+    } catch {
+      await this.repository.deleteUser(user.id).catch(() => undefined);
+      throw adminError(
+        502,
+        "Email Delivery Failed",
+        "The invitation could not be emailed, so the account was not created.",
+      );
+    }
+    await this.log(command.actor, `Invited user ${user.email}`, "INFO", {
+      targetUserId: user.id,
+      role: user.platformRole,
+    });
+    return { user, expiresInDays: INVITE_EXPIRY_DAYS };
+  }
+}
+
+export class ResendAdminUserInvite
+  extends AdminInvitationBase
+  implements CommandHandler<ResendAdminUserInviteCommand, { expiresInDays: number }>
+{
+  async execute(
+    command: ResendAdminUserInviteCommand,
+  ): Promise<{ expiresInDays: number }> {
+    this.requireSmtp();
+    const user = await this.repository.findUserById(command.userId);
+    if (!user) throw adminError(404, "Not Found", "User not found");
+    await this.repository.invalidatePasswordResetTokens(user.id);
+    try {
+      await this.issueInvitation(user, command.actor);
+    } catch {
+      throw adminError(502, "Email Delivery Failed", "The invitation could not be emailed.");
+    }
+    await this.log(command.actor, `Resent invitation to ${user.email}`, "INFO", {
+      targetUserId: user.id,
+    });
+    return { expiresInDays: INVITE_EXPIRY_DAYS };
   }
 }
 

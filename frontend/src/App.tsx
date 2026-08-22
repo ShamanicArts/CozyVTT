@@ -23,6 +23,9 @@ const ForgotPasswordPage = lazy(
   () => import("@/pages/auth/ForgotPasswordPage"),
 );
 const ResetPasswordPage = lazy(() => import("@/pages/auth/ResetPasswordPage"));
+const ChangePasswordPage = lazy(
+  () => import("@/pages/auth/ChangePasswordPage"),
+);
 const MFAVerifyPage = lazy(() => import("@/pages/auth/MFAVerifyPage"));
 const MFASetupPage = lazy(() => import("@/pages/MFASetupPage"));
 const SetupWizardPage = lazy(() => import("@/pages/SetupWizardPage"));
@@ -106,12 +109,20 @@ function App() {
                         element={<ResetPasswordPage />}
                       />
                       <Route
+                        path="/accept-invite"
+                        element={<ResetPasswordPage invite />}
+                      />
+                      <Route
                         path="/auth/mfa-verify"
                         element={<MFAVerifyPage />}
                       />
                       <Route
                         path="/auth/mfa-setup"
                         element={<MFASetupPage />}
+                      />
+                      <Route
+                        path="/auth/change-password"
+                        element={<ChangePasswordPage />}
                       />
 
                       {/* Protected Routes - Require Authentication */}

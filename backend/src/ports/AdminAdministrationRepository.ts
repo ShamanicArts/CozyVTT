@@ -11,6 +11,13 @@ export interface AdminAdministrationRepository {
     platformRole: "ADMIN" | "USER";
     mustChangePassword: boolean;
   }): Promise<AdminUser>;
+  deleteUser(id: string): Promise<void>;
+  invalidatePasswordResetTokens(userId: string): Promise<void>;
+  createPasswordResetToken(
+    userId: string,
+    token: string,
+    expiresAt: Date,
+  ): Promise<void>;
   approveUser(id: string): Promise<void>;
   resetUserMfa(id: string): Promise<void>;
 }

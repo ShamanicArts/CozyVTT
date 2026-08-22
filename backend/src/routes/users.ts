@@ -4,6 +4,7 @@ import { prisma } from "../config/database";
 import { sanitizeUser } from "../services/auth";
 import type { UserPreferences } from "../validators/userPreferences";
 import logger from "../utils/logger";
+import { destroyUserLoginSessions } from "../services/sessionStore";
 import { productionCommandBus } from "../composition/productionApplicationHost";
 import {
   DELETE_USER_AS_ADMIN,
@@ -291,12 +292,13 @@ router.post(
         type: RESET_USER_PASSWORD_AS_ADMIN,
         userId: id,
       });
+      await destroyUserLoginSessions(id);
       return res.status(200).json({
         message: "Password reset successfully",
         temporaryPassword,
         mustChangePassword: true,
         notice:
-          "This temporary password will only be displayed once. The user will be required to change it on next login.",
+          "This temporary password will only be displayed once. The user will be required to change it on next login, and any active sessions have been signed out.",
       });
     } catch (error) {
       if (sendUserMutationError(res, error)) return;

@@ -77,6 +77,7 @@ router.post("/register", authLimiter, async (req: Request, res: Response) => {
     req.session.email = user.email;
     req.session.displayName = user.displayName;
     req.session.platformRole = user.platformRole;
+    req.session.mustChangePassword = user.mustChangePassword;
     return res
       .status(201)
       .json({
@@ -332,6 +333,7 @@ router.post("/change-password", requireAuth, async (req, res) => {
       currentPassword: req.body.currentPassword,
       newPassword: req.body.newPassword,
     });
+    req.session.mustChangePassword = false;
     return res.status(200).json({ message: "Password changed successfully" });
   } catch (e) {
     if (securityError(res, e)) return;
@@ -429,6 +431,7 @@ router.post("/mfa/verify-login", authLimiter, async (req, res) => {
     req.session.email = u.email;
     req.session.displayName = u.displayName;
     req.session.platformRole = u.platformRole;
+    req.session.mustChangePassword = u.mustChangePassword;
     req.session.mfaPending = undefined;
     req.session.mfaPendingUserId = undefined;
     req.session.mfaRememberMe = undefined;

@@ -30,10 +30,17 @@ export async function authenticateSocket(socket: AuthenticatedSocket): Promise<b
 
     const user = await prisma.user.findUnique({
       where: { id: session.userId },
-      select: { id: true },
+      select: { id: true, mustChangePassword: true },
     });
 
     if (!user) {
+      return false;
+    }
+
+    if (user.mustChangePassword) {
+      logger.warn("WebSocket rejected: password change required", {
+        userId: user.id,
+      });
       return false;
     }
 

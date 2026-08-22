@@ -23,6 +23,13 @@ export interface AdminMailer {
     displayName: string,
     temporaryPassword: string,
   ): Promise<void>;
+  sendInvitationEmail(
+    email: string,
+    token: string,
+    displayName: string,
+    invitedByName: string,
+    expiryDays: number,
+  ): Promise<void>;
 }
 
 export interface AdminPasswordHasher {

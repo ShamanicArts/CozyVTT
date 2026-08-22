@@ -18,6 +18,20 @@ export function isStrongPassword(password: string): boolean {
   return hasUpperCase && hasLowerCase && hasNumber;
 }
 
+export const PASSWORD_REQUIREMENTS: Array<{
+  test: (password: string) => boolean;
+  label: string;
+}> = [
+  { test: (password) => password.length >= 8, label: "At least 8 characters" },
+  { test: (password) => /[A-Z]/.test(password), label: "One uppercase letter" },
+  { test: (password) => /[a-z]/.test(password), label: "One lowercase letter" },
+  { test: (password) => /[0-9]/.test(password), label: "One number" },
+  {
+    test: (password) => /[^A-Za-z0-9]/.test(password),
+    label: "One special character",
+  },
+];
+
 export function getPasswordStrength(password: string): {
   score: number;
   label: string;

@@ -37,6 +37,27 @@ export class PrismaAdminAdministrationRepository
     return user as unknown as AdminUser;
   }
 
+  async deleteUser(id: string): Promise<void> {
+    await this.client.user.delete({ where: { id } });
+  }
+
+  async invalidatePasswordResetTokens(userId: string): Promise<void> {
+    await this.client.passwordResetToken.updateMany({
+      where: { userId, used: false },
+      data: { used: true },
+    });
+  }
+
+  async createPasswordResetToken(
+    userId: string,
+    token: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.client.passwordResetToken.create({
+      data: { userId, token, expiresAt },
+    });
+  }
+
   async approveUser(id: string): Promise<void> {
     await this.client.user.update({
       where: { id },

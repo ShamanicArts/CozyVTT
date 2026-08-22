@@ -18,7 +18,7 @@ export default function ProtectedRoute({
   children,
   requireRole,
 }: ProtectedRouteProps) {
-  const { user, loading, authenticated } = useAuth();
+  const { user, loading, authenticated, mustChangePassword } = useAuth();
   const location = useLocation();
 
   // Show loading state while checking authentication
@@ -42,6 +42,10 @@ export default function ProtectedRoute({
         replace
       />
     );
+  }
+
+  if (mustChangePassword) {
+    return <Navigate to="/auth/change-password" replace />;
   }
 
   // Check role-based access if required

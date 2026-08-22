@@ -72,6 +72,7 @@ function renderRoute(
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/auth/login" element={<LocationProbe />} />
+        <Route path="/auth/change-password" element={<LocationProbe />} />
         <Route
           path="*"
           element={
@@ -128,6 +129,22 @@ describe("ProtectedRoute", () => {
     );
     renderRoute(<div>Protected Content</div>);
     expect(screen.getByText("Protected Content")).toBeInTheDocument();
+  });
+
+  it("redirects accounts that must replace an issued password", () => {
+    mockUseAuth.mockReturnValue(
+      makeAuthState({
+        loading: false,
+        authenticated: true,
+        user: mockUser,
+        mustChangePassword: true,
+      }),
+    );
+    renderRoute(<div>Protected Content</div>);
+    expect(screen.getByTestId("login-location")).toHaveTextContent(
+      "/auth/change-password",
+    );
+    expect(screen.queryByText("Protected Content")).not.toBeInTheDocument();
   });
 
   it("renders children when authenticated and no role required", () => {

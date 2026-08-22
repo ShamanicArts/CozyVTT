@@ -40,6 +40,11 @@ const repository = (): jest.Mocked<AdminAdministrationRepository> => ({
   findUserByEmail: jest.fn(async (_email: string) => null),
   findUserById: jest.fn(async (_id: string) => user()),
   createUser: jest.fn(async (_data) => user()),
+  deleteUser: jest.fn(async (_id: string) => undefined),
+  invalidatePasswordResetTokens: jest.fn(async (_id: string) => undefined),
+  createPasswordResetToken: jest.fn(
+    async (_userId: string, _token: string, _expiresAt: Date) => undefined,
+  ),
   approveUser: jest.fn(async (_id: string) => undefined),
   resetUserMfa: jest.fn(async (_id: string) => undefined),
 });
@@ -53,6 +58,9 @@ const mailer: jest.Mocked<AdminMailer> = {
   isConfigured: jest.fn(() => false),
   sendTestEmail: jest.fn(async (_email, _name) => undefined),
   sendWelcomeEmail: jest.fn(async (_email, _name, _password) => undefined),
+  sendInvitationEmail: jest.fn(
+    async (_email, _token, _name, _inviter, _days) => undefined,
+  ),
 };
 const backups: jest.Mocked<AdminBackupStore> = {
   create: jest.fn(async () => ({

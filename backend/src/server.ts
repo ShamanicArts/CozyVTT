@@ -10,6 +10,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { sessionConfig } from "./config/session";
 import { requireSetupComplete } from "./middleware/setup";
+import { requirePasswordChanged } from "./middleware/passwordChange";
 import setupRoutes from "./routes/setup";
 import authRoutes from "./routes/auth";
 import campaignRoutes from "./routes/campaigns";
@@ -157,6 +158,9 @@ app.get("/health", async (_req, res) => {
 
 // Apply general rate limiter to all API routes
 app.use("/api", generalApiLimiter);
+
+// Accounts using an admin-issued password may only replace it or sign out.
+app.use("/api", requirePasswordChanged);
 
 // Setup wizard (accessible before setup is complete)
 app.use("/api/setup", setupRoutes);

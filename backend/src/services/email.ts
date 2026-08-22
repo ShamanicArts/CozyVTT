@@ -216,6 +216,41 @@ export async function sendWelcomeEmail(
   logger.info('Email sent', { type: 'welcome', to: toEmail });
 }
 
+export async function sendInvitationEmail(
+  toEmail: string,
+  token: string,
+  displayName: string,
+  invitedByName: string,
+  expiryDays: number,
+): Promise<void> {
+  const transporter = createTransporter();
+  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const appUrl = getAppUrl();
+  const instanceName = getInstanceName();
+  const inviteLink = `${appUrl}/accept-invite?token=${token}`;
+
+  const content =
+    h2(`You're invited to ${instanceName}`) +
+    p(`Hello <strong>${displayName}</strong>,`) +
+    p(`<strong>${invitedByName}</strong> has invited you to join ${instanceName}. Choose your password to finish setting up your account.`) +
+    ctaButton('Accept Invitation', inviteLink) +
+    infoBox(
+      `Or copy and paste this link into your browser:<br>` +
+      `<span style="word-break:break-all;font-family:monospace;font-size:12px;color:#5C4A2A;">${inviteLink}</span>`,
+    ) +
+    warningBox(
+      `<strong>This invitation expires in ${expiryDays} days.</strong> If it expires, ask ${invitedByName} to send a new one.`,
+    );
+
+  await transporter.sendMail({
+    from: fromAddress,
+    to: toEmail,
+    subject: `${invitedByName} invited you to ${instanceName}`,
+    html: emailLayout(content, `Join ${instanceName} by choosing your password.`),
+  });
+  logger.info('Email sent', { type: 'invitation', to: toEmail });
+}
+
 /**
  * Send a password reset email with a token link.
  * Used by both the self-service forgot-password flow and admin-initiated resets.

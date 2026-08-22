@@ -398,6 +398,24 @@ class ApiClient {
     return response.data;
   }
 
+  async inviteAdminUser(data: {
+    email: string;
+    displayName?: string;
+    platformRole?: string;
+  }): Promise<{ message: string; user: User; expiresInDays: number }> {
+    const response = await this.client.post("/api/admin/users/invite", data);
+    return response.data;
+  }
+
+  async resendAdminUserInvite(
+    userId: string,
+  ): Promise<{ message: string; expiresInDays: number }> {
+    const response = await this.client.post(
+      `/api/admin/users/${userId}/resend-invite`,
+    );
+    return response.data;
+  }
+
   async resetAdminUserMfa(userId: string): Promise<{ message: string }> {
     const response = await this.client.post(
       `/api/admin/users/${userId}/reset-mfa`,

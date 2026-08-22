@@ -224,6 +224,11 @@ export default function AdminPage() {
   const [createUserError, setCreateUserError] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [newUserPasswordCopied, setNewUserPasswordCopied] = useState(false);
+  const [createUserMode, setCreateUserMode] = useState<"create" | "invite">(
+    "create",
+  );
+  const [createUserSuccess, setCreateUserSuccess] = useState("");
+  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
 
   // MFA reset per-row (inline confirm)
   const [resetMfaConfirmId, setResetMfaConfirmId] = useState<string | null>(
@@ -674,17 +679,32 @@ export default function AdminPage() {
     setCreatingUser(true);
     setCreateUserError("");
     try {
-      const { user: newUser, temporaryPassword } =
-        await adminService.createUser({
-          email: createUserForm.email.trim(),
-          displayName: createUserForm.displayName.trim() || undefined,
-          platformRole: createUserForm.platformRole,
-        });
-      setNewUserPassword(temporaryPassword);
+      const payload = {
+        email: createUserForm.email.trim(),
+        displayName: createUserForm.displayName.trim() || undefined,
+        platformRole: createUserForm.platformRole,
+      };
+      const result =
+        createUserMode === "invite"
+          ? await adminService.inviteUser(payload)
+          : await adminService.createUser(payload);
+      const newUser = result.user;
+      if ("temporaryPassword" in result) {
+        setNewUserPassword(result.temporaryPassword);
+      } else {
+        setCreateUserSuccess(
+          `Invitation sent to ${newUser.email}. The link expires in ${result.expiresInDays} days.`,
+        );
+      }
       setUsers((prev) => [newUser, ...prev]);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
-      setCreateUserError(e.response?.data?.message ?? "Failed to create user");
+      setCreateUserError(
+        e.response?.data?.message ??
+          (createUserMode === "invite"
+            ? "Failed to send invitation"
+            : "Failed to create user"),
+      );
     } finally {
       setCreatingUser(false);
     }
@@ -694,8 +714,25 @@ export default function AdminPage() {
     setCreateUserOpen(false);
     setCreateUserForm({ email: "", displayName: "", platformRole: "USER" });
     setCreateUserError("");
+    setCreateUserSuccess("");
     setNewUserPassword("");
     setNewUserPasswordCopied(false);
+  };
+
+  const handleResendInvite = async (userId: string) => {
+    setResendingInviteId(userId);
+    try {
+      const result = await adminService.resendInvite(userId);
+      showToast(result.message, "success");
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      showToast(
+        e.response?.data?.message ?? "Failed to resend invitation",
+        "error",
+      );
+    } finally {
+      setResendingInviteId(null);
+    }
   };
 
   const handleResetMfa = async (userId: string) => {
@@ -1203,8 +1240,23 @@ export default function AdminPage() {
                 User Management
               </h2>
               <div className="flex items-center gap-2">
+                {serverConfig?.smtp.configured && (
+                  <Button
+                    onClick={() => {
+                      setCreateUserMode("invite");
+                      setCreateUserOpen(true);
+                    }}
+                    className="flex items-center gap-2 text-sm py-1.5 px-3"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    Invite User
+                  </Button>
+                )}
                 <Button
-                  onClick={() => setCreateUserOpen(true)}
+                  onClick={() => {
+                    setCreateUserMode("create");
+                    setCreateUserOpen(true);
+                  }}
                   className="flex items-center gap-2 text-sm py-1.5 px-3"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
@@ -1445,6 +1497,22 @@ export default function AdminPage() {
                                         MFA
                                       </button>
                                     )}
+                                    {!u.lastLoginAt &&
+                                      serverConfig?.smtp.configured && (
+                                        <button
+                                          onClick={() => handleResendInvite(u.id)}
+                                          disabled={resendingInviteId === u.id}
+                                          title="Email a fresh invitation link"
+                                          className="text-xs py-1 px-2 flex items-center gap-1 rounded border border-moss-green/30 text-moss-green hover:bg-moss-green/5 disabled:opacity-50"
+                                        >
+                                          {resendingInviteId === u.id ? (
+                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                          ) : (
+                                            <Mail className="w-3 h-3" />
+                                          )}
+                                          Invite
+                                        </button>
+                                      )}
                                     {/* Reset Password */}
                                     <Button
                                       onClick={() => {
@@ -3280,8 +3348,12 @@ export default function AdminPage() {
           <div className="bg-paper rounded-2xl shadow-2xl w-full max-w-md">
             <div className="flex items-center justify-between p-5 border-b border-warm-gray/20">
               <h2 className="text-lg font-semibold text-moss-green flex items-center gap-2">
-                <UserPlus className="w-5 h-5" />
-                Create User
+                {createUserMode === "invite" ? (
+                  <Mail className="w-5 h-5" />
+                ) : (
+                  <UserPlus className="w-5 h-5" />
+                )}
+                {createUserMode === "invite" ? "Invite User" : "Create User"}
               </h2>
               {!newUserPassword && (
                 <button
@@ -3294,7 +3366,16 @@ export default function AdminPage() {
             </div>
 
             <div className="p-5">
-              {newUserPassword ? (
+              {createUserSuccess ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-green-700 font-medium">
+                    {createUserSuccess}
+                  </p>
+                  <Button onClick={closeCreateUserModal} className="w-full">
+                    Done
+                  </Button>
+                </div>
+              ) : newUserPassword ? (
                 /* Success — show temp password */
                 <div>
                   <p className="text-sm text-green-700 font-medium mb-1">
@@ -3333,6 +3414,11 @@ export default function AdminPage() {
               ) : (
                 /* Form */
                 <div className="space-y-4">
+                  <p className="text-xs text-warm-gray">
+                    {createUserMode === "invite"
+                      ? "They receive a link to choose their own password. No credential is shown to the administrator."
+                      : "A temporary password is generated and must be replaced on first login."}
+                  </p>
                   {createUserError && (
                     <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
                       {createUserError}
@@ -3416,7 +3502,9 @@ export default function AdminPage() {
                       {creatingUser && (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       )}
-                      Create User
+                      {createUserMode === "invite"
+                        ? "Send Invitation"
+                        : "Create User"}
                     </Button>
                     <Button
                       onClick={closeCreateUserModal}

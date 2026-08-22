@@ -34,7 +34,7 @@ export interface BackupSummary {
 
 export class AdminCommandError extends Error {
   constructor(
-    public readonly status: 400 | 404 | 409 | 500,
+    public readonly status: 400 | 404 | 409 | 500 | 502 | 503,
     public readonly error:
       | "Bad Request"
       | "Not Found"
@@ -44,6 +44,8 @@ export class AdminCommandError extends Error {
       | "Backup Failed"
       | "Restore Failed"
       | "SMTP Error"
+      | "Email Delivery Failed"
+      | "Service Unavailable"
       | "Internal Server Error"
       | "Invalid Backup",
     message: string,

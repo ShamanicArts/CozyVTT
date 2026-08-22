@@ -25,6 +25,11 @@ import {
   CreateAdminBackupCommand,
   CreateAdminUser,
   CreateAdminUserCommand,
+  INVITE_ADMIN_USER,
+  InviteAdminUser,
+  InviteAdminUserCommand,
+  RESEND_ADMIN_USER_INVITE,
+  ResendAdminUserInviteCommand,
   DELETE_ADMIN_BACKUP,
   DeleteAdminBackupCommand,
   isAdminCommandError,
@@ -220,6 +225,51 @@ router.post("/users", async (req, res) => {
         error: "Internal Server Error",
         message: "Failed to create user",
       });
+  }
+});
+
+router.post("/users/invite", async (req, res) => {
+  try {
+    const result = await productionCommandBus.dispatch<
+      InviteAdminUserCommand,
+      Awaited<ReturnType<InviteAdminUser["execute"]>>
+    >({ type: INVITE_ADMIN_USER, actor: adminActor(req), input: req.body });
+    return res.status(201).json({
+      message: `Invitation sent to ${result.user.email}`,
+      user: sanitizeUser(result.user as any),
+      expiresInDays: result.expiresInDays,
+    });
+  } catch (error) {
+    if (sendAdminCommandError(res, error)) return;
+    logger.error("Error inviting user", { err: error });
+    return res.status(500).json({
+      error: "Internal Server Error",
+      message: "Failed to invite user",
+    });
+  }
+});
+
+router.post("/users/:id/resend-invite", async (req, res) => {
+  try {
+    const result = await productionCommandBus.dispatch<
+      ResendAdminUserInviteCommand,
+      { expiresInDays: number }
+    >({
+      type: RESEND_ADMIN_USER_INVITE,
+      actor: adminActor(req),
+      userId: req.params.id,
+    });
+    return res.json({
+      message: "Invitation sent",
+      expiresInDays: result.expiresInDays,
+    });
+  } catch (error) {
+    if (sendAdminCommandError(res, error)) return;
+    logger.error("Error resending invitation", { err: error });
+    return res.status(500).json({
+      error: "Internal Server Error",
+      message: "Failed to resend invitation",
+    });
   }
 });
 

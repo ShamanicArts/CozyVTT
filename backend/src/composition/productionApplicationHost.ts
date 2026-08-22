@@ -760,6 +760,24 @@ productionCommandBus.register(
   ),
 );
 productionCommandBus.register(
+  Admin.INVITE_ADMIN_USER,
+  new Admin.InviteAdminUser(
+    adminRepository,
+    adminRepository,
+    new ArgonAdminPasswordHasher(),
+    adminMailer,
+  ),
+);
+productionCommandBus.register(
+  Admin.RESEND_ADMIN_USER_INVITE,
+  new Admin.ResendAdminUserInvite(
+    adminRepository,
+    adminRepository,
+    new ArgonAdminPasswordHasher(),
+    adminMailer,
+  ),
+);
+productionCommandBus.register(
   Admin.APPROVE_ADMIN_USER,
   new Admin.ApproveAdminUser(adminRepository, adminRepository),
 );

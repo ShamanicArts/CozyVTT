@@ -3,6 +3,7 @@ import {
   isSmtpConfigured,
   sendTestEmail,
   sendWelcomeEmail,
+  sendInvitationEmail,
 } from "../../services/email";
 
 export class ServiceAdminMailer implements AdminMailer {
@@ -18,5 +19,20 @@ export class ServiceAdminMailer implements AdminMailer {
     temporaryPassword: string,
   ): Promise<void> {
     await sendWelcomeEmail(email, displayName, temporaryPassword);
+  }
+  async sendInvitationEmail(
+    email: string,
+    token: string,
+    displayName: string,
+    invitedByName: string,
+    expiryDays: number,
+  ): Promise<void> {
+    await sendInvitationEmail(
+      email,
+      token,
+      displayName,
+      invitedByName,
+      expiryDays,
+    );
   }
 }

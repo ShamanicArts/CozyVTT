@@ -9,19 +9,9 @@ import { Link, useSearchParams } from "react-router-dom";
 import { KeyRound, ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
 import authService from "@/services/auth.service";
 import Button from "@/components/ui/Button";
+import { PASSWORD_REQUIREMENTS } from "@/utils/validation";
 
-const PASSWORD_REQUIREMENTS = [
-  { test: (p: string) => p.length >= 8, label: "At least 8 characters" },
-  { test: (p: string) => /[A-Z]/.test(p), label: "One uppercase letter" },
-  { test: (p: string) => /[a-z]/.test(p), label: "One lowercase letter" },
-  { test: (p: string) => /[0-9]/.test(p), label: "One number" },
-  {
-    test: (p: string) => /[^A-Za-z0-9]/.test(p),
-    label: "One special character",
-  },
-];
-
-export default function ResetPasswordPage() {
+export default function ResetPasswordPage({ invite = false }: { invite?: boolean }) {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
 
@@ -38,10 +28,12 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     if (!token) {
       setError(
-        "This password reset link is invalid. Please request a new one.",
+        invite
+          ? "This invitation link is invalid. Ask your administrator to send a new one."
+          : "This password reset link is invalid. Please request a new one.",
       );
     }
-  }, [token]);
+  }, [token, invite]);
 
   const requirementsMet = PASSWORD_REQUIREMENTS.map((r) => r.test(password));
   const allRequirementsMet = requirementsMet.every(Boolean);
@@ -95,11 +87,12 @@ export default function ResetPasswordPage() {
               aria-hidden="true"
             />
             <h1 className="text-2xl font-bold text-moss-green font-heading">
-              Password updated!
+              {invite ? "Account ready!" : "Password updated!"}
             </h1>
             <p className="text-sm text-warm-gray">
-              Your password has been reset successfully. You can now sign in
-              with your new password.
+              {invite
+                ? "Your password is set. You can now sign in to your account."
+                : "Your password has been reset successfully. You can now sign in with your new password."}
             </p>
             <Link
               to="/auth/login"
@@ -123,7 +116,7 @@ export default function ResetPasswordPage() {
               to="/auth/forgot-password"
               className="inline-flex items-center gap-1.5 text-sm text-moss-green hover:text-moss-green/80 font-medium transition-colors"
             >
-              Request a new reset link
+              {invite ? "Return to sign in" : "Request a new reset link"}
             </Link>
           </div>
         ) : (
@@ -137,10 +130,12 @@ export default function ResetPasswordPage() {
                 />
               </div>
               <h1 className="text-2xl font-bold text-moss-green font-heading">
-                Set new password
+                {invite ? "Accept invitation" : "Set new password"}
               </h1>
               <p className="mt-2 text-sm text-warm-gray">
-                Choose a strong password for your account.
+                {invite
+                  ? "Choose a password to finish setting up your account."
+                  : "Choose a strong password for your account."}
               </p>
             </div>
 

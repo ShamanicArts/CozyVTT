@@ -6,6 +6,7 @@ declare module 'express-session' {
     email?: string;
     displayName?: string;
     platformRole?: PlatformRole;
+    mustChangePassword?: boolean;
     // MFA flow state — set during login when user has MFA enabled
     mfaPending?: boolean;
     mfaPendingUserId?: string;
