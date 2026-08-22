@@ -3,6 +3,13 @@
 This changelog is the human-readable evidence paired with tagged generated
 artifacts in `contracts/public-capabilities.json`.
 
+## contracts-v1.0.1
+
+- Capability IDs: unchanged from `contracts-v1.0.0`.
+- Schemas: unchanged from `contracts-v1.0.0`.
+- Approval and principal protocols: unchanged from `contracts-v1.0.0`.
+- Policy metadata: unchanged from `contracts-v1.0.0`.
+
 ## contracts-v1.0.0 - Initial baseline
 
 - Capability IDs: no removals or renames; command and query descriptors now
