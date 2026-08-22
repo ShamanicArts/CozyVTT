@@ -94,3 +94,8 @@ backend/tests/
 
 # ---- Claude Code local settings ---------------------------------------------
 .claude/
+
+# ---- Playwright MCP scratch output -------------------------------------------
+# Page snapshots, console logs and screenshots written into the working
+# directory when a browser is driven against a local dev instance.
+.playwright-mcp/
