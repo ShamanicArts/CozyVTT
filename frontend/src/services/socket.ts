@@ -285,7 +285,7 @@ class SocketClient {
     this.socket?.on('chat.message', callback);
   }
 
-  onChatSystem(callback: EventCallback<{ content: string; metadata?: any; timestamp: string }>) {
+  onChatSystem(callback: EventCallback<{ id?: string; content: string; metadata?: any; timestamp: string }>) {
     this.socket?.on('chat.system', callback);
   }
 

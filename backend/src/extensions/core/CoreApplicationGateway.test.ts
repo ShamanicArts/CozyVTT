@@ -12,6 +12,7 @@ describe("CoreApplicationGatewayFactory", () => {
         principalId: "credential-1",
         delegatedIdentity: "dm-1",
         campaignId: "campaign-1",
+        sourceExtensionId: "cozyvtt.encounter-director",
         origin: "PLUGIN",
       });
       return (input as { effect: string | null }).effect;

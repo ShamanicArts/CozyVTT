@@ -892,6 +892,8 @@ export interface DiceRollEvent {
 }
 
 export interface DiceRolledEvent {
+  /** Present for persisted rolls; initiative-only broadcasts do not create chat history. */
+  id?: string;
   userId: string;
   userName: string;
   characterName: string | null;
@@ -1088,6 +1090,11 @@ export interface UserPreferences {
     text: string;
   } | null;
   fontId?: string;
+  activityFilters?: {
+    general: string[];
+    game: string[];
+    system: string[];
+  };
 }
 
 // ============================================

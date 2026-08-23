@@ -149,6 +149,7 @@ export class CoreApplicationGatewayFactory {
             principalId: invocation.principal.id,
             delegatedIdentity: delegated.delegatedUserId,
             campaignId,
+            sourceExtensionId: extensionId,
             extensionId: PUBLIC_CAPABILITY_EXTENSION_ID,
             idempotencyKey: options?.idempotencyKey,
             origin:

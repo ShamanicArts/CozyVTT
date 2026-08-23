@@ -4,6 +4,28 @@ import type { Message } from "@/types";
 import ChatMessage from "../ChatMessage";
 
 describe("ChatMessage capability actor identity", () => {
+  it("uses the background-safe accent token for DM identity", () => {
+    render(
+      <ChatMessage
+        message={
+          {
+            id: "message-dm",
+            campaignId: "campaign-1",
+            userId: "dm-1",
+            type: "DM",
+            content: "The passage is clear.",
+            createdAt: new Date().toISOString(),
+            user: { displayName: "CozyVTT Admin" },
+          } as unknown as Message
+        }
+      />,
+    );
+
+    const sender = screen.getByText("CozyVTT Admin");
+    expect(sender).toHaveClass("text-accent-ink");
+    expect(sender).not.toHaveClass("text-accent-text");
+  });
+
   it("shows the in-world actor while keeping control metadata out of chat", () => {
     render(
       <ChatMessage

@@ -42,6 +42,8 @@ export interface TrustedExecutionContext {
   principalType: DurablePrincipalType;
   principalId: string;
   campaignId?: string;
+  /** Calling integration identity; distinct from extensionId when a host capability owns policy. */
+  sourceExtensionId?: string;
   extensionId?: string;
   delegatedIdentity?: string;
   correlationId?: string;
@@ -276,6 +278,11 @@ export function durableExecutionMiddleware(
             payload: {
               commandId: metadata.id,
               commandVersion: metadata.version,
+              origin: context.origin,
+              ...(context.campaignId ? { campaignId: context.campaignId } : {}),
+              ...((context.sourceExtensionId ?? context.extensionId)
+                ? { extensionId: context.sourceExtensionId ?? context.extensionId }
+                : {}),
             },
           });
         return output;

@@ -58,8 +58,8 @@ function getMessageStyle(type: MessageType) {
     case "DM":
       return {
         icon: Shield,
-        iconClass: "text-accent-text bg-accent/20",
-        nameClass: "text-accent-text",
+        iconClass: "text-accent-ink bg-accent/20",
+        nameClass: "text-accent-ink",
       };
     case "SYSTEM":
       return {

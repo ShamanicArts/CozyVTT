@@ -35,6 +35,7 @@ import {
   PUBLIC_UPDATE_LIGHT,
   PUBLIC_UPDATE_WALL,
 } from "./CapabilityGmCommands";
+import { PUBLIC_PUBLISH_CAMPAIGN_ACTIVITY } from "./CampaignActivityCommands";
 
 export const PUBLIC_CAPABILITY_EXTENSION_ID = "cozyvtt.public-capabilities";
 
@@ -729,6 +730,44 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     openWorld: true,
   },
   {
+    id: PUBLIC_PUBLISH_CAMPAIGN_ACTIVITY,
+    title: "Publish campaign activity",
+    description:
+      "Publish a namespaced extension event into CozyVTT's campaign activity stream. Use actor speech and gameplay commands for events already represented by core capabilities.",
+    risk: "medium",
+    inputSchema: {
+      type: "object",
+      properties: {
+        campaignId,
+        eventType: {
+          type: "string",
+          minLength: 3,
+          maxLength: 200,
+          pattern: "^[a-z0-9][a-z0-9._-]+$",
+        },
+        kind: {
+          enum: ["narrative", "mechanic", "scene", "session", "system"],
+        },
+        importance: { enum: ["routine", "consequential", "error"] },
+        summary: { type: "string", minLength: 1, maxLength: 500 },
+        payload: { type: "object", maxProperties: 32 },
+      },
+      required: ["campaignId", "eventType", "kind", "summary"],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        createdAt: { type: "string" },
+      },
+      required: ["id", "createdAt"],
+      additionalProperties: false,
+    },
+    requiresApproval: false,
+    write: true,
+  },
+  {
     id: PUBLIC_SET_ATMOSPHERE_EFFECT,
     title: "Set campaign atmosphere effect",
     description:
@@ -789,6 +828,7 @@ function coreCommandPermissions(
     return ["maps.write", "assets.write", "network.fetch"];
   }
   if (commandId === PUBLIC_SPEAK_AS_ACTOR) return ["chat.write"];
+  if (commandId === PUBLIC_PUBLISH_CAMPAIGN_ACTIVITY) return ["chat.write"];
   if (commandId === PUBLIC_ROLL_AS_ACTOR) return ["dice.roll"];
   if (
     commandId.startsWith("vtt.actor.") ||

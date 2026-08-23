@@ -26,5 +26,5 @@ export interface DiceRollRepository {
       purpose: string | null;
       secret: boolean;
     };
-  }): Promise<void>;
+  }): Promise<{ id: string; createdAt: Date }>;
 }

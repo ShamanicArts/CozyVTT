@@ -11,10 +11,34 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCampaign } from "@/contexts/CampaignContext";
 import { getMessages } from "@/services/message.service";
 import ChatMessage from "./ChatMessage";
+import DiceResult from "./DiceResult";
 import ChatMessageSkeleton from "@/components/skeletons/ChatMessageSkeleton";
 import { MessageType, PlatformRole } from "@/types";
-import type { Message, ChatMessageBroadcast } from "@/types";
+import type { DiceRolledEvent, Message, ChatMessageBroadcast } from "@/types";
 import Button from "@/components/ui/Button";
+import api from "@/services/api";
+import ActivityStreamControls from "./ActivityStreamControls";
+import {
+  messageMatchesActivityFilters,
+  normalizeActivityFilters,
+  diceRollActivityMessage,
+  diceRollEventFromMessage,
+  type ActivityCategory,
+  type ActivityMode,
+} from "./activityStream";
+
+const ACTIVITY_FILTER_STORAGE_KEY = "cozyvtt.activity-filters.v1";
+
+function initialActivityFilters(userId?: string) {
+  try {
+    const value = localStorage.getItem(
+      `${ACTIVITY_FILTER_STORAGE_KEY}:${userId ?? "anonymous"}`,
+    );
+    return normalizeActivityFilters(value ? JSON.parse(value) : null);
+  } catch {
+    return normalizeActivityFilters(null);
+  }
+}
 
 export default function ChatPanel() {
   const { id: campaignId } = useParams<{ id: string }>();
@@ -29,6 +53,10 @@ export default function ChatPanel() {
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [activityMode, setActivityMode] = useState<ActivityMode>("general");
+  const [activityFilters, setActivityFilters] = useState(() =>
+    initialActivityFilters(user?.id),
+  );
 
   // Rate limiting state (10 messages per minute = 1 per 6 seconds)
   const [canSend, setCanSend] = useState(true);
@@ -38,6 +66,49 @@ export default function ChatPanel() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const wasAtBottomRef = useRef(true);
+
+  const visibleMessages = messages.filter((message) =>
+    messageMatchesActivityFilters(message, activityFilters[activityMode]),
+  );
+
+  useEffect(() => {
+    localStorage.setItem(
+      `${ACTIVITY_FILTER_STORAGE_KEY}:${user?.id ?? "anonymous"}`,
+      JSON.stringify(activityFilters),
+    );
+  }, [activityFilters, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    api.getUserPreferences(user.id).then((preferences) => {
+      if (!cancelled && preferences.activityFilters) {
+        setActivityFilters(normalizeActivityFilters(preferences.activityFilters));
+      }
+    }).catch(() => {
+      // The user-scoped local cache remains available while offline.
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const updateActivityFilters = (filters: ActivityCategory[]) => {
+    const updated = { ...activityFilters, [activityMode]: filters };
+    setActivityFilters(updated);
+    if (user?.id) {
+      void api.updateUserPreferences(user.id, {
+        activityFilters: updated,
+      }).catch(() => {
+        // Keep the optimistic local preference and retry on a later change.
+      });
+    }
+  };
+
+  const resetActivityMode = (mode: ActivityMode) => {
+    setActivityMode(mode);
+    setTimeout(() => scrollToBottom(false), 0);
+  };
 
   // ============================================
   // Scroll Management
@@ -263,6 +334,7 @@ export default function ChatPanel() {
     };
 
     const handleSystemMessage = (data: {
+      id?: string;
       content: string;
       metadata?: any;
       timestamp: string;
@@ -270,7 +342,7 @@ export default function ChatPanel() {
       console.log("[ChatPanel] Received system message:", data);
 
       const systemMessage: Message = {
-        id: `system-${Date.now()}`,
+        id: data.id ?? `system-${Date.now()}`,
         campaignId: campaignId!,
         userId: null,
         type: MessageType.SYSTEM,
@@ -286,12 +358,29 @@ export default function ChatPanel() {
       }
     };
 
+    const handleDiceRolled = (data: DiceRolledEvent) => {
+      // Initiative broadcasts share this socket event but do not create a
+      // persisted activity message.
+      const rollMessage = diceRollActivityMessage(data, campaignId!);
+      if (!rollMessage) return;
+      setMessages((previous) =>
+        previous.some((message) => message.id === rollMessage.id)
+          ? previous
+          : [...previous, rollMessage],
+      );
+      if (wasAtBottomRef.current) {
+        setTimeout(() => scrollToBottom(true), 50);
+      }
+    };
+
     socket.onChatMessage(handleChatMessage);
     socket.onChatSystem(handleSystemMessage);
+    socket.onDiceRolled(handleDiceRolled);
 
     return () => {
       socket.off("chat.message", handleChatMessage);
       socket.off("chat.system", handleSystemMessage);
+      socket.off("dice.rolled", handleDiceRolled);
     };
   }, [socket, campaignId]);
 
@@ -429,6 +518,14 @@ export default function ChatPanel() {
 
   return (
     <div className="flex h-full flex-col bg-canvas">
+      <ActivityStreamControls
+        mode={activityMode}
+        filters={activityFilters[activityMode]}
+        eventCount={visibleMessages.length}
+        onModeChange={resetActivityMode}
+        onFiltersChange={updateActivityFilters}
+      />
+
       {error && (
         <div
           role="alert"
@@ -447,7 +544,7 @@ export default function ChatPanel() {
         onScroll={handleScroll}
         role="log"
         aria-live="polite"
-        aria-label="Chat messages"
+        aria-label={`${activityMode === "game" ? "Game log" : activityMode === "system" ? "System" : "General"} activity`}
         aria-relevant="additions"
         className="min-h-0 flex-1 overflow-y-auto px-1"
       >
@@ -474,26 +571,37 @@ export default function ChatPanel() {
           </div>
         )}
 
-        {messages.length === 0 ? (
+        {visibleMessages.length === 0 ? (
           <div className="flex h-full min-h-48 flex-col items-center justify-center px-5 text-center">
             <MessageCircle
               className="mb-2 h-8 w-8 text-brand/35"
               aria-hidden="true"
             />
             <p className="text-sm font-medium text-ink-secondary">
-              Start the conversation
+              {messages.length === 0
+                ? "Start the conversation"
+                : "No events match these filters"}
             </p>
           </div>
         ) : (
           <>
-            {messages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                isCurrentUser={message.userId === user?.id}
-                isPending={message.id.startsWith("temp-")}
-              />
-            ))}
+            {visibleMessages.map((message) => {
+              const roll = diceRollEventFromMessage(message);
+              return roll ? (
+                <DiceResult
+                  key={message.id}
+                  roll={roll}
+                  isCurrentUser={message.userId === user?.id}
+                />
+              ) : (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  isCurrentUser={message.userId === user?.id}
+                  isPending={message.id.startsWith("temp-")}
+                />
+              );
+            })}
             <div ref={messagesEndRef} />
           </>
         )}
@@ -534,7 +642,7 @@ export default function ChatPanel() {
           </div>
 
           {!canSend && cooldownSeconds > 0 && (
-            <p className="mt-1.5 text-center text-xs text-accent-text">
+            <p className="mt-1.5 text-center text-xs text-accent-ink">
               Wait {cooldownSeconds}s before sending another message
             </p>
           )}

@@ -27,7 +27,10 @@ describe('RollDice', () => {
     roller.roll.mockReturnValue(breakdown);
     repository.findUserDisplayName.mockResolvedValue('Mira Player');
     repository.createDiceRoll.mockResolvedValue({ id: 'roll-1' });
-    repository.createDiceRollMessage.mockResolvedValue();
+    repository.createDiceRollMessage.mockResolvedValue({
+      id: 'message-1',
+      createdAt: new Date('2026-08-23T10:00:00.000Z'),
+    });
   });
 
   it('reuses the roller, persists its audit trail, and returns complete roll data', async () => {
@@ -42,8 +45,8 @@ describe('RollDice', () => {
       content: 'Mira Player (Mira) rolled 1d20+3 for Perception (SECRET)',
       metadata: expect.objectContaining({ diceRollId: 'roll-1', breakdown, secret: true }),
     }));
-    expect(result).toEqual(expect.objectContaining({ userId: 'user-1', userName: 'Mira Player', result: 20, breakdown, secret: true }));
-    expect(result.timestamp).toEqual(expect.any(String));
+    expect(result).toEqual(expect.objectContaining({ id: 'message-1', userId: 'user-1', userName: 'Mira Player', result: 20, breakdown, secret: true }));
+    expect(result.timestamp).toBe('2026-08-23T10:00:00.000Z');
   });
 
   it('does not roll or write when parser validation rejects the expression', async () => {

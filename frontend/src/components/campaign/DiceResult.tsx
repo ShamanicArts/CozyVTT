@@ -154,7 +154,7 @@ export default function DiceResult({ roll, isCurrentUser }: DiceResultProps) {
                   </span>
                 )}
                 {entry.type === "modifier" && entry.value !== undefined && (
-                  <span className="rounded bg-accent/15 px-2 py-1 font-mono text-accent-text">
+                  <span className="rounded bg-accent/15 px-2 py-1 font-mono text-accent-ink">
                     {entry.value >= 0 ? "+" : ""}
                     {entry.value}
                   </span>

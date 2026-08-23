@@ -3,6 +3,88 @@
   "principalProtocolVersion": 1,
   "commands": [
     {
+      "id": "campaign.activity.publish",
+      "version": "1",
+      "title": "Publish campaign activity",
+      "description": "Publish a namespaced extension event into CozyVTT's campaign activity stream. Use actor speech and gameplay commands for events already represented by core capabilities.",
+      "risk": "MEDIUM",
+      "permissions": [
+        "WRITE",
+        "EXECUTE"
+      ],
+      "approvalPolicy": "NEVER",
+      "outputRedactionPolicy": "campaign-role-v1",
+      "idempotency": true,
+      "outbox": {
+        "topic": "application.command.executed.v1",
+        "aggregateType": "campaign"
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "campaignId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "eventType": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._-]+$"
+          },
+          "kind": {
+            "enum": [
+              "narrative",
+              "mechanic",
+              "scene",
+              "session",
+              "system"
+            ]
+          },
+          "importance": {
+            "enum": [
+              "routine",
+              "consequential",
+              "error"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "payload": {
+            "type": "object",
+            "maxProperties": 32
+          }
+        },
+        "required": [
+          "campaignId",
+          "eventType",
+          "kind",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
       "id": "map.import-remote",
       "version": "1",
       "title": "Import a remote battle map",

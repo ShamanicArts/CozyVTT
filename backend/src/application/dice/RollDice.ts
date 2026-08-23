@@ -18,6 +18,7 @@ export interface RollDiceCommand extends Command<RollDiceResult> {
 
 /** Complete public roll data; recipient filtering belongs to the transport adapter. */
 export interface RollDiceResult {
+  id: string;
   userId: string;
   userName: string;
   characterName: string | null;
@@ -67,7 +68,7 @@ export class RollDice implements CommandHandler<RollDiceCommand, RollDiceResult>
       secret,
     });
 
-    await this.repository.createDiceRollMessage({
+    const message = await this.repository.createDiceRollMessage({
       campaignId: command.campaignId,
       userId: command.userId,
       content: `${userName}${characterName ? ` (${characterName})` : ''} rolled ${command.expression}${purpose ? ` for ${purpose}` : ''}${secret ? ' (SECRET)' : ''}`,
@@ -85,6 +86,7 @@ export class RollDice implements CommandHandler<RollDiceCommand, RollDiceResult>
     });
 
     return {
+      id: message.id,
       userId: command.userId,
       userName,
       characterName,
@@ -92,7 +94,7 @@ export class RollDice implements CommandHandler<RollDiceCommand, RollDiceResult>
       result: breakdown.total,
       breakdown,
       purpose,
-      timestamp: new Date().toISOString(),
+      timestamp: message.createdAt.toISOString(),
       secret,
     };
   }

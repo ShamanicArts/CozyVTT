@@ -203,6 +203,7 @@ import { PrismaUvttMapImportRepository } from "../adapters/persistence/PrismaUvt
 import { NodeUvttImportSource } from "../adapters/assets/NodeUvttImportSource";
 import { PrismaCapabilityGameplayMembership } from "../adapters/persistence/PrismaCapabilityGameplayMembership";
 import { WebsocketCapabilityGameplayEventPublisher } from "../adapters/events/WebsocketCapabilityGameplayEventPublisher";
+import { WebsocketCampaignActivityRealtimePublisher } from "../adapters/events/WebsocketCampaignActivityRealtimePublisher";
 import { CampaignInvitationEventPublisher } from "../adapters/events/CampaignInvitationEventPublisher";
 import { WebsocketCampaignSessionNotifier } from "../adapters/events/WebsocketCampaignSessionNotifier";
 import {
@@ -266,6 +267,10 @@ import {
   UpdateCapabilityWall,
 } from "../application/capabilities/CapabilityGmCommands";
 import { findCoreCapabilityCommand } from "../application/capabilities/CoreCapabilityCatalog";
+import {
+  PUBLIC_PUBLISH_CAMPAIGN_ACTIVITY,
+  PublishCampaignActivity,
+} from "../application/capabilities/CampaignActivityCommands";
 
 /** Single process-wide handler graph for commands shared by HTTP and Socket.IO. */
 const productionCommandBus = new CommandBus();
@@ -515,6 +520,9 @@ productionCommandBus.register(
   new Creatures.SeedSrdCreatures(creatureRepository),
 );
 const chatRepository = new PrismaChatMessageRepository(transactionalPrisma);
+const systemMessageRepository = new PrismaSystemMessageRepository(
+  transactionalPrisma,
+);
 productionCommandBus.register(
   Chat.SEND_CHAT_MESSAGE,
   new Chat.SendChatMessage(
@@ -524,8 +532,13 @@ productionCommandBus.register(
 );
 productionCommandBus.register(
   SystemMessages.CREATE_SYSTEM_MESSAGE,
-  new SystemMessages.CreateSystemMessage(
-    new PrismaSystemMessageRepository(transactionalPrisma),
+  new SystemMessages.CreateSystemMessage(systemMessageRepository),
+);
+productionCommandBus.register(
+  PUBLIC_PUBLISH_CAMPAIGN_ACTIVITY,
+  new PublishCampaignActivity(
+    systemMessageRepository,
+    new WebsocketCampaignActivityRealtimePublisher(),
   ),
 );
 productionCommandBus.register(
@@ -1197,6 +1210,8 @@ for (const id of productionCommandIds) {
         ...(input as Record<string, unknown>),
         type: id,
         actorId: context?.delegatedIdentity ?? context?.principalId,
+        sourceExtensionId:
+          context?.sourceExtensionId ?? context?.extensionId,
       } as never),
   });
 }

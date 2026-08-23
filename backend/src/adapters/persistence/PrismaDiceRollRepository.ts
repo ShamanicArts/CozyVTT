@@ -17,8 +17,8 @@ export class PrismaDiceRollRepository implements DiceRollRepository {
     });
   }
 
-  async createDiceRollMessage(input: Parameters<DiceRollRepository['createDiceRollMessage']>[0]): Promise<void> {
-    await this.client.message.create({
+  async createDiceRollMessage(input: Parameters<DiceRollRepository['createDiceRollMessage']>[0]) {
+    return this.client.message.create({
       data: {
         campaignId: input.campaignId,
         userId: input.userId,
@@ -26,6 +26,7 @@ export class PrismaDiceRollRepository implements DiceRollRepository {
         content: input.content,
         metadata: input.metadata as unknown as Prisma.InputJsonValue,
       },
+      select: { id: true, createdAt: true },
     });
   }
 }

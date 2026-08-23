@@ -123,6 +123,25 @@ export interface CoreExtensionGateway {
   ): Promise<unknown>;
 }
 
+export interface CampaignActivityInput {
+  campaignId: string;
+  /** Must be namespaced to the authenticated extension, for example weather.plugin.storm_started. */
+  eventType: string;
+  kind: "narrative" | "mechanic" | "scene" | "session" | "system";
+  importance?: "routine" | "consequential" | "error";
+  summary: string;
+  payload?: Readonly<Record<string, unknown>>;
+}
+
+/** Publish extension-specific activity through CozyVTT's validated campaign stream. */
+export function publishCampaignActivity(
+  gateway: CoreExtensionGateway,
+  input: CampaignActivityInput,
+  options: { idempotencyKey: string; approvalId?: string },
+): Promise<unknown> {
+  return gateway.dispatch("campaign.activity.publish", { ...input }, options);
+}
+
 export interface ExtensionCommandExecutionContext {
   readonly principal: {
     readonly id: string;

@@ -7,6 +7,10 @@ import {
 describe("production outbox runtime", () => {
   const prisma = {
     outboxEvent: { count: jest.fn() },
+    message: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+    },
   } as any;
 
   beforeEach(() => jest.clearAllMocks());
@@ -42,5 +46,41 @@ describe("production outbox runtime", () => {
         },
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it("projects an extension command into preserved campaign activity", async () => {
+    prisma.message.findUnique.mockResolvedValue(null);
+    prisma.message.create.mockResolvedValue({
+      id: "event",
+      createdAt: new Date("2026-08-23T09:00:00.000Z"),
+    });
+    const dispatcher = createProductionOutboxDispatcher(prisma);
+    const consumers = (dispatcher as any).consumers as Map<
+      string,
+      { consume: (event: any) => Promise<void> }
+    >;
+    await consumers.get(APPLICATION_COMMAND_EXECUTED_V1)!.consume({
+      id: "event",
+      topic: APPLICATION_COMMAND_EXECUTED_V1,
+      payload: {
+        commandId: "vtt.atmosphere.effect.set",
+        commandVersion: "1",
+        campaignId: "campaign-1",
+        origin: "PLUGIN",
+        extensionId: "cozyvtt.agent",
+      },
+    });
+    expect(prisma.message.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          id: "event",
+          campaignId: "campaign-1",
+          content: "cozyvtt.agent: Set campaign atmosphere effect.",
+          metadata: expect.objectContaining({
+            activity: expect.objectContaining({ kind: "scene" }),
+          }),
+        }),
+      }),
+    );
   });
 });
