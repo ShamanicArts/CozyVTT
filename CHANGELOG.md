@@ -61,6 +61,7 @@ migrations and should be evaluated on a backup before production deployment.
 - **Editing a creature preserves unrepresented stat-block fields,** including saves, skills, XP, and notes.
 - **Creature, token-template, and campaign-import writes reject impossible stat-block values.**
 - **Negative bonuses and multi-word skill labels now render correctly.**
+- **Editing one creature or token template immediately after another no longer carries the first record's form data into the second.**
 - **AoE templates now align with the grid.** Cube, cone, and line origins snap according to their span; cubes are axis-aligned, while circles retain their existing placement.
 - **The initiative tracker no longer freezes after a WebSocket reconnect.** Its listener was attached to a socket instance that gets rebuilt on reconnect, so after a dropped connection the tracker silently kept showing whatever turn was current when the link went down. Combat state is now mirrored into the shared session store by a reconnect-aware subscription, and re-synced from the server each time the socket comes back
 
