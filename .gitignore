@@ -95,7 +95,28 @@ backend/tests/
 # ---- Claude Code local settings ---------------------------------------------
 .claude/
 
-# ---- Playwright MCP scratch output -------------------------------------------
+# ---- Playwright output -------------------------------------------------------
 # Page snapshots, console logs and screenshots written into the working
-# directory when a browser is driven against a local dev instance.
+# directory when a browser is driven against a local dev instance, plus the
+# report and trace directories the Playwright test runner produces.
 .playwright-mcp/
+test-results/
+playwright-report/
+
+# Ad-hoc screenshots and database dumps dropped at the repo root. Scoped to the
+# root with a leading slash so committed artwork under assets/ and
+# frontend/public/ is unaffected — no image or dump is tracked at the top level.
+/*.png
+/*.jpg
+/*.jpeg
+/*.gif
+/*.sql
+
+# ---- TypeScript incremental build cache --------------------------------------
+*.tsbuildinfo
+
+# ---- Game system rulebooks ---------------------------------------------------
+# Publisher PDFs and OCR text kept locally for rules reference while developing.
+# These are copyrighted material and must never be committed — CozyVTT ships
+# rules-reference scaffolding only (see the legal note in docs/GAME_SYSTEMS.md).
+system-docs/
