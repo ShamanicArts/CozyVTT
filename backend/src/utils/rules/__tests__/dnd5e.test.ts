@@ -1,0 +1,155 @@
+import { readFileSync } from 'fs';
+import path from 'path';
+import {
+  ABILITY_KEYS,
+  DND5E_SKILLS,
+  abilityModifier,
+  decomposeBonus,
+  derivedBonus,
+  findSkill,
+  normalizeSkillKey,
+  parseChallengeRating,
+  proficiencyBonusForCR,
+  proficiencyBonusForLevel,
+} from '../dnd5e';
+
+describe('abilityModifier', () => {
+  it.each([
+    [1, -5],
+    [7, -2],
+    [8, -1],
+    [10, 0],
+    [14, 2],
+    [20, 5],
+    [30, 10],
+  ])('score %i is %i', (score, expected) => {
+    expect(abilityModifier(score)).toBe(expected);
+  });
+
+  it('is 0 for non-finite input', () => {
+    expect(abilityModifier(NaN)).toBe(0);
+  });
+});
+
+describe('parseChallengeRating', () => {
+  it.each([
+    ['0', 0],
+    ['1/8', 0.125],
+    ['1/4', 0.25],
+    ['1/2', 0.5],
+    ['5', 5],
+  ])('parses %s', (cr, expected) => {
+    expect(parseChallengeRating(cr)).toBe(expected);
+  });
+
+  it('returns null for unparseable input', () => {
+    expect(parseChallengeRating('—')).toBeNull();
+    expect(parseChallengeRating('1/0')).toBeNull();
+  });
+});
+
+describe('proficiencyBonusForCR', () => {
+  // The full SRD table. Duplicated from the frontend suite deliberately: the
+  // point is that both projects independently agree on the rule.
+  it.each([
+    ['0', 2],
+    ['1/8', 2],
+    ['1/4', 2],
+    ['1/2', 2],
+    ['4', 2],
+    ['5', 3],
+    ['8', 3],
+    ['9', 4],
+    ['12', 4],
+    ['13', 5],
+    ['16', 5],
+    ['17', 6],
+    ['20', 6],
+    ['21', 7],
+    ['24', 7],
+    ['25', 8],
+    ['28', 8],
+    ['29', 9],
+    ['30', 9],
+  ])('CR %s gives %i', (cr, expected) => {
+    expect(proficiencyBonusForCR(cr)).toBe(expected);
+  });
+
+  it('falls back to +2 for a missing CR', () => {
+    expect(proficiencyBonusForCR(null)).toBe(2);
+  });
+});
+
+describe('proficiencyBonusForLevel', () => {
+  it('matches the CR curve at every character level', () => {
+    for (let level = 1; level <= 20; level += 1) {
+      expect(proficiencyBonusForLevel(level)).toBe(proficiencyBonusForCR(String(level)));
+    }
+  });
+});
+
+describe('the skill list', () => {
+  it('has the eighteen 5e skills with valid abilities', () => {
+    expect(DND5E_SKILLS).toHaveLength(18);
+    for (const skill of DND5E_SKILLS) {
+      expect(ABILITY_KEYS).toContain(skill.ability);
+    }
+  });
+});
+
+describe('normalizeSkillKey', () => {
+  // Open5e — the SRD import source — uses snake_case, which never matched the
+  // camelCase lookup the roll picker used.
+  it.each([
+    ['animal_handling', 'animalHandling'],
+    ['sleight_of_hand', 'sleightOfHand'],
+    ['Animal Handling', 'animalHandling'],
+    ['perception', 'perception'],
+  ])('%s resolves to %s', (input, expected) => {
+    expect(normalizeSkillKey(input)).toBe(expected);
+  });
+
+  it('keeps unknown skills rather than discarding them', () => {
+    expect(findSkill('basket weaving')).toBeNull();
+    expect(normalizeSkillKey('Basket Weaving')).toBe('Basket Weaving');
+  });
+});
+
+describe('derivedBonus / decomposeBonus', () => {
+  it('gives a Wisdom 14 commoner +4 Perception', () => {
+    expect(derivedBonus(abilityModifier(14), proficiencyBonusForCR('0'), 'proficient')).toBe(4);
+  });
+
+  it("reads the SRD Goblin's Stealth +6 as expertise", () => {
+    expect(decomposeBonus(6, abilityModifier(14), proficiencyBonusForCR('1/4'))).toBe('expertise');
+  });
+
+  it('reports an unreconcilable bonus as custom', () => {
+    expect(decomposeBonus(30, 2, 2)).toBe('custom');
+  });
+
+  it('round-trips every derived level', () => {
+    for (const level of ['none', 'proficient', 'expertise'] as const) {
+      for (const abilityMod of [-2, 0, 3, 5]) {
+        for (const pb of [2, 3, 5, 9]) {
+          expect(decomposeBonus(derivedBonus(abilityMod, pb, level), abilityMod, pb)).toBe(level);
+        }
+      }
+    }
+  });
+});
+
+describe('parity with the frontend copy', () => {
+  // No shared package exists between the two projects, so this module is
+  // duplicated. Drift would mean the editor derives one number while the server
+  // validates against another; this makes that a test failure instead.
+  it('is byte-for-byte identical to frontend/src/utils/rules/dnd5e.ts', () => {
+    const backendCopy = readFileSync(path.resolve(__dirname, '../dnd5e.ts'), 'utf8');
+    const frontendCopy = readFileSync(
+      path.resolve(__dirname, '../../../../../frontend/src/utils/rules/dnd5e.ts'),
+      'utf8'
+    );
+
+    expect(backendCopy).toBe(frontendCopy);
+  });
+});
