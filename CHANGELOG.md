@@ -61,6 +61,7 @@ migrations and should be evaluated on a backup before production deployment.
 - **Editing a creature preserves unrepresented stat-block fields,** including saves, skills, XP, and notes.
 - **Creature, token-template, and campaign-import writes reject impossible stat-block values.**
 - **Negative bonuses and multi-word skill labels now render correctly.**
+- **AoE templates now align with the grid.** Cube, cone, and line origins snap according to their span; cubes are axis-aligned, while circles retain their existing placement.
 - **The initiative tracker no longer freezes after a WebSocket reconnect.** Its listener was attached to a socket instance that gets rebuilt on reconnect, so after a dropped connection the tracker silently kept showing whatever turn was current when the link went down. Combat state is now mirrored into the shared session store by a reconnect-aware subscription, and re-synced from the server each time the socket comes back
 
 ### Documentation
@@ -68,6 +69,7 @@ migrations and should be evaluated on a backup before production deployment.
 - `docs/GAME_SYSTEMS.md` now documents creature-system integration and the distinction between derived and printed values.
 - The API reference documents creature stat-block validation, proficiency metadata, PF2e modifiers, and level.
 - The DM guide documents creature proficiency, system-specific rolls, and the proficiency-by-CR table.
+- The DM guide now documents ruler and AoE tools, including grid snapping and feet-per-square sizing.
 - Corrected the socket API reference for initiative, which still described the original name-based combatants (`{ name, initiative, hp? }`) years after they became token-based. Documented the `CombatState` payload while there
 - Corrected the DM guide's "Adding Combatants", which described typing a name, initiative and HP by hand rather than picking a token from the map
 - Corrected the README and user guide, which described admin logo/mascot/favicon **upload** as a shipped feature. The instance does honour custom images — they appear on the login page and across the app — but there is no upload screen yet, so the guide now explains how to change branding today (replace the images in `frontend/public/` and rebuild, or set the URLs through the settings API). The upload UI remains on the roadmap

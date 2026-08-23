@@ -367,6 +367,8 @@ export function drawRuler(
   ctx.restore();
 }
 
+import { coneApex, cubeRect, lineOrigin, squaresFor } from '../aoeGeometry';
+
 export type AoEShape = 'sphere' | 'cylinder' | 'cone' | 'line' | 'cube';
 
 export interface AoEConfig {
@@ -381,6 +383,13 @@ export interface AoEOverlayState {
   origin: Pt | null;
   /** Grid coords of the cursor (aim direction + fallback origin). */
   hoverCoords: Pt | null;
+  /**
+   * Cursor in map pixels. Templates snap from this rather than from
+   * `hoverCoords`, because whole-square coordinates cannot express the
+   * difference between a grid line and a square centre — which is exactly the
+   * distinction that decides whether a shape lands on the grid.
+   */
+  hoverMapPx: Pt | null;
   feetPerSquare: number;
 }
 
@@ -393,21 +402,48 @@ export function drawAoEOverlay(
   const { zoom, gridSize: gs, mapHeight: mh } = viewport;
   const fps = state.feetPerSquare;
 
-  const origin = state.origin ?? state.hoverCoords;
-  if (!origin) return;
+  const gridOrigin = state.origin ?? state.hoverCoords;
+  if (!gridOrigin) return;
 
-  const ox = origin.x * gs + gs / 2;
-  const oy = (mh - 1 - origin.y) * gs + gs / 2;
+  // Where the template is anchored, before snapping. A committed origin is a
+  // whole-square coordinate, so it resolves to that square's centre; while the
+  // template still follows the cursor, the precise pointer position is used so
+  // snapping can distinguish a grid line from a square centre.
+  const rawX = state.origin
+    ? state.origin.x * gs + gs / 2
+    : (state.hoverMapPx?.x ?? gridOrigin.x * gs + gs / 2);
+  const rawY = state.origin
+    ? (mh - 1 - state.origin.y) * gs + gs / 2
+    : (state.hoverMapPx?.y ?? (mh - 1 - gridOrigin.y) * gs + gs / 2);
 
+  const sizeSquares = squaresFor(state.config.sizeFt, fps);
+  const widthSquares = squaresFor(state.config.widthFt ?? 5, fps);
+  const sizeInPx = sizeSquares * gs;
+  const widthInPx = widthSquares * gs;
+
+  // Aim direction, measured from the unsnapped anchor so the template does not
+  // jitter as the snapped origin steps between grid points.
   let angle = 0;
   if (state.hoverCoords && state.origin) {
-    const mx = state.hoverCoords.x * gs + gs / 2;
-    const my = (mh - 1 - state.hoverCoords.y) * gs + gs / 2;
-    angle = Math.atan2(my - oy, mx - ox);
+    const mx = state.hoverMapPx?.x ?? state.hoverCoords.x * gs + gs / 2;
+    const my = state.hoverMapPx?.y ?? (mh - 1 - state.hoverCoords.y) * gs + gs / 2;
+    angle = Math.atan2(my - rawY, mx - rawX);
   }
 
-  const sizeInPx = (state.config.sizeFt / fps) * gs;
-  const widthInPx = ((state.config.widthFt ?? 5) / fps) * gs;
+  // Each shape snaps by the rule that puts its edges on grid lines — see
+  // aoeGeometry.ts. Without this every template sat half a square off.
+  //
+  // Sphere and cylinder are deliberately left on the square centre they have
+  // always used: a circle never tiles squares whatever it is centred on, and
+  // that placement was not what was reported as misaligned.
+  const cursor = { x: rawX, y: rawY };
+  let ox = rawX;
+  let oy = rawY;
+  if (state.config.shape === 'cone') {
+    ({ x: ox, y: oy } = coneApex(cursor, gs));
+  } else if (state.config.shape === 'line') {
+    ({ x: ox, y: oy } = lineOrigin(cursor, gs, widthSquares, angle));
+  }
 
   ctx.save();
   ctx.fillStyle = 'rgba(147, 51, 234, 0.25)';
@@ -449,16 +485,12 @@ export function drawAoEOverlay(
     }
 
     case 'cube': {
-      const cos = Math.cos(angle);
-      const sin = Math.sin(angle);
-      const perpCos = Math.cos(angle + Math.PI / 2);
-      const perpSin = Math.sin(angle + Math.PI / 2);
-      const hs = sizeInPx / 2;
-      ctx.moveTo(ox + perpCos * hs,                      oy + perpSin * hs);
-      ctx.lineTo(ox + cos * sizeInPx + perpCos * hs,     oy + sin * sizeInPx + perpSin * hs);
-      ctx.lineTo(ox + cos * sizeInPx - perpCos * hs,     oy + sin * sizeInPx - perpSin * hs);
-      ctx.lineTo(ox - perpCos * hs,                      oy - perpSin * hs);
-      ctx.closePath();
+      // Axis-aligned and snapped to whole squares. It used to be a rotatable
+      // rectangle anchored at a square centre, which could not line up with the
+      // grid at any angle — a 10 ft cube on a 5 ft grid straddled four squares
+      // instead of covering two.
+      const rect = cubeRect(cursor, gs, sizeSquares);
+      ctx.rect(rect.x, rect.y, rect.size, rect.size);
       break;
     }
   }

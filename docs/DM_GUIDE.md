@@ -480,6 +480,23 @@ Players assign their own characters to your campaign when they accept an invitat
 
 ## Running a Session
 
+### Measuring and Area Templates
+
+Two tools in the map toolbar help you work out what a spell or a move actually reaches. Both are previews for you — they aren't saved to the map and players don't see them.
+
+**Ruler** (the ruler icon) — click a start point, then move the cursor to measure the distance between two squares in feet, using the map's own scale.
+
+**AoE Shape** (the lightning icon) — overlays a spell area on the map. Pick **Circle**, **Cone**, **Line** or **Cube**, set the size in feet (or use a preset), and move the cursor to position it. Click the map to pin the shape in place; with an origin pinned, moving the cursor aims cone and line templates. Press **Esc** to dismiss.
+
+Templates snap to your map's grid, so a shape covers whole squares rather than straddling them:
+
+- **Cube** — always axis-aligned, covering exactly the squares it should. A 10 ft cube on a 5 ft grid covers 2×2 squares; a 15 ft cube covers 3×3. It doesn't rotate, because a tilted square can't line up with a square grid
+- **Line** — starts on a grid line and is centred across its width, so a 20 ft × 5 ft line laid horizontally or vertically covers exactly 4×1 squares
+- **Cone** — its point sits on a grid intersection. The spreading edges are at an angle, so they'll still cut across squares — that's the shape, not a bug. Judge affected squares by how much of each is covered, as you would at the table
+- **Circle** — centred on the square under the cursor
+
+> Sizes use the map's **feet per square** setting (Map Settings), which defaults to 5 ft. If your templates look twice or half the size you expect, check that value first.
+
 ### Starting a Session
 
 When your players are ready, click **Start Session** in the right sidebar's **Session** tab. This:
