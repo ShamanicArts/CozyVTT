@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import { PRESET_THEMES } from "@/themes";
+import { FONT_OPTIONS, PRESET_THEMES } from "@/themes";
 import { THEME_CONTRACT_VERSION } from "@/theming";
 import ThemePicker, { DEFAULT_CUSTOM_COLORS } from "../ThemePicker";
 
@@ -46,5 +46,33 @@ describe("ThemePicker runtime catalogue", () => {
         }),
       ),
     );
+  });
+
+  it("loads every font stylesheet while previews are visible", () => {
+    const { unmount } = render(
+      <ThemePicker
+        themeId={PRESET_THEMES[0].id}
+        fontId="default"
+        customColors={DEFAULT_CUSTOM_COLORS}
+        onChange={vi.fn()}
+      />,
+    );
+
+    for (const font of FONT_OPTIONS) {
+      const link = document.getElementById(
+        `theme-font-preview-${font.id}`,
+      ) as HTMLLinkElement | null;
+      expect(link?.href).toBe(font.googleImport);
+      expect(screen.getByText(font.name)).toHaveStyle({
+        fontFamily: font.heading,
+      });
+    }
+
+    unmount();
+    for (const font of FONT_OPTIONS) {
+      expect(
+        document.getElementById(`theme-font-preview-${font.id}`),
+      ).not.toBeInTheDocument();
+    }
   });
 });

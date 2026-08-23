@@ -107,6 +107,40 @@ describe("user mutation commands", () => {
     });
   });
 
+  it("persists validated semantic activity filters as a user preference", async () => {
+    const repository = users();
+    const activityFilters = {
+      general: ["conversation", "rolls"],
+      game: ["combat", "scene"],
+      system: ["presence", "extensions", "system"],
+    };
+    await expect(
+      new UpdateUserPreferences(repository).execute({
+        type: "user.update-preferences",
+        actorId: "user-1",
+        isAdmin: false,
+        userId: "user-1",
+        input: { activityFilters },
+      }),
+    ).resolves.toMatchObject({
+      preferences: { themeId: "cozy-default", activityFilters },
+    });
+    await expect(
+      new UpdateUserPreferences(repository).execute({
+        type: "user.update-preferences",
+        actorId: "user-1",
+        isAdmin: false,
+        userId: "user-1",
+        input: {
+          activityFilters: {
+            ...activityFilters,
+            system: ["arbitrary-plugin-tab"],
+          },
+        },
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
   it("accepts only themes contributed by active extensions", async () => {
     const repository = users();
     const themes = {

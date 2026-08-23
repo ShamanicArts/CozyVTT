@@ -53,6 +53,24 @@ const CustomThemeColorsSchema = z.object({
   text: z.string().regex(HEX_COLOR_REGEX, 'text must be #RRGGBB'),
 }).strict();
 
+const ActivityCategorySchema = z.enum([
+  'conversation',
+  'rolls',
+  'characters',
+  'combat',
+  'scene',
+  'session',
+  'presence',
+  'extensions',
+  'system',
+]);
+
+const ActivityFiltersSchema = z.object({
+  general: z.array(ActivityCategorySchema).max(9),
+  game: z.array(ActivityCategorySchema).max(9),
+  system: z.array(ActivityCategorySchema).max(9),
+}).strict();
+
 /**
  * Full preferences schema. All fields optional so the same shape can be used
  * for partial-merge PATCH-style updates. `.strip()` discards any unknown keys
@@ -67,6 +85,7 @@ export const UserPreferencesSchema = z.object({
     .optional(),
   customThemeColors: CustomThemeColorsSchema.nullable().optional(),
   fontId: z.enum(ALLOWED_FONT_IDS).optional(),
+  activityFilters: ActivityFiltersSchema.optional(),
 }).strip();
 
 export type UserPreferences = z.infer<typeof UserPreferencesSchema>;

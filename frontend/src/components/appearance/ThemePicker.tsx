@@ -9,6 +9,7 @@
  */
 
 import { AlertTriangle, Check, Palette, Settings } from "lucide-react";
+import { useEffect } from "react";
 import {
   PRESET_THEMES,
   FONT_OPTIONS,
@@ -60,6 +61,23 @@ export default function ThemePicker({
   const { availableThemes } = useTheme();
   const selectableThemes =
     availableThemes.length > 0 ? availableThemes : PRESET_THEMES;
+
+  useEffect(() => {
+    const previewLinks = FONT_OPTIONS.flatMap((font) => {
+      const id = `theme-font-preview-${font.id}`;
+      if (document.getElementById(id)) return [];
+
+      const link = document.createElement("link");
+      link.id = id;
+      link.rel = "stylesheet";
+      link.href = font.googleImport;
+      document.head.appendChild(link);
+      return [link];
+    });
+
+    return () => previewLinks.forEach((link) => link.remove());
+  }, []);
+
   const previewCustom = (next: ThemePickerColors) => {
     if (!livePreview) return;
     applyThemeColors(
@@ -257,7 +275,12 @@ export default function ThemePicker({
                 }`}
                 aria-pressed={isSelected}
               >
-                <p className="text-sm font-medium text-charcoal">{font.name}</p>
+                <p
+                  className="text-sm font-medium text-charcoal"
+                  style={{ fontFamily: font.heading }}
+                >
+                  {font.name}
+                </p>
                 <p
                   className="text-xs text-warm-gray mt-1"
                   style={{ fontFamily: font.heading }}

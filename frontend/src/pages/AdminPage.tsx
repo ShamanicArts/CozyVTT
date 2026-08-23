@@ -369,7 +369,24 @@ export default function AdminPage() {
     setSettingsLoading(true);
     setSettingsError("");
     try {
-      setSettings(await adminService.getSettings());
+      const loadedSettings = await adminService.getSettings();
+      setSettings(loadedSettings);
+      setSettingsForm({
+        instanceName: loadedSettings.instanceName,
+        timezone: loadedSettings.timezone,
+        allowRegistration: loadedSettings.allowRegistration,
+        requireAdminApproval: loadedSettings.requireAdminApproval,
+      });
+      setAppearanceForm({
+        themeId: loadedSettings.themeId || "cozy-default",
+        fontId: loadedSettings.fontId || "default",
+        customColors: (loadedSettings.customThemeColors as any) || {
+          primary: "#4A5D4E",
+          accent: "#D4A574",
+          background: "#FFF9E6",
+          text: "#1F2937",
+        },
+      });
     } catch (err: unknown) {
       setSettingsError(
         err instanceof Error ? err.message : "Failed to load settings",
@@ -452,28 +469,6 @@ export default function AdminPage() {
       // non-fatal
     }
   }, []);
-
-  // Populate forms when settings load
-  useEffect(() => {
-    if (settings) {
-      setSettingsForm({
-        instanceName: settings.instanceName,
-        timezone: settings.timezone,
-        allowRegistration: settings.allowRegistration,
-        requireAdminApproval: settings.requireAdminApproval,
-      });
-      setAppearanceForm({
-        themeId: settings.themeId || "cozy-default",
-        fontId: settings.fontId || "default",
-        customColors: (settings.customThemeColors as any) || {
-          primary: "#4A5D4E",
-          accent: "#D4A574",
-          background: "#FFF9E6",
-          text: "#1F2937",
-        },
-      });
-    }
-  }, [settings]);
 
   // Lazy-load per tab
   useEffect(() => {
@@ -2663,9 +2658,15 @@ export default function AdminPage() {
               </p>
             </div>
 
-            {settingsLoading && !settings ? (
+            {!settings ? (
               <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 text-brand-ink animate-spin" />
+                {settingsError ? (
+                  <p className="text-sm text-danger-ink">
+                    {settingsError}
+                  </p>
+                ) : (
+                  <Loader2 className="w-8 h-8 text-brand-ink animate-spin" />
+                )}
               </div>
             ) : (
               <>
