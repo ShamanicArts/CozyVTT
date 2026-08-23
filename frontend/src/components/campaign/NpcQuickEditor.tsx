@@ -768,6 +768,7 @@ export default function NpcQuickEditor({ token, campaignId, mapId, onClose, onTo
                       <StatBlockEditor
                         statBlock={statBlock}
                         onChange={handleStatBlockChange}
+                        gameSystem={campaign?.gameSystem ?? null}
                       />
                     </div>
                   ) : (

@@ -7,18 +7,33 @@
 import { useState, useCallback } from 'react';
 import { Plus, X, ChevronDown, ChevronRight } from 'lucide-react';
 import type { NpcStatBlock } from '@/types';
-import { CHALLENGE_RATINGS } from '@/utils/rules/dnd5e';
+import { ABILITY_KEYS, CHALLENGE_RATINGS } from '@/utils/rules/dnd5e';
 import ProficiencyEditor from './ProficiencyEditor';
+import Pf2eProficiencyEditor from './Pf2eProficiencyEditor';
 import { recomputeDerivedBonuses } from './statBlockProficiency';
+import { readAttributeModifiers, setAttributeModifier } from './pf2eStatBlock';
 
 interface StatBlockEditorProps {
   statBlock: NpcStatBlock;
   onChange: (updated: NpcStatBlock) => void;
+  /**
+   * The campaign's game system. Decides how this stat block is interpreted:
+   * D&D 5e derives saves and skills from ability scores and Challenge Rating,
+   * while Pathfinder 2e stores printed modifiers against a creature Level.
+   * Defaults to 5e, which is the shape the stat block was designed around.
+   */
+  gameSystem?: string | null;
 }
 
 type ActionEntry = { name: string; description: string };
 
-export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditorProps) {
+export default function StatBlockEditor({
+  statBlock,
+  onChange,
+  gameSystem = 'DND_5E',
+}: StatBlockEditorProps) {
+  const isPf2e = gameSystem === 'PATHFINDER_2E';
+  const pf2eModifiers = readAttributeModifiers(statBlock);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['core', 'abilities']));
 
   const toggleSection = (section: string) => {
@@ -38,7 +53,7 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
   );
 
   // Ability scores and CR both feed every derived save and skill, so changing
-  // one has to move the others â€” raising Wisdom must raise Perception.
+  // one has to move the others — raising Wisdom must raise Perception.
   // Bonuses marked as overrides keep their value.
   const updateAbility = useCallback(
     (ab: keyof NpcStatBlock['abilities'], value: number) => {
@@ -70,7 +85,7 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
 
   return (
     <div className="space-y-1 text-xs">
-      {/* â”€â”€ Core Stats â”€â”€ */}
+      {/* ── Core Stats ── */}
       <SectionHeader title="Core Stats" section="core" expanded={isExpanded('core')} toggle={toggleSection} />
       {isExpanded('core') && (
         <div className="space-y-2 pl-1">
@@ -106,22 +121,42 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
                 className="input-cozy input-cozy-number w-full text-xs text-center"
               />
             </div>
-            <div>
-              <label className="text-[10px] text-ink-muted block mb-0.5" htmlFor="statblock-cr">CR</label>
-              {/* A select, not free text: CR drives the proficiency bonus, so a
-                  typo would silently change every derived save and skill. */}
-              <select
-                id="statblock-cr"
-                value={statBlock.challengeRating || ''}
-                onChange={(e) => updateChallengeRating(e.target.value)}
-                className="input-cozy w-full text-xs"
-              >
-                <option value="">â€”</option>
-                {CHALLENGE_RATINGS.map((cr) => (
-                  <option key={cr} value={cr}>{cr}</option>
-                ))}
-              </select>
-            </div>
+            {isPf2e ? (
+              <div>
+                {/* PF2e rates creatures by Level, not Challenge Rating. */}
+                <label className="text-[10px] text-ink-muted block mb-0.5" htmlFor="statblock-level">Level</label>
+                <input
+                  id="statblock-level"
+                  type="number"
+                  min={-1}
+                  max={30}
+                  value={statBlock.level ?? ''}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10);
+                    update({ level: Number.isFinite(parsed) ? parsed : undefined });
+                  }}
+                  placeholder="5"
+                  className="input-cozy input-cozy-number w-full text-xs text-center"
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="text-[10px] text-ink-muted block mb-0.5" htmlFor="statblock-cr">CR</label>
+                {/* A select, not free text: CR drives the proficiency bonus, so a
+                    typo would silently change every derived save and skill. */}
+                <select
+                  id="statblock-cr"
+                  value={statBlock.challengeRating || ''}
+                  onChange={(e) => updateChallengeRating(e.target.value)}
+                  className="input-cozy w-full text-xs"
+                >
+                  <option value="">—</option>
+                  {CHALLENGE_RATINGS.map((cr) => (
+                    <option key={cr} value={cr}>{cr}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="text-[10px] text-ink-muted block mb-0.5">XP</label>
               <input
@@ -145,9 +180,37 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
         </div>
       )}
 
-      {/* â”€â”€ Ability Scores â”€â”€ */}
-      <SectionHeader title="Ability Scores" section="abilities" expanded={isExpanded('abilities')} toggle={toggleSection} />
-      {isExpanded('abilities') && (
+      {/* ── Ability Scores ── */}
+      <SectionHeader
+        title={isPf2e ? 'Attribute Modifiers' : 'Ability Scores'}
+        section="abilities"
+        expanded={isExpanded('abilities')}
+        toggle={toggleSection}
+      />
+      {isExpanded('abilities') && isPf2e && (
+        // PF2e stat blocks print modifiers ("Str +4") with no score behind
+        // them, so these are entered directly rather than derived from a score.
+        <div className="grid grid-cols-6 gap-1.5 pl-1">
+          {ABILITY_KEYS.map((ab) => (
+            <div key={ab} className="text-center">
+              <label className="text-[9px] font-bold text-brand-ink uppercase block mb-0.5">{ab}</label>
+              <input
+                type="number"
+                aria-label={`${ab} modifier`}
+                min={-10}
+                max={20}
+                value={pf2eModifiers[ab]}
+                onChange={(e) => {
+                  const parsed = parseInt(e.target.value, 10);
+                  onChange(setAttributeModifier(statBlock, ab, Number.isFinite(parsed) ? parsed : 0));
+                }}
+                className="input-cozy input-cozy-number w-full text-xs text-center"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      {isExpanded('abilities') && !isPf2e && (
         <div className="grid grid-cols-6 gap-1.5 pl-1">
           {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map((ab) => (
             <div key={ab} className="text-center">
@@ -163,11 +226,16 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
         </div>
       )}
 
-      {/* â”€â”€ Saves & Skills â”€â”€ */}
+      {/* ── Saves & Skills ── */}
       <SectionHeader title="Saves & Skills" section="saves" expanded={isExpanded('saves')} toggle={toggleSection} />
-      {isExpanded('saves') && <ProficiencyEditor statBlock={statBlock} onChange={onChange} />}
+      {isExpanded('saves') &&
+        (isPf2e ? (
+          <Pf2eProficiencyEditor statBlock={statBlock} onChange={onChange} />
+        ) : (
+          <ProficiencyEditor statBlock={statBlock} onChange={onChange} />
+        ))}
 
-      {/* â”€â”€ Defenses â”€â”€ */}
+      {/* ── Defenses ── */}
       <SectionHeader title="Defenses & Senses" section="defenses" expanded={isExpanded('defenses')} toggle={toggleSection} />
       {isExpanded('defenses') && (
         <div className="pl-1 space-y-1.5">
@@ -192,7 +260,7 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
         </div>
       )}
 
-      {/* â”€â”€ Action Sections â”€â”€ */}
+      {/* ── Action Sections ── */}
       {(['traits', 'actions', 'bonusActions', 'reactions', 'legendaryActions'] as const).map((field) => {
         const titles: Record<string, string> = {
           traits: 'Traits',
@@ -215,7 +283,7 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
         );
       })}
 
-      {/* â”€â”€ Notes â”€â”€ */}
+      {/* ── Notes ── */}
       <SectionHeader title="Notes" section="notes" expanded={isExpanded('notes')} toggle={toggleSection} />
       {isExpanded('notes') && (
         <div className="pl-1">
@@ -232,7 +300,7 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
   );
 }
 
-// â”€â”€â”€ Sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Sub-components ──────────────────────────────────────────────
 
 function SectionHeader({
   title,

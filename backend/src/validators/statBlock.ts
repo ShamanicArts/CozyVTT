@@ -17,11 +17,26 @@
 import { z } from 'zod';
 import {
   MAX_ABILITY_SCORE,
-  MAX_BONUS_OVERRIDE,
   MAX_PROFICIENCY_BONUS,
   MIN_ABILITY_SCORE,
-  MIN_BONUS_OVERRIDE,
 } from '../utils/rules/dnd5e';
+
+/**
+ * Storage bounds for any save or skill bonus, across every game system.
+ *
+ * Deliberately wider than D&D 5e needs. 5e tops out around +28 (a CR 30
+ * creature with a +10 ability and expertise on a +9 proficiency bonus), but
+ * Pathfinder 2e runs much higher: its creature-building benchmarks put an
+ * extreme skill at +33 by level 15 and higher still beyond that. A 5e-shaped
+ * bound would silently reject legitimate high-level PF2e creatures.
+ *
+ * This is a backstop against absurd or hostile data, not a rules check. What
+ * stops a commoner being given a +30 save is the editor deriving the value from
+ * ability scores and challenge rating, plus the warning it shows on an override
+ * that its stat block cannot support.
+ */
+export const MIN_STORED_BONUS = -50;
+export const MAX_STORED_BONUS = 50;
 
 /**
  * Cap on how many saves or skills one stat block may carry.
@@ -56,7 +71,7 @@ export interface StatBlockSchemaOptions {
 const bonusRecordSchema = z
   .record(
     z.string().trim().min(1).max(MAX_KEY_LENGTH),
-    z.number().int().min(MIN_BONUS_OVERRIDE).max(MAX_BONUS_OVERRIDE)
+    z.number().int().min(MIN_STORED_BONUS).max(MAX_STORED_BONUS)
   )
   .refine((record) => Object.keys(record).length <= MAX_BONUS_ENTRIES, {
     message: `At most ${MAX_BONUS_ENTRIES} entries are allowed`,
@@ -122,6 +137,22 @@ export function createNpcStatBlockSchema(options: StatBlockSchemaOptions) {
         wis: z.number().int().min(MIN_ABILITY_SCORE).max(MAX_ABILITY_SCORE),
         cha: z.number().int().min(MIN_ABILITY_SCORE).max(MAX_ABILITY_SCORE),
       }),
+      // Attribute modifiers, for systems that print modifiers rather than
+      // scores. Pathfinder 2e stat blocks give "Str +4" with no underlying
+      // score, so deriving one would be an invention.
+      attributeModifiers: z
+        .object({
+          str: z.number().int().min(-10).max(20),
+          dex: z.number().int().min(-10).max(20),
+          con: z.number().int().min(-10).max(20),
+          int: z.number().int().min(-10).max(20),
+          wis: z.number().int().min(-10).max(20),
+          cha: z.number().int().min(-10).max(20),
+        })
+        .optional(),
+      // Creature level, for systems that rate creatures by level rather than
+      // challenge rating. PF2e runs -1 to 25.
+      level: z.number().int().min(-1).max(30).optional(),
       savingThrows: bonusRecordSchema.optional(),
       skills: bonusRecordSchema.optional(),
       proficiencies: proficienciesSchema.optional(),

@@ -51,6 +51,18 @@ describe('NpcStatBlockSchema', () => {
       expect(result.success).toBe(true);
     });
 
+    // The storage bound has to clear Pathfinder 2e, whose creature-building
+    // benchmarks put an extreme skill at +33 by level 15 and higher beyond
+    // that. A bound fitted to D&D 5e alone would reject real PF2e creatures.
+    it('accepts a high-level Pathfinder 2e modifier', () => {
+      const result = NpcStatBlockSchema.safeParse({
+        ...baseStatBlock,
+        level: 15,
+        skills: { Athletics: 33 },
+      });
+      expect(result.success).toBe(true);
+    });
+
     it('rejects a non-integer bonus', () => {
       const result = NpcStatBlockSchema.safeParse({
         ...baseStatBlock,
@@ -128,6 +140,30 @@ describe('NpcStatBlockSchema', () => {
         skills: { stealth: 6 },
       });
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('Pathfinder 2e fields', () => {
+    it('accepts printed attribute modifiers and a creature level', () => {
+      const result = NpcStatBlockSchema.safeParse({
+        ...baseStatBlock,
+        level: 5,
+        attributeModifiers: { str: 4, dex: 2, con: 3, int: -1, wis: 1, cha: 0 },
+        savingThrows: { fortitude: 11, reflex: 7, will: 9 },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('allows a negative attribute modifier', () => {
+      const result = NpcStatBlockSchema.safeParse({
+        ...baseStatBlock,
+        attributeModifiers: { str: -2, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects an absurd level', () => {
+      expect(NpcStatBlockSchema.safeParse({ ...baseStatBlock, level: 500 }).success).toBe(false);
     });
   });
 

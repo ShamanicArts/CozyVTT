@@ -28,7 +28,12 @@ import { useWebSocket } from '@/contexts/WebSocketContext';
 import api from '@/services/api';
 import type { CreatureTemplate, NpcStatBlock } from '@/types';
 import { TokenType, GameSystem, AssetType } from '@/types';
-import { StatBlockViewer, buildCreatureStatBlock, ProficiencyEditor } from './npc-stat-blocks';
+import {
+  StatBlockViewer,
+  buildCreatureStatBlock,
+  ProficiencyEditor,
+  Pf2eProficiencyEditor,
+} from './npc-stat-blocks';
 import { CHALLENGE_RATINGS } from '@/utils/rules/dnd5e';
 import Button from '@/components/ui/Button';
 import AssetPicker from '@/components/assets/AssetPicker';
@@ -878,6 +883,11 @@ function CreatureForm({ campaignId, gameSystem, editingCreature, onCreated, onEd
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Pathfinder 2e rates creatures by Level rather than Challenge Rating, and
+  // stores printed modifiers instead of deriving them.
+  const isPf2e = gameSystem === GameSystem.PATHFINDER_2E;
+  const [level, setLevel] = useState<number | undefined>(sb?.level);
+
   // The stat block the proficiency editor sees: live ability scores and CR from
   // this form (both feed the derived bonuses) plus the proficiency state above.
   const workingStatBlock: NpcStatBlock = {
@@ -886,6 +896,7 @@ function CreatureForm({ campaignId, gameSystem, editingCreature, onCreated, onEd
     speed,
     abilities: { str, dex, con, int, wis, cha },
     challengeRating: cr || undefined,
+    level,
     ...proficiencyFields,
   };
 
@@ -900,7 +911,7 @@ function CreatureForm({ campaignId, gameSystem, editingCreature, onCreated, onEd
 
     // Merge the proficiency edits over the source before assembling, so the
     // carry-forward below sees the current saves and skills.
-    const statBlock = buildCreatureStatBlock({ ...sb, ...proficiencyFields }, {
+    const statBlock = buildCreatureStatBlock({ ...sb, ...proficiencyFields, level }, {
       ac,
       hpMax,
       speed,
@@ -1025,22 +1036,41 @@ function CreatureForm({ campaignId, gameSystem, editingCreature, onCreated, onEd
             className="input-cozy w-full text-xs"
           />
         </div>
-        <div>
-          <label className="text-[10px] text-stone-gray block mb-0.5" htmlFor="creature-cr">CR</label>
-          {/* A select, not free text: CR determines the proficiency bonus, so a
-              typo would silently change every derived save and skill. */}
-          <select
-            id="creature-cr"
-            value={cr}
-            onChange={(e) => setCr(e.target.value)}
-            className="input-cozy w-full text-xs"
-          >
-            <option value="">—</option>
-            {CR_OPTIONS.map((option) => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
-        </div>
+        {isPf2e ? (
+          <div>
+            <label className="text-[10px] text-stone-gray block mb-0.5" htmlFor="creature-level">Level</label>
+            <input
+              id="creature-level"
+              type="number"
+              min={-1}
+              max={30}
+              value={level ?? ''}
+              onChange={(e) => {
+                const parsed = parseInt(e.target.value, 10);
+                setLevel(Number.isFinite(parsed) ? parsed : undefined);
+              }}
+              placeholder="5"
+              className="input-cozy w-full text-xs text-center"
+            />
+          </div>
+        ) : (
+          <div>
+            <label className="text-[10px] text-stone-gray block mb-0.5" htmlFor="creature-cr">CR</label>
+            {/* A select, not free text: CR determines the proficiency bonus, so a
+                typo would silently change every derived save and skill. */}
+            <select
+              id="creature-cr"
+              value={cr}
+              onChange={(e) => setCr(e.target.value)}
+              className="input-cozy w-full text-xs"
+            >
+              <option value="">—</option>
+              {CR_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className="text-[10px] text-stone-gray block mb-0.5">HP Max</label>
           <input
@@ -1092,16 +1122,29 @@ function CreatureForm({ campaignId, gameSystem, editingCreature, onCreated, onEd
           SRD creature used to delete them. */}
       <div>
         <label className="text-[10px] text-stone-gray block mb-1">Saving Throws &amp; Skills</label>
-        <ProficiencyEditor
-          statBlock={workingStatBlock}
-          onChange={(updated) =>
-            setProficiencyFields({
-              savingThrows: updated.savingThrows,
-              skills: updated.skills,
-              proficiencies: updated.proficiencies,
-            })
-          }
-        />
+        {isPf2e ? (
+          <Pf2eProficiencyEditor
+            statBlock={workingStatBlock}
+            onChange={(updated) =>
+              setProficiencyFields({
+                savingThrows: updated.savingThrows,
+                skills: updated.skills,
+                proficiencies: updated.proficiencies,
+              })
+            }
+          />
+        ) : (
+          <ProficiencyEditor
+            statBlock={workingStatBlock}
+            onChange={(updated) =>
+              setProficiencyFields({
+                savingThrows: updated.savingThrows,
+                skills: updated.skills,
+                proficiencies: updated.proficiencies,
+              })
+            }
+          />
+        )}
       </div>
 
       {/* Disposition */}

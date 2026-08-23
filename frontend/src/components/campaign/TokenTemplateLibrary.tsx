@@ -503,6 +503,9 @@ interface TemplateFormProps {
 function TemplateForm({ campaignId, editingTemplate, onCreated, onEdited, onCancel }: TemplateFormProps) {
   const isEdit = !!editingTemplate;
   const { data: serverConfig } = useServerConfigQuery();
+  // The stat block editor interprets a template differently per game system,
+  // so this form needs the campaign's system as well as its id.
+  const { campaign } = useCampaign();
 
   const [name, setName] = useState(editingTemplate?.name ?? '');
   const [type, setType] = useState<string>(editingTemplate?.type ?? 'object');
@@ -700,7 +703,11 @@ function TemplateForm({ campaignId, editingTemplate, onCreated, onEdited, onCanc
           </button>
           {showStatBlock && statBlock && (
             <div className="pl-1 pt-1">
-              <StatBlockEditor statBlock={statBlock} onChange={setStatBlock} />
+              <StatBlockEditor
+                statBlock={statBlock}
+                onChange={setStatBlock}
+                gameSystem={campaign?.gameSystem ?? null}
+              />
               <button
                 type="button"
                 onClick={() => { setStatBlock(null); setShowStatBlock(false); }}
