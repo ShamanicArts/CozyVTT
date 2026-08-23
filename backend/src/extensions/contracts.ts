@@ -159,7 +159,6 @@ export interface CoreExtensionGateway {
     approvalRequired: boolean;
     idempotencyRequired: boolean;
     openWorld: boolean;
-    operatingRoles: readonly ("GM" | "PLAYER" | "NPC" | "SYSTEM")[];
   }>;
   dispatch(
     commandId: string,

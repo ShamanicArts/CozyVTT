@@ -37,7 +37,6 @@ import {
 } from "./CapabilityGmCommands";
 
 export const PUBLIC_CAPABILITY_EXTENSION_ID = "cozyvtt.public-capabilities";
-export type CapabilityOperatingRole = "GM" | "PLAYER" | "NPC" | "SYSTEM";
 
 export interface CoreCapabilityCommand {
   id: string;
@@ -49,8 +48,6 @@ export interface CoreCapabilityCommand {
   requiresApproval: boolean;
   write: boolean;
   openWorld?: boolean;
-  /** Roles for which this capability is useful; domain authorization still wins. */
-  operatingRoles: readonly CapabilityOperatingRole[];
 }
 
 export interface PublicCoreCommandDescriptor extends CoreCapabilityCommand {
@@ -171,7 +168,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: actorOutput,
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "PLAYER", "SYSTEM"],
   },
   {
     id: PUBLIC_UPDATE_ACTOR,
@@ -224,7 +220,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: actorOutput,
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "PLAYER", "NPC"],
   },
   {
     id: PUBLIC_MOVE_ACTOR,
@@ -246,7 +241,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: actorOutput,
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "PLAYER", "NPC"],
   },
   {
     id: PUBLIC_SPEAK_AS_ACTOR,
@@ -268,7 +262,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: { type: "object" },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "PLAYER", "NPC"],
   },
   {
     id: PUBLIC_ROLL_AS_ACTOR,
@@ -292,7 +285,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: { type: "object" },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "PLAYER", "NPC"],
   },
   {
     id: PUBLIC_CREATE_CHARACTER,
@@ -328,7 +320,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "PLAYER"],
   },
   {
     id: PUBLIC_ADJUST_CHARACTER_HP,
@@ -358,7 +349,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "PLAYER"],
   },
   {
     id: PUBLIC_ADD_TO_COMBAT,
@@ -380,7 +370,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: combatOutput,
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM"],
   },
   {
     id: PUBLIC_REMOVE_FROM_COMBAT,
@@ -396,7 +385,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: combatOutput,
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM"],
   },
   ...[
     [
@@ -424,7 +412,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: combatOutput,
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM"] as const,
   })),
   {
     id: PUBLIC_ACTIVATE_MAP,
@@ -441,7 +428,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: { type: "object" },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "SYSTEM"],
   },
   ...[
     [
@@ -468,7 +454,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: { type: "array", items: wallSchema },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "SYSTEM"] as const,
   })),
   {
     id: PUBLIC_REMOVE_WALL,
@@ -484,7 +469,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: { type: "array", items: wallSchema },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "SYSTEM"],
   },
   {
     id: PUBLIC_APPLY_FOG,
@@ -517,7 +501,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: { type: "object" },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "SYSTEM"],
   },
   ...[
     [
@@ -544,7 +527,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: { type: "array", items: lightSchema },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "SYSTEM"] as const,
   })),
   {
     id: PUBLIC_REMOVE_LIGHT,
@@ -560,7 +542,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: { type: "array", items: lightSchema },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "SYSTEM"],
   },
   {
     id: PUBLIC_SET_LIGHTING,
@@ -580,7 +561,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: { type: "boolean" },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "SYSTEM"],
   },
   {
     id: PUBLIC_SET_ATMOSPHERE_AUDIO,
@@ -601,7 +581,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: { type: "object" },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "SYSTEM"],
   },
   {
     id: PUBLIC_SET_VIBE,
@@ -620,7 +599,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: { type: "object" },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "SYSTEM"],
   },
   {
     id: PUBLIC_START_SESSION,
@@ -636,7 +614,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: { type: "object" },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "SYSTEM"],
   },
   {
     id: PUBLIC_PAUSE_SESSION,
@@ -652,7 +629,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: { type: "object" },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "SYSTEM"],
   },
   {
     id: PUBLIC_RESUME_SESSION,
@@ -668,7 +644,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: { type: "object" },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "SYSTEM"],
   },
   {
     id: PUBLIC_END_SESSION,
@@ -689,7 +664,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     outputSchema: { type: "object" },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "SYSTEM"],
   },
   {
     id: IMPORT_REMOTE_MAP,
@@ -753,7 +727,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     requiresApproval: false,
     write: true,
     openWorld: true,
-    operatingRoles: ["GM", "SYSTEM"],
   },
   {
     id: PUBLIC_SET_ATMOSPHERE_EFFECT,
@@ -777,7 +750,6 @@ export const CORE_PUBLIC_CAPABILITIES: readonly CoreCapabilityCommand[] = [
     },
     requiresApproval: false,
     write: true,
-    operatingRoles: ["GM", "SYSTEM"],
   },
 ];
 

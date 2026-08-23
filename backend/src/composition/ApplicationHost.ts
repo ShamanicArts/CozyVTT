@@ -29,14 +29,12 @@ export interface CommandMetadata {
   };
   title?: string;
   description?: string;
-  operatingRoles?: readonly ("GM" | "PLAYER" | "NPC" | "SYSTEM")[];
   approvalPolicy?: "NEVER" | "RISK_BASED" | "ALWAYS";
   outputRedactionPolicy?: string;
 }
 export interface PublicCommandDescriptor extends CommandMetadata {
   title: string;
   description: string;
-  operatingRoles: readonly ("GM" | "PLAYER" | "NPC" | "SYSTEM")[];
   approvalPolicy: "NEVER" | "RISK_BASED" | "ALWAYS";
   outputRedactionPolicy: string;
 }
@@ -132,7 +130,6 @@ function publicCommandDescriptor(
     ...metadata,
     title: metadata.title ?? metadata.id,
     description: metadata.description ?? `Execute ${metadata.id}.`,
-    operatingRoles: metadata.operatingRoles ?? ["GM", "PLAYER", "NPC", "SYSTEM"],
     approvalPolicy:
       metadata.approvalPolicy ?? (metadata.risk === "HIGH" ? "RISK_BASED" : "NEVER"),
     outputRedactionPolicy: metadata.outputRedactionPolicy ?? "campaign-role-v1",

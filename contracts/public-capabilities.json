@@ -12,10 +12,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -145,11 +141,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM",
-        "PLAYER",
-        "NPC"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -268,11 +259,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM",
-        "PLAYER",
-        "NPC"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -332,11 +318,6 @@
       "permissions": [
         "WRITE",
         "EXECUTE"
-      ],
-      "operatingRoles": [
-        "GM",
-        "PLAYER",
-        "SYSTEM"
       ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
@@ -508,11 +489,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM",
-        "PLAYER",
-        "NPC"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -565,11 +541,6 @@
       "permissions": [
         "WRITE",
         "EXECUTE"
-      ],
-      "operatingRoles": [
-        "GM",
-        "PLAYER",
-        "NPC"
       ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
@@ -766,10 +737,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -819,10 +786,6 @@
       "permissions": [
         "WRITE",
         "EXECUTE"
-      ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
       ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
@@ -879,10 +842,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -923,10 +882,6 @@
       "permissions": [
         "WRITE",
         "EXECUTE"
-      ],
-      "operatingRoles": [
-        "GM",
-        "PLAYER"
       ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
@@ -999,10 +954,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM",
-        "PLAYER"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -1064,9 +1015,6 @@
       "permissions": [
         "WRITE",
         "EXECUTE"
-      ],
-      "operatingRoles": [
-        "GM"
       ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
@@ -1132,9 +1080,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -1182,9 +1127,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -1231,9 +1173,6 @@
       "permissions": [
         "WRITE",
         "EXECUTE"
-      ],
-      "operatingRoles": [
-        "GM"
       ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
@@ -1288,9 +1227,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -1338,10 +1274,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -1382,10 +1314,6 @@
       "permissions": [
         "WRITE",
         "EXECUTE"
-      ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
       ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
@@ -1453,10 +1381,6 @@
       "permissions": [
         "WRITE",
         "EXECUTE"
-      ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
       ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
@@ -1584,10 +1508,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -1676,10 +1596,6 @@
       "permissions": [
         "WRITE",
         "EXECUTE"
-      ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
       ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
@@ -1807,10 +1723,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -1855,10 +1767,6 @@
       "permissions": [
         "WRITE",
         "EXECUTE"
-      ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
       ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
@@ -1982,10 +1890,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -2072,10 +1976,6 @@
       "permissions": [
         "WRITE",
         "EXECUTE"
-      ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
       ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
@@ -2199,10 +2099,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -2251,10 +2147,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -2296,10 +2188,6 @@
         "WRITE",
         "EXECUTE"
       ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
-      ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",
       "idempotency": true,
@@ -2334,10 +2222,6 @@
       "permissions": [
         "WRITE",
         "EXECUTE"
-      ],
-      "operatingRoles": [
-        "GM",
-        "SYSTEM"
       ],
       "approvalPolicy": "NEVER",
       "outputRedactionPolicy": "campaign-role-v1",

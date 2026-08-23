@@ -274,7 +274,7 @@ export default function CampaignRoster() {
         aria-label="Campaign members"
       >
         <div className="mb-2.5 flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-secondary">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-brand-ink">
             Members
           </h2>
           {!loading && (

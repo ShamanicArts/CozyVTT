@@ -448,16 +448,17 @@ function CampaignPageContent() {
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <Button
               onClick={() => navigate("/dashboard")}
-              variant="ghost"
-              iconOnly
-              icon={ArrowLeft}
+              variant="secondary"
               aria-label="Back to dashboard"
-              className="min-h-9 min-w-9 flex-shrink-0"
-            ></Button>
+              className="flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center gap-2 !p-2 sm:min-h-9 sm:min-w-9 sm:!px-3"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </Button>
 
             <div className="hidden h-6 w-px bg-brand/20 sm:block" />
 
-            <h1 className="truncate font-body text-sm font-semibold text-ink sm:text-base">
+            <h1 className="truncate font-heading text-sm font-bold text-brand-ink sm:text-base">
               {campaign.name}
             </h1>
           </div>
@@ -665,7 +666,7 @@ function CampaignPageContent() {
                     <div>
                       <h2
                         id="mobile-actions-title"
-                        className="font-body text-base font-semibold text-ink"
+                        className="font-body text-base font-semibold text-brand-ink"
                       >
                         Campaign tools
                       </h2>

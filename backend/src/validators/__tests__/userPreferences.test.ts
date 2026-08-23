@@ -33,7 +33,7 @@ describe('UserPreferencesSchema', () => {
 
   test('accepts a well-formed extension themeId for availability validation', () => {
     const result = UserPreferencesSchema.safeParse({
-      themeId: 'cozyvtt.sample-lantern-lantern-night',
+      themeId: 'example.theme-package-night',
     });
     expect(result.success).toBe(true);
   });

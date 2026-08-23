@@ -111,7 +111,7 @@ describe("user mutation commands", () => {
     const repository = users();
     const themes = {
       hasActiveTheme: jest.fn(
-        async (id: string) => id === "cozyvtt.sample-lantern-lantern-night",
+        async (id: string) => id === "example.theme-package-night",
       ),
     };
     await expect(
@@ -120,10 +120,10 @@ describe("user mutation commands", () => {
         actorId: "user-1",
         isAdmin: false,
         userId: "user-1",
-        input: { themeId: "cozyvtt.sample-lantern-lantern-night" },
+        input: { themeId: "example.theme-package-night" },
       }),
     ).resolves.toMatchObject({
-      preferences: { themeId: "cozyvtt.sample-lantern-lantern-night" },
+      preferences: { themeId: "example.theme-package-night" },
     });
     await expect(
       new UpdateUserPreferences(repository, themes).execute({

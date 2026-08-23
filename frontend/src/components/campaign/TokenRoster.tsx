@@ -325,7 +325,7 @@ export default function TokenRoster({ onEditToken }: TokenRosterProps) {
         className="flex w-full items-center justify-between px-3 py-2.5 transition-colors hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand"
       >
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-ink-secondary">
+          <span className="text-xs font-semibold uppercase tracking-wider text-brand-ink">
             Map tokens
           </span>
           <span className="text-[11px] tabular-nums text-ink-muted">

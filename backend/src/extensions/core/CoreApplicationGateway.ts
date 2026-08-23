@@ -63,7 +63,6 @@ export class CoreApplicationGatewayFactory {
               idempotencyRequired,
               requiredPermissions,
               openWorld,
-              operatingRoles,
             }) => ({
               id,
               version,
@@ -76,7 +75,6 @@ export class CoreApplicationGatewayFactory {
               approvalRequired,
               idempotencyRequired,
               openWorld: openWorld === true,
-              operatingRoles,
             }),
           ),
       dispatch: async (commandId, input, options) => {

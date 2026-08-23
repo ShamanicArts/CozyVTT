@@ -1058,7 +1058,6 @@ function metadataForProductionCommand(id: string): CommandMetadata {
       description: descriptor.description,
       risk: descriptor.risk.toUpperCase() as CommandMetadata["risk"],
       permissions: descriptor.write ? ["WRITE", "EXECUTE"] : ["READ"],
-      operatingRoles: descriptor.operatingRoles,
       approvalPolicy: descriptor.approvalRequired ? "ALWAYS" : "NEVER",
       outputRedactionPolicy: "campaign-role-v1",
       idempotency: descriptor.idempotencyRequired,
@@ -1092,9 +1091,6 @@ function metadataForProductionCommand(id: string): CommandMetadata {
     description: `Execute the ${id} application capability.`,
     risk,
     permissions,
-    operatingRoles: administratorCommandIds.has(id)
-      ? ["SYSTEM"]
-      : ["GM", "PLAYER", "NPC", "SYSTEM"],
     approvalPolicy: risk === "HIGH" ? "RISK_BASED" : "NEVER",
     outputRedactionPolicy: "campaign-role-v1",
     idempotency: !readOnly,

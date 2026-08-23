@@ -99,7 +99,6 @@ export interface CoreCommandSummary {
   approvalRequired: boolean;
   idempotencyRequired: boolean;
   openWorld: boolean;
-  operatingRoles: readonly ("GM" | "PLAYER" | "NPC" | "SYSTEM")[];
 }
 
 export interface CoreExtensionGateway {

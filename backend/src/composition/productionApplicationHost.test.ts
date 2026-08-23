@@ -79,7 +79,6 @@ describe("production application host catalog", () => {
         title: descriptor.title,
         description: descriptor.description,
         risk: descriptor.risk.toUpperCase(),
-        operatingRoles: descriptor.operatingRoles,
         approvalPolicy: descriptor.approvalRequired ? "ALWAYS" : "NEVER",
         idempotency: descriptor.idempotencyRequired,
         inputSchema: descriptor.inputSchema,

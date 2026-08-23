@@ -11,9 +11,8 @@ administrators across preparation and live tabletop sessions. Game masters need
 to move quickly between maps, characters, creatures, scene tools, conversation,
 and session state without losing the table. Players need a focused view of the
 shared fiction, their characters, relevant mechanics, and current choices.
-External agents and plugins are first-class operators through the same
-application capabilities, while the ordinary interface remains designed for the
-humans playing the game.
+Extensions and external integrations use public application capabilities, while
+the ordinary interface remains designed for the humans playing the game.
 
 Desktop and laptop users need the complete authoring workspace. Tablet and
 mobile users need a genuine play surface for chat, rolls, character control,
