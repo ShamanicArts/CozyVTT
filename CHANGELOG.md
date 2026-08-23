@@ -72,6 +72,26 @@ migrations and should be evaluated on a backup before production deployment.
 - Corrected the DM guide's "Adding Combatants", which described typing a name, initiative and HP by hand rather than picking a token from the map
 - Corrected the README and user guide, which described admin logo/mascot/favicon **upload** as a shipped feature. The instance does honour custom images — they appear on the login page and across the app — but there is no upload screen yet, so the guide now explains how to change branding today (replace the images in `frontend/public/` and rebuild, or set the URLs through the settings API). The upload UI remains on the roadmap
 
+### Upgrading from 1.1.2
+
+`docker compose up -d --build` is all that is required — **no database migration, and no configuration changes.** Creature stat blocks are stored as JSON and every new field is optional, so existing creatures, tokens, token templates and campaign archives load unchanged.
+
+Your existing creatures keep their exact numbers. CozyVTT works backwards from each stored bonus to show the right proficiency checkboxes, so an SRD Goblin opens already showing Stealth as expertise at its printed +6 without anything being rewritten.
+
+One optional follow-up:
+
+- **Record proficiency on your seeded SRD creatures.** The editor infers it on the fly regardless, so this is a tidiness step rather than a fix. It writes the structure into the stored stat blocks so it doesn't have to be re-derived each time:
+
+  ```bash
+  # See what would change without writing anything
+  docker compose exec backend node dist/scripts/backfillCreatureProficiency.js --dry-run
+
+  # Apply it
+  docker compose exec backend node dist/scripts/backfillCreatureProficiency.js
+  ```
+
+  It only touches creatures with `source: 'srd'` — **your custom creatures are never read or written** — and it never changes a printed bonus, only records the reasoning behind it. Safe to run more than once; a second run reports everything as already done. Add `--verbose` for a per-creature breakdown. On a full SRD library expect roughly 212 of 322 creatures updated, with a handful of entries left as overrides where the published stat block doesn't follow the CR proficiency table (the Night Hag is one).
+
 ---
 
 ## [1.1.2] — 2026-08-21

@@ -405,7 +405,7 @@ Expand a template in the library and click **Place on Map** to create a new toke
 
 Click **Edit** on any template to modify its properties. Click **Delete** to remove it permanently.
 
-For **NPC-type templates**, the edit form includes the full stat block editor — AC, ability scores, saves, skills, traits, actions, bonus actions, reactions, and legendary actions — so you can build a complete monster once and reuse it across maps and campaigns. The right-click NPC roll picker (see [Rolling for NPC Tokens](#rolling-for-npc-tokens)) reads from the same stat block, so a template with a well-filled-in action list gets clickable attack and damage rolls automatically.
+For **NPC-type templates**, the edit form includes the full stat block editor — AC, ability scores, saves, skills, traits, actions, bonus actions, reactions, and legendary actions — so you can build a complete monster once and reuse it across maps and campaigns. Saves and skills work exactly as they do in the Creature Library: tick what the creature is proficient in and the bonus is derived from its ability scores and Challenge Rating (see [Saving Throws and Skills](#saving-throws-and-skills)). The right-click NPC roll picker (see [Rolling for NPC Tokens](#rolling-for-npc-tokens)) reads from the same stat block, so a template with a well-filled-in action list gets clickable attack and damage rolls automatically.
 
 ### Copying Templates to Another Campaign
 
