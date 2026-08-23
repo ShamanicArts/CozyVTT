@@ -220,6 +220,132 @@ describe('Creature template routes', () => {
     });
   });
 
+  describe('GET / — game system filtering', () => {
+    // A Call of Cthulhu table has no use for D&D monsters in its browse list,
+    // but the filter has to let system-agnostic creatures through or a campaign
+    // could lose sight of its own content.
+    let dndId: string;
+    let cocId: string;
+    let agnosticId: string;
+
+    beforeAll(async () => {
+      const made = await prisma.creatureTemplate.createMany({
+        data: [
+          {
+            name: 'Filter Test Dragon',
+            source: 'srd',
+            gameSystem: GameSystem.DND_5E,
+            statBlock: commonerStatBlock,
+            campaignId: null,
+          },
+          {
+            name: 'Filter Test Deep One',
+            source: 'custom',
+            gameSystem: GameSystem.CALL_OF_CTHULHU_7E,
+            statBlock: commonerStatBlock,
+            campaignId: null,
+          },
+          {
+            name: 'Filter Test Anything',
+            source: 'custom',
+            gameSystem: null,
+            statBlock: commonerStatBlock,
+            campaignId: null,
+          },
+        ],
+      });
+      expect(made.count).toBe(3);
+
+      const rows = await prisma.creatureTemplate.findMany({
+        where: { name: { startsWith: 'Filter Test ' } },
+        select: { id: true, name: true },
+      });
+      dndId = rows.find((r) => r.name.endsWith('Dragon'))!.id;
+      cocId = rows.find((r) => r.name.endsWith('Deep One'))!.id;
+      agnosticId = rows.find((r) => r.name.endsWith('Anything'))!.id;
+    });
+
+    afterAll(async () => {
+      await prisma.creatureTemplate.deleteMany({
+        where: { id: { in: [dndId, cocId, agnosticId] } },
+      });
+    });
+
+    async function listNames(query: string): Promise<string[]> {
+      const res = await dmAgent.get(
+        `/api/campaigns/${campaignId}/creatures?limit=100&search=Filter Test ${query}`
+      );
+      expect(res.status).toBe(200);
+      return res.body.creatures.map((c: { name: string }) => c.name);
+    }
+
+    it('returns every system when no filter is given', async () => {
+      const names = await listNames('');
+      expect(names).toEqual(
+        expect.arrayContaining([
+          'Filter Test Dragon',
+          'Filter Test Deep One',
+          'Filter Test Anything',
+        ])
+      );
+    });
+
+    it('excludes other systems when filtered', async () => {
+      const res = await dmAgent.get(
+        `/api/campaigns/${campaignId}/creatures?limit=100&search=Filter Test &gameSystem=DND_5E`
+      );
+      const names = res.body.creatures.map((c: { name: string }) => c.name);
+
+      expect(names).toContain('Filter Test Dragon');
+      expect(names).not.toContain('Filter Test Deep One');
+    });
+
+    it('always includes creatures with no system recorded', async () => {
+      const res = await dmAgent.get(
+        `/api/campaigns/${campaignId}/creatures?limit=100&search=Filter Test &gameSystem=DND_5E`
+      );
+      const names = res.body.creatures.map((c: { name: string }) => c.name);
+
+      expect(names).toContain('Filter Test Anything');
+    });
+
+    it('filters to a non-5e system correctly', async () => {
+      const res = await dmAgent.get(
+        `/api/campaigns/${campaignId}/creatures?limit=100&search=Filter Test &gameSystem=CALL_OF_CTHULHU_7E`
+      );
+      const names = res.body.creatures.map((c: { name: string }) => c.name);
+
+      expect(names).toContain('Filter Test Deep One');
+      expect(names).toContain('Filter Test Anything');
+      expect(names).not.toContain('Filter Test Dragon');
+    });
+
+    it('still applies the campaign visibility scope alongside the system filter', async () => {
+      // A creature belonging to another campaign must not appear even when its
+      // system matches — the two scopes are ANDed, not merged into one OR.
+      const otherCampaign = await createTestCampaign(dmId, { gameSystem: GameSystem.DND_5E });
+      const hidden = await prisma.creatureTemplate.create({
+        data: {
+          name: 'Filter Test Hidden',
+          source: 'custom',
+          gameSystem: GameSystem.DND_5E,
+          statBlock: commonerStatBlock,
+          campaignId: otherCampaign.id,
+        },
+      });
+
+      const res = await dmAgent.get(
+        `/api/campaigns/${campaignId}/creatures?limit=100&search=Filter Test &gameSystem=DND_5E`
+      );
+      const names = res.body.creatures.map((c: { name: string }) => c.name);
+
+      expect(names).not.toContain('Filter Test Hidden');
+
+      await prisma.creatureTemplate.delete({ where: { id: hidden.id } });
+      await cleanupCampaigns([otherCampaign.id]);
+    });
+  });
+
   describe('SRD creatures stay read-only', () => {
     let srdId: string;
 

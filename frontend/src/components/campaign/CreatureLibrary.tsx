@@ -35,6 +35,7 @@ import {
   Pf2eProficiencyEditor,
 } from './npc-stat-blocks';
 import { CHALLENGE_RATINGS } from '@/utils/rules/dnd5e';
+import { GAME_SYSTEM_SHORT_LABELS } from '@/constants/game-systems';
 import Button from '@/components/ui/Button';
 import AssetPicker from '@/components/assets/AssetPicker';
 import { extractAssetId } from '@/utils/assetUrl';
@@ -76,6 +77,15 @@ export default function CreatureLibrary({ isOpen, onClose }: CreatureLibraryProp
   const [sourceFilter, setSourceFilter] = useState('');
   const [crFilter, setCrFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  /**
+   * Whether to limit the library to this campaign's game system.
+   *
+   * Defaults to doing so: a Call of Cthulhu table has no use for 322 D&D
+   * monsters in its browse list. It stays a toggle rather than a hard rule
+   * because only D&D 5e ships SRD content, so a DM running anything else may
+   * legitimately want to borrow a stat block as a starting point.
+   */
+  const [matchGameSystem, setMatchGameSystem] = useState(true);
 
   // ── Data state ──
   const [creatures, setCreatures] = useState<CreatureTemplate[]>([]);
@@ -118,6 +128,9 @@ export default function CreatureLibrary({ isOpen, onClose }: CreatureLibraryProp
         search: searchQuery || undefined,
         source: sourceFilter || undefined,
         cr: crFilter || undefined,
+        // A campaign with no system set has nothing to match against, so it
+        // always sees everything.
+        gameSystem: matchGameSystem ? (campaign.gameSystem ?? undefined) : undefined,
         limit: LIMIT,
         offset: newOffset,
       });
@@ -132,7 +145,7 @@ export default function CreatureLibrary({ isOpen, onClose }: CreatureLibraryProp
     } finally {
       setIsLoading(false);
     }
-  }, [campaign, searchQuery, sourceFilter, crFilter, offset]);
+  }, [campaign, searchQuery, sourceFilter, crFilter, matchGameSystem, offset]);
 
   // Fetch on open and when filters change
   useEffect(() => {
@@ -382,26 +395,42 @@ export default function CreatureLibrary({ isOpen, onClose }: CreatureLibraryProp
 
               {/* Filter controls */}
               {showFilters && (
-                <div className="flex gap-2">
-                  <select
-                    value={sourceFilter}
-                    onChange={(e) => setSourceFilter(e.target.value)}
-                    className="input-cozy text-xs flex-1"
-                  >
-                    {SOURCE_FILTERS.map((f) => (
-                      <option key={f.value} value={f.value}>{f.label}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={crFilter}
-                    onChange={(e) => setCrFilter(e.target.value)}
-                    className="input-cozy text-xs w-20"
-                  >
-                    <option value="">All CR</option>
-                    {CR_OPTIONS.map((cr) => (
-                      <option key={cr} value={cr}>CR {cr}</option>
-                    ))}
-                  </select>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <select
+                      value={sourceFilter}
+                      onChange={(e) => setSourceFilter(e.target.value)}
+                      className="input-cozy text-xs flex-1"
+                    >
+                      {SOURCE_FILTERS.map((f) => (
+                        <option key={f.value} value={f.value}>{f.label}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={crFilter}
+                      onChange={(e) => setCrFilter(e.target.value)}
+                      className="input-cozy text-xs w-20"
+                    >
+                      <option value="">All CR</option>
+                      {CR_OPTIONS.map((cr) => (
+                        <option key={cr} value={cr}>CR {cr}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Only meaningful when the campaign has a system to match. */}
+                  {campaign?.gameSystem && (
+                    <select
+                      aria-label="Game system filter"
+                      value={matchGameSystem ? 'campaign' : 'all'}
+                      onChange={(e) => setMatchGameSystem(e.target.value === 'campaign')}
+                      className="input-cozy text-xs w-full"
+                    >
+                      <option value="campaign">
+                        {GAME_SYSTEM_SHORT_LABELS[campaign.gameSystem]} only (this campaign)
+                      </option>
+                      <option value="all">All game systems</option>
+                    </select>
+                  )}
                 </div>
               )}
 
@@ -413,6 +442,9 @@ export default function CreatureLibrary({ isOpen, onClose }: CreatureLibraryProp
                 >
                   <Plus className="w-3 h-3" /> Create Custom
                 </button>
+                {/* The label names the system it imports: this seeds the D&D 5e
+                    bestiary whatever the campaign's system, which was not
+                    obvious from a bare "Import SRD Creatures". */}
                 {srdCount === 0 && (
                   <button
                     onClick={handleSeedSrd}
@@ -422,7 +454,7 @@ export default function CreatureLibrary({ isOpen, onClose }: CreatureLibraryProp
                     {isSeeding ? (
                       <><Loader2 className="w-3 h-3 animate-spin" /> Seeding...</>
                     ) : (
-                      <><BookOpen className="w-3 h-3" /> Import SRD Creatures</>
+                      <><BookOpen className="w-3 h-3" /> Import D&amp;D 5e SRD</>
                     )}
                   </button>
                 )}
@@ -507,6 +539,22 @@ export default function CreatureLibrary({ isOpen, onClose }: CreatureLibraryProp
                   <p className="text-sm text-stone-gray/70">
                     {searchQuery ? 'No creatures match your search.' : 'No creatures in the library yet.'}
                   </p>
+                  {/* The likeliest reason a non-D&D campaign looks empty: only
+                      D&D 5e ships SRD content, and the library defaults to this
+                      campaign's system. Say so rather than looking broken. */}
+                  {!searchQuery && matchGameSystem && campaign?.gameSystem && (srdCount ?? 0) > 0 && (
+                    <p className="mt-2 text-xs text-stone-gray/60">
+                      Showing {GAME_SYSTEM_SHORT_LABELS[campaign.gameSystem]} creatures only.{' '}
+                      <button
+                        type="button"
+                        onClick={() => { setMatchGameSystem(false); setShowFilters(true); }}
+                        className="underline hover:text-brand-ink"
+                      >
+                        Show all game systems
+                      </button>{' '}
+                      to browse creatures from other systems.
+                    </p>
+                  )}
                   {!searchQuery && srdCount === 0 && (
                     <div className="mt-4 space-y-2">
                       <p className="text-xs text-stone-gray/60">
@@ -520,7 +568,7 @@ export default function CreatureLibrary({ isOpen, onClose }: CreatureLibraryProp
                         {isSeeding ? (
                           <><Loader2 className="w-3 h-3 animate-spin inline mr-1" /> Importing from Open5e...</>
                         ) : (
-                          'Import SRD Creatures'
+                          'Import D&D 5e SRD Creatures'
                         )}
                       </Button>
                       <p className="text-[10px] text-stone-gray/40">

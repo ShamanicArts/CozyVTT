@@ -47,6 +47,7 @@ migrations and should be evaluated on a backup before production deployment.
 - **Creature rolls now depend on the game system.** D&D 5e and Pathfinder 2e receive their own rules; Call of Cthulhu and Shadowrun use custom rolls instead of incorrect d20 formulas.
 - **Pathfinder 2e creatures use level and printed modifiers** rather than D&D Challenge Rating and derived ability modifiers.
 - **Challenge Rating is selected from a bounded list** because it drives derived proficiency bonuses.
+- **The Creature Library defaults to the campaign's game system** while keeping system-agnostic creatures visible and allowing an explicit all-systems view.
 - **Fog of war is now a box selection instead of a brush.** Drag over the map and the selection snaps to whole grid squares, showing its size (`4 × 7`) as you go, so you reveal exactly the area you meant — the circular brush it replaces caught neighbouring squares by accident, which on a fog tool means showing players a room they weren't supposed to see yet. Click a single square to toggle just that one, drag in any direction, and cancel a drag with Esc or a right-drag. **The brush and its size slider are gone.** Existing maps are unaffected: the fog data was always one cell per grid square, so revealed areas carry over exactly as they were
 
 ### Fixed

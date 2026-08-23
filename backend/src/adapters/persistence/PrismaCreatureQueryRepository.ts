@@ -14,7 +14,19 @@ export class PrismaCreatureQueryRepository implements CreatureQueryRepository {
 
   async list(input: CreatureListQuery) {
     const where: Prisma.CreatureTemplateWhereInput = {
-      OR: [{ campaignId: null }, { campaignId: input.campaignId }],
+      AND: [
+        { OR: [{ campaignId: null }, { campaignId: input.campaignId }] },
+        ...(input.gameSystem
+          ? [
+              {
+                OR: [
+                  { gameSystem: input.gameSystem as never },
+                  { gameSystem: null },
+                ],
+              },
+            ]
+          : []),
+      ],
       ...(input.search
         ? { name: { contains: input.search, mode: "insensitive" } }
         : {}),
@@ -22,7 +34,6 @@ export class PrismaCreatureQueryRepository implements CreatureQueryRepository {
       ...(input.challengeRating
         ? { challengeRating: input.challengeRating }
         : {}),
-      ...(input.gameSystem ? { gameSystem: input.gameSystem as never } : {}),
     };
     const [creatures, total] = await Promise.all([
       this.client.creatureTemplate.findMany({

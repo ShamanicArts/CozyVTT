@@ -242,8 +242,9 @@ Click the **Creatures** button in the campaign header to open the Creature Libra
 
 ### SRD Creature Seeding
 
-The first time you open the Creature Library in a new campaign, it may be empty. Click **Import SRD Creatures** to fetch the full D&D 5e SRD bestiary from Open5e. This is a one-time operation that populates the library with hundreds of ready-to-use creatures.
+The first time you open the Creature Library in a new campaign, it may be empty. Click **Import D&D 5e SRD** to fetch the full D&D 5e SRD bestiary from Open5e. This is a one-time operation that populates the library with hundreds of ready-to-use creatures.
 
+- The button names the system it imports because it always seeds **D&D 5e** content, whatever system your campaign uses. It stays available in any campaign — a D&D stat block is a reasonable starting point for homebrew — but you'll be importing D&D monsters
 - Seeding takes a few seconds — a progress indicator shows while it runs
 - SRD creatures are **global** (shared across all campaigns on the instance) and **read-only**
 - You can duplicate any SRD creature to create an editable custom version
@@ -256,7 +257,10 @@ The library supports:
 - **Search** — Type in the search bar to filter by creature name
 - **Source filter** — Filter by `srd` (imported) or `custom` (your creations)
 - **Challenge Rating filter** — Narrow down by CR
+- **Game system filter** — Defaults to your campaign's own system, so a Call of Cthulhu table isn't scrolling past 300 D&D monsters. Switch it to **All game systems** to browse everything — useful when you want to adapt a stat block from another system. Creatures saved without a system recorded always appear, whichever way this is set
 - **Pagination** — Results load in pages; scroll down and click "Load More" to fetch additional creatures
+
+> **Library looks empty in a non-D&D campaign?** Only D&D 5e ships SRD content, and the library defaults to your campaign's system. The empty state offers a one-click switch to **All game systems**.
 
 ### Favorites
 
