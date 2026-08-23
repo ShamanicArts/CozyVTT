@@ -28,6 +28,12 @@ const creature: CreatureTemplate = {
   updatedAt: new Date(),
 };
 
+const validStatBlock = {
+  ac: 10,
+  speed: "30 ft.",
+  abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+};
+
 function repository(): jest.Mocked<CreatureRepository> {
   return {
     find: jest.fn(async (_id) => creature),
@@ -55,7 +61,7 @@ describe("creature commands", () => {
         type: "creature.create",
         campaignId: "camp",
         userId: "u",
-        data: { name: "", statBlock: {} },
+        data: { name: "", statBlock: validStatBlock },
       }),
     ).rejects.toEqual(
       new CreatureError(400, "Validation Error", "Creature name is required"),
@@ -68,7 +74,7 @@ describe("creature commands", () => {
       type: "creature.create",
       campaignId: "camp",
       userId: "u",
-      data: { name: "  Orc  ", statBlock: { armorClass: 13 } },
+      data: { name: "  Orc  ", statBlock: validStatBlock },
     });
 
     expect(repo.create).toHaveBeenCalledWith(
@@ -90,7 +96,7 @@ describe("creature commands", () => {
       type: "creature.create",
       campaignId: "camp",
       userId: "u",
-      data: { name: "Orc", statBlock: {}, imageUrl: "asset-1" },
+      data: { name: "Orc", statBlock: validStatBlock, imageUrl: "asset-1" },
     });
     await new UpdateCreature(repo).execute({
       type: "creature.update",

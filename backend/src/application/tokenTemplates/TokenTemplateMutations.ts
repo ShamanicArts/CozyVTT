@@ -1,9 +1,14 @@
 import { randomUUID } from "crypto";
 import type {
+  JsonValue,
   NewTokenTemplate,
   TokenTemplate,
 } from "../../domain/tokenTemplates/TokenTemplate";
 import type { TokenTemplateRepository } from "../../ports/TokenTemplateRepository";
+import {
+  SaveTokenAsTemplateSchema,
+  UpdateTokenTemplateSchema,
+} from "../../validators/tokenTemplates";
 import type { Command, CommandHandler } from "../commands/CommandBus";
 
 export const UPDATE_TOKEN_TEMPLATE = "token-template.update" as const;
@@ -83,12 +88,23 @@ export class UpdateTokenTemplate implements CommandHandler<
   constructor(private readonly repository: TokenTemplateRepository) {}
 
   async execute(command: UpdateTokenTemplateCommand): Promise<TokenTemplate> {
+    const parsed = UpdateTokenTemplateSchema.safeParse(command.data);
+    if (!parsed.success) {
+      throw new TokenTemplateMutationError(
+        400,
+        "Validation Error",
+        parsed.error.issues.map((issue) => issue.message).join("; "),
+      );
+    }
     await ownedTemplate(
       this.repository,
       command.campaignId,
       command.templateId,
     );
-    return this.repository.update(command.templateId, command.data);
+    return this.repository.update(
+      command.templateId,
+      parsed.data as unknown as Partial<NewTokenTemplate>,
+    );
   }
 }
 
@@ -115,11 +131,25 @@ export class SaveTokenTemplate implements CommandHandler<
   constructor(private readonly repository: TokenTemplateRepository) {}
 
   execute(command: SaveTokenTemplateCommand): Promise<TokenTemplate> {
+    const parsed = SaveTokenAsTemplateSchema.safeParse(command.data);
+    if (!parsed.success) {
+      throw new TokenTemplateMutationError(
+        400,
+        "Validation Error",
+        parsed.error.issues.map((issue) => issue.message).join("; "),
+      );
+    }
     return this.repository.create({
-      ...command.data,
+      ...parsed.data,
       id: randomUUID(),
       campaignId: command.campaignId,
       createdById: command.userId,
+      imageUrl: parsed.data.imageUrl ?? null,
+      disposition: parsed.data.disposition ?? null,
+      notes: parsed.data.notes ?? null,
+      hp: parsed.data.hp ?? null,
+      statBlock: (parsed.data.statBlock as JsonValue | undefined) ?? null,
+      sightRadius: parsed.data.sightRadius ?? null,
     });
   }
 }

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { NpcStatBlockSchema } from './statBlock';
 
 // ── Shared sub-schemas ──────────────────────────────────────────────────────
 
@@ -13,45 +14,9 @@ const TokenHpSchema = z.object({
   temp: z.number().int().min(0).max(99999),
 });
 
-const NameDescPairSchema = z.object({
-  name: z.string().max(200),
-  description: z.string().max(5000),
-});
-
-const NpcStatBlockSchema = z.object({
-  ac: z.number().int().min(0).max(99),
-  // Optional: stat blocks created before HP tracking have neither field
-  hpMax: z.number().int().min(1).max(99999).optional(),
-  hitDice: z.string().max(50).optional(),
-  speed: z.string().max(200),
-  abilities: z.object({
-    str: z.number().int().min(0).max(30),
-    dex: z.number().int().min(0).max(30),
-    con: z.number().int().min(0).max(30),
-    int: z.number().int().min(0).max(30),
-    wis: z.number().int().min(0).max(30),
-    cha: z.number().int().min(0).max(30),
-  }),
-  savingThrows: z.record(z.string(), z.number()).optional(),
-  skills: z.record(z.string(), z.number()).optional(),
-  damageVulnerabilities: z.string().max(500).optional(),
-  damageResistances: z.string().max(500).optional(),
-  damageImmunities: z.string().max(500).optional(),
-  conditionImmunities: z.string().max(500).optional(),
-  senses: z.string().max(500).optional(),
-  languages: z.string().max(500).optional(),
-  challengeRating: z.string().max(10).optional(),
-  xp: z.number().int().min(0).optional(),
-  traits: z.array(NameDescPairSchema).max(50).optional(),
-  actions: z.array(NameDescPairSchema).max(50).optional(),
-  bonusActions: z.array(NameDescPairSchema).max(50).optional(),
-  reactions: z.array(NameDescPairSchema).max(50).optional(),
-  legendaryActions: z.array(NameDescPairSchema).max(50).optional(),
-  creatureType: z.string().max(200).optional(),
-  alignment: z.string().max(100).optional(),
-  gameSystem: z.string().max(50).optional(),
-  notes: z.string().max(5000).optional(),
-}).passthrough();
+// The stat block schema lives in ./statBlock so the creature routes, token
+// templates and campaign import all validate against one definition. The limits
+// applied here are unchanged from when this schema was defined locally.
 
 // ── Create / Update schemas ─────────────────────────────────────────────────
 

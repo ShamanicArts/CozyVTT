@@ -86,6 +86,25 @@ export enum TokenDisposition {
 export type TokenDisplayMode = "pog" | "top-down" | "full-art";
 
 /** NPC stat block — game-system-agnostic container for combat stats. */
+/**
+ * How proficient a creature is in a save or skill.
+ * 'custom' marks a bonus set explicitly rather than derived — used for homebrew
+ * and for published creatures whose printed value does not decompose into
+ * ability modifier plus a whole number of proficiency bonuses.
+ */
+export type ProficiencyLevel = 'none' | 'proficient' | 'expertise' | 'custom';
+
+/** Proficiency metadata backing a creature's derived save and skill bonuses. */
+export interface NpcProficiencies {
+  /**
+   * Overrides the proficiency bonus derived from challenge rating, for the rare
+   * published monster whose printed values do not match the CR table.
+   */
+  bonusOverride?: number;
+  saves?: Record<string, ProficiencyLevel>;
+  skills?: Record<string, ProficiencyLevel>;
+}
+
 export interface NpcStatBlock {
   /** Armor Class / Defense rating */
   ac: number;
@@ -107,10 +126,21 @@ export interface NpcStatBlock {
     wis: number;
     cha: number;
   };
-  /** Saving throw bonuses, e.g. { "dex": 5, "wis": 3 } */
+  /**
+   * Saving throw bonuses as totals, e.g. { "dex": 5, "wis": 3 }.
+   * These stay the value that is displayed and rolled. Where `proficiencies`
+   * has a matching entry the total is derived and rewritten on save; where it
+   * does not, the stored value is preserved verbatim (which is how every stat
+   * block created before proficiency tracking keeps working unchanged).
+   */
   savingThrows?: Record<string, number>;
-  /** Skill bonuses, e.g. { "perception": 5, "stealth": 7 } */
+  /** Skill bonuses as totals, e.g. { "perception": 5, "stealth": 7 }. See savingThrows. */
   skills?: Record<string, number>;
+  /**
+   * How each bonus above is arrived at. Optional throughout — absent means
+   * "legacy data, take the totals as given".
+   */
+  proficiencies?: NpcProficiencies;
   /** Damage vulnerabilities */
   damageVulnerabilities?: string;
   /** Damage resistances */

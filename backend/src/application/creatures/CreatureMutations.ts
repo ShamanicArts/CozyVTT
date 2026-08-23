@@ -7,6 +7,10 @@ import type {
 } from "../../domain/creatures/Creature";
 import type { CreatureRepository } from "../../ports/CreatureRepository";
 import { normalizeAssetUrl } from "../../utils/asset-urls";
+import {
+  CreateCreatureSchema,
+  UpdateCreatureSchema,
+} from "../../validators/creatures";
 import type { Command, CommandHandler } from "../commands/CommandBus";
 
 export const CREATE_CREATURE = "creature.create" as const;
@@ -111,26 +115,28 @@ export class CreateCreature implements CommandHandler<
   constructor(private readonly repository: CreatureRepository) {}
 
   async execute(command: CreateCreatureCommand): Promise<CreatureTemplate> {
-    if (typeof command.data.name !== "string" || !command.data.name.trim()) {
+    const parsed = CreateCreatureSchema.safeParse(command.data);
+    if (!parsed.success) {
       throw new CreatureError(
         400,
         "Validation Error",
-        "Creature name is required",
+        parsed.error.issues.map((issue) => issue.message).join("; "),
       );
     }
+    const data = parsed.data;
 
     return this.repository.create({
-      name: command.data.name.trim(),
-      gameSystem: command.data.gameSystem ?? null,
+      name: data.name,
+      gameSystem: data.gameSystem ?? null,
       source: "custom",
-      challengeRating: command.data.challengeRating ?? null,
-      creatureType: command.data.creatureType ?? null,
-      alignment: command.data.alignment ?? null,
-      imageUrl: normalizeAssetUrl(command.data.imageUrl, "tokens"),
-      statBlock: statBlockOrThrow(command.data.statBlock),
-      size: command.data.size ?? { width: 1, height: 1 },
-      disposition: command.data.disposition ?? "hostile",
-      displayMode: command.data.displayMode ?? "pog",
+      challengeRating: data.challengeRating ?? null,
+      creatureType: data.creatureType ?? null,
+      alignment: data.alignment ?? null,
+      imageUrl: normalizeAssetUrl(data.imageUrl, "tokens"),
+      statBlock: statBlockOrThrow(data.statBlock),
+      size: data.size ?? { width: 1, height: 1 },
+      disposition: data.disposition ?? "hostile",
+      displayMode: data.displayMode ?? "pog",
       createdById: command.userId,
       campaignId: command.campaignId,
     });
@@ -144,6 +150,14 @@ export class UpdateCreature implements CommandHandler<
   constructor(private readonly repository: CreatureRepository) {}
 
   async execute(command: UpdateCreatureCommand): Promise<CreatureTemplate> {
+    const parsed = UpdateCreatureSchema.safeParse(command.data);
+    if (!parsed.success) {
+      throw new CreatureError(
+        400,
+        "Validation Error",
+        parsed.error.issues.map((issue) => issue.message).join("; "),
+      );
+    }
     await ownedCustomCreature(
       this.repository,
       command.campaignId,
@@ -151,9 +165,9 @@ export class UpdateCreature implements CommandHandler<
       "edit",
     );
     return this.repository.update(command.creatureId, {
-      ...command.data,
-      ...(command.data.imageUrl !== undefined && {
-        imageUrl: normalizeAssetUrl(command.data.imageUrl, "tokens"),
+      ...parsed.data,
+      ...(parsed.data.imageUrl !== undefined && {
+        imageUrl: normalizeAssetUrl(parsed.data.imageUrl, "tokens"),
       }),
     });
   }

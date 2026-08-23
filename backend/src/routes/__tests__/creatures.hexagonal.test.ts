@@ -84,7 +84,21 @@ describe("creature HTTP adapter", () => {
       (
         await request(x)
           .post("/api/campaigns/camp/creatures")
-          .send({ name: "Orc", statBlock: {} })
+          .send({
+            name: "Orc",
+            statBlock: {
+              ac: 10,
+              speed: "30 ft.",
+              abilities: {
+                str: 10,
+                dex: 10,
+                con: 10,
+                int: 10,
+                wis: 10,
+                cha: 10,
+              },
+            },
+          })
       ).status,
     ).toBe(201);
     expect(
