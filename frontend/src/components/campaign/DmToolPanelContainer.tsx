@@ -9,6 +9,7 @@ import {
   useState,
   useRef,
   useCallback,
+  useEffect,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -36,16 +37,42 @@ export default function DmToolPanelContainer({
   } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  const clampPosition = useCallback(
+    (next: { x: number; y: number }) => {
+      const container = containerRef.current;
+      const panel = panelRef.current;
+      if (!container || !panel) return next;
+      return {
+        x: Math.max(0, Math.min(next.x, container.clientWidth - panel.offsetWidth)),
+        y: Math.max(0, Math.min(next.y, container.clientHeight - panel.offsetHeight)),
+      };
+    },
+    [containerRef],
+  );
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(() => {
+      setPosition((current) => (current ? clampPosition(current) : null));
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [clampPosition, containerRef]);
+
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
       const panel = panelRef.current;
-      if (!panel) return;
+      const container = containerRef.current;
+      if (!panel || !container) return;
       const rect = panel.getBoundingClientRect();
-      // Current position: use existing or derive from DOM
-      const curX = position?.x ?? rect.left;
-      const curY = position?.y ?? rect.top;
+      const containerRect = container.getBoundingClientRect();
+      // Keep dragged coordinates local to the map so workspace resizing moves
+      // the overlay with its owning surface.
+      const curX = position?.x ?? rect.left - containerRect.left;
+      const curY = position?.y ?? rect.top - containerRect.top;
       dragRef.current = {
         startX: e.clientX,
         startY: e.clientY,
@@ -62,38 +89,31 @@ export default function DmToolPanelContainer({
       if (!dragRef.current) return;
       const dx = e.clientX - dragRef.current.startX;
       const dy = e.clientY - dragRef.current.startY;
-      let newX = dragRef.current.origX + dx;
-      let newY = dragRef.current.origY + dy;
+      const newX = dragRef.current.origX + dx;
+      const newY = dragRef.current.origY + dy;
 
-      // Clamp within container bounds
-      const container = containerRef.current;
-      const panel = panelRef.current;
-      if (container && panel) {
-        const cRect = container.getBoundingClientRect();
-        const pRect = panel.getBoundingClientRect();
-        newX = Math.max(cRect.left, Math.min(newX, cRect.right - pRect.width));
-        newY = Math.max(cRect.top, Math.min(newY, cRect.bottom - pRect.height));
-      }
-
-      setPosition({ x: newX, y: newY });
+      setPosition(clampPosition({ x: newX, y: newY }));
     },
-    [containerRef],
+    [clampPosition],
   );
 
   const handlePointerUp = useCallback(() => {
     dragRef.current = null;
   }, []);
 
-  // When position is null (default), use absolute top-right placement via CSS.
-  // When position is set, use fixed positioning from the drag.
+  // Both default and dragged positions stay relative to the map container.
   const style: React.CSSProperties = position
-    ? { position: "fixed", left: position.x, top: position.y, zIndex: 30 }
+    ? { position: "absolute", left: position.x, top: position.y, zIndex: 30 }
     : { position: "absolute", top: "3.5rem", right: "0.5rem", zIndex: 30 };
 
   return (
     <div
       ref={panelRef}
-      style={style}
+      style={{
+        ...style,
+        width: "min(200px, calc(100% - 1rem))",
+        maxHeight: "calc(100% - 4rem)",
+      }}
       className="hidden max-h-[calc(100vh-5rem)] flex-col gap-1.5 overflow-y-auto lg:flex"
     >
       {/* Drag handle */}

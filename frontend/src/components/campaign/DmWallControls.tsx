@@ -105,7 +105,7 @@ export default function DmWallControls({
   };
 
   return (
-    <div className="flex flex-col gap-0 bg-stone-800/90 rounded-lg border border-warm-amber/20 min-w-[200px] overflow-hidden">
+    <div className="flex w-full min-w-0 flex-col gap-0 overflow-hidden rounded-lg border border-warm-amber/20 bg-stone-800/90">
       {/* Header with collapse toggle */}
       <div
         className="flex items-center justify-between px-2 py-1.5 cursor-pointer hover:bg-stone-700/50 select-none"
