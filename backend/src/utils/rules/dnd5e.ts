@@ -132,6 +132,50 @@ export function proficiencyBonusForLevel(level: number): number {
   return proficiencyBonusForCR(Math.min(level, 30));
 }
 
+/**
+ * Every challenge rating a 5e creature can have, in order.
+ *
+ * Offered as a fixed list rather than free text so a typo cannot silently
+ * change a creature's proficiency bonus — "1/3" or "one" would fall back to +2
+ * with no indication anything was wrong.
+ */
+export const CHALLENGE_RATINGS: readonly string[] = [
+  '0',
+  '1/8',
+  '1/4',
+  '1/2',
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  '11',
+  '12',
+  '13',
+  '14',
+  '15',
+  '16',
+  '17',
+  '18',
+  '19',
+  '20',
+  '21',
+  '22',
+  '23',
+  '24',
+  '25',
+  '26',
+  '27',
+  '28',
+  '29',
+  '30',
+];
+
 // ---------------------------------------------------------------------------
 // Skills
 // ---------------------------------------------------------------------------

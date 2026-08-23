@@ -127,7 +127,6 @@ export default function AssetGrid({
     return () => { cancelled = true; };
     // onAssetsLoaded is intentionally omitted: callers pass inline closures,
     // and re-fetching on every parent render would hammer the endpoint.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type, limit, controlled]);
 
   const filtered = search

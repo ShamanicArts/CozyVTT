@@ -9,6 +9,7 @@ import type { NpcStatBlock } from '@/types';
 import { GameSystem } from '@/types';
 import Dnd5eStatBlock from './Dnd5eStatBlock';
 import GenericStatBlock from './GenericStatBlock';
+import { formatSaveList, formatSkillList } from './statBlockProficiency';
 
 interface StatBlockViewerProps {
   statBlock: NpcStatBlock;
@@ -146,20 +147,10 @@ function StatBlockDetailLines({ statBlock, accentColor }: { statBlock: NpcStatBl
   const lines: Array<{ label: string; value: string }> = [];
 
   if (statBlock.savingThrows && Object.keys(statBlock.savingThrows).length > 0) {
-    lines.push({
-      label: 'Saving Throws',
-      value: Object.entries(statBlock.savingThrows)
-        .map(([k, v]) => `${k.charAt(0).toUpperCase() + k.slice(1)} +${v}`)
-        .join(', '),
-    });
+    lines.push({ label: 'Saving Throws', value: formatSaveList(statBlock.savingThrows) });
   }
   if (statBlock.skills && Object.keys(statBlock.skills).length > 0) {
-    lines.push({
-      label: 'Skills',
-      value: Object.entries(statBlock.skills)
-        .map(([k, v]) => `${k.charAt(0).toUpperCase() + k.slice(1)} +${v}`)
-        .join(', '),
-    });
+    lines.push({ label: 'Skills', value: formatSkillList(statBlock.skills) });
   }
   if (statBlock.damageVulnerabilities) lines.push({ label: 'Vulnerabilities', value: statBlock.damageVulnerabilities });
   if (statBlock.damageResistances) lines.push({ label: 'Resistances', value: statBlock.damageResistances });

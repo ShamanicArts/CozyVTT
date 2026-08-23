@@ -5,6 +5,7 @@
  */
 
 import type { NpcStatBlock } from '@/types';
+import { formatSaveList, formatSkillList } from './statBlockProficiency';
 
 interface Props {
   statBlock: NpcStatBlock;
@@ -62,17 +63,13 @@ export default function Dnd5eStatBlock({ statBlock, tokenName }: Props) {
         {statBlock.savingThrows && Object.keys(statBlock.savingThrows).length > 0 && (
           <div>
             <span className="font-semibold text-warning-ink">Saving Throws</span>{' '}
-            {Object.entries(statBlock.savingThrows)
-              .map(([k, v]) => `${k.charAt(0).toUpperCase() + k.slice(1)} +${v}`)
-              .join(', ')}
+            {formatSaveList(statBlock.savingThrows)}
           </div>
         )}
         {statBlock.skills && Object.keys(statBlock.skills).length > 0 && (
           <div>
             <span className="font-semibold text-warning-ink">Skills</span>{' '}
-            {Object.entries(statBlock.skills)
-              .map(([k, v]) => `${k.charAt(0).toUpperCase() + k.slice(1)} +${v}`)
-              .join(', ')}
+            {formatSkillList(statBlock.skills)}
           </div>
         )}
         {statBlock.damageVulnerabilities && (

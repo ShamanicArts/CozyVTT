@@ -1,4 +1,4 @@
-/**
+﻿/**
  * StatBlockEditor
  * DM inline editor for NPC stat blocks. Provides a compact form to edit
  * all stat block fields. Used inside the NpcQuickEditor panel.
@@ -7,6 +7,9 @@
 import { useState, useCallback } from 'react';
 import { Plus, X, ChevronDown, ChevronRight } from 'lucide-react';
 import type { NpcStatBlock } from '@/types';
+import { CHALLENGE_RATINGS } from '@/utils/rules/dnd5e';
+import ProficiencyEditor from './ProficiencyEditor';
+import { recomputeDerivedBonuses } from './statBlockProficiency';
 
 interface StatBlockEditorProps {
   statBlock: NpcStatBlock;
@@ -34,31 +37,26 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
     [statBlock, onChange]
   );
 
+  // Ability scores and CR both feed every derived save and skill, so changing
+  // one has to move the others â€” raising Wisdom must raise Perception.
+  // Bonuses marked as overrides keep their value.
   const updateAbility = useCallback(
     (ab: keyof NpcStatBlock['abilities'], value: number) => {
-      update({ abilities: { ...statBlock.abilities, [ab]: value } });
+      onChange(
+        recomputeDerivedBonuses({
+          ...statBlock,
+          abilities: { ...statBlock.abilities, [ab]: value },
+        })
+      );
     },
-    [statBlock.abilities, update]
+    [statBlock, onChange]
   );
 
-  const updateSave = useCallback(
-    (key: string, value: number | null) => {
-      const saves = { ...(statBlock.savingThrows || {}) };
-      if (value === null) delete saves[key];
-      else saves[key] = value;
-      update({ savingThrows: saves });
+  const updateChallengeRating = useCallback(
+    (cr: string) => {
+      onChange(recomputeDerivedBonuses({ ...statBlock, challengeRating: cr || undefined }));
     },
-    [statBlock.savingThrows, update]
-  );
-
-  const updateSkill = useCallback(
-    (key: string, value: number | null) => {
-      const skills = { ...(statBlock.skills || {}) };
-      if (value === null) delete skills[key];
-      else skills[key] = value;
-      update({ skills });
-    },
-    [statBlock.skills, update]
+    [statBlock, onChange]
   );
 
   const updateActionList = useCallback(
@@ -72,7 +70,7 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
 
   return (
     <div className="space-y-1 text-xs">
-      {/* ── Core Stats ── */}
+      {/* â”€â”€ Core Stats â”€â”€ */}
       <SectionHeader title="Core Stats" section="core" expanded={isExpanded('core')} toggle={toggleSection} />
       {isExpanded('core') && (
         <div className="space-y-2 pl-1">
@@ -109,14 +107,20 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
               />
             </div>
             <div>
-              <label className="text-[10px] text-ink-muted block mb-0.5">CR</label>
-              <input
-                type="text"
+              <label className="text-[10px] text-ink-muted block mb-0.5" htmlFor="statblock-cr">CR</label>
+              {/* A select, not free text: CR drives the proficiency bonus, so a
+                  typo would silently change every derived save and skill. */}
+              <select
+                id="statblock-cr"
                 value={statBlock.challengeRating || ''}
-                onChange={(e) => update({ challengeRating: e.target.value })}
-                placeholder="1/4"
+                onChange={(e) => updateChallengeRating(e.target.value)}
                 className="input-cozy w-full text-xs"
-              />
+              >
+                <option value="">â€”</option>
+                {CHALLENGE_RATINGS.map((cr) => (
+                  <option key={cr} value={cr}>{cr}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="text-[10px] text-ink-muted block mb-0.5">XP</label>
@@ -141,7 +145,7 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
         </div>
       )}
 
-      {/* ── Ability Scores ── */}
+      {/* â”€â”€ Ability Scores â”€â”€ */}
       <SectionHeader title="Ability Scores" section="abilities" expanded={isExpanded('abilities')} toggle={toggleSection} />
       {isExpanded('abilities') && (
         <div className="grid grid-cols-6 gap-1.5 pl-1">
@@ -159,26 +163,11 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
         </div>
       )}
 
-      {/* ── Saves & Skills ── */}
+      {/* â”€â”€ Saves & Skills â”€â”€ */}
       <SectionHeader title="Saves & Skills" section="saves" expanded={isExpanded('saves')} toggle={toggleSection} />
-      {isExpanded('saves') && (
-        <div className="pl-1 space-y-2">
-          <KeyValueEditor
-            label="Saving Throws"
-            entries={statBlock.savingThrows || {}}
-            onUpdate={(k, v) => updateSave(k, v)}
-            placeholder="e.g. dex"
-          />
-          <KeyValueEditor
-            label="Skills"
-            entries={statBlock.skills || {}}
-            onUpdate={(k, v) => updateSkill(k, v)}
-            placeholder="e.g. perception"
-          />
-        </div>
-      )}
+      {isExpanded('saves') && <ProficiencyEditor statBlock={statBlock} onChange={onChange} />}
 
-      {/* ── Defenses ── */}
+      {/* â”€â”€ Defenses â”€â”€ */}
       <SectionHeader title="Defenses & Senses" section="defenses" expanded={isExpanded('defenses')} toggle={toggleSection} />
       {isExpanded('defenses') && (
         <div className="pl-1 space-y-1.5">
@@ -203,7 +192,7 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
         </div>
       )}
 
-      {/* ── Action Sections ── */}
+      {/* â”€â”€ Action Sections â”€â”€ */}
       {(['traits', 'actions', 'bonusActions', 'reactions', 'legendaryActions'] as const).map((field) => {
         const titles: Record<string, string> = {
           traits: 'Traits',
@@ -226,7 +215,7 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
         );
       })}
 
-      {/* ── Notes ── */}
+      {/* â”€â”€ Notes â”€â”€ */}
       <SectionHeader title="Notes" section="notes" expanded={isExpanded('notes')} toggle={toggleSection} />
       {isExpanded('notes') && (
         <div className="pl-1">
@@ -243,7 +232,7 @@ export default function StatBlockEditor({ statBlock, onChange }: StatBlockEditor
   );
 }
 
-// ─── Sub-components ──────────────────────────────────────────────
+// â”€â”€â”€ Sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function SectionHeader({
   title,
@@ -268,70 +257,6 @@ function SectionHeader({
   );
 }
 
-function KeyValueEditor({
-  label,
-  entries,
-  onUpdate,
-  placeholder,
-}: {
-  label: string;
-  entries: Record<string, number>;
-  onUpdate: (key: string, value: number | null) => void;
-  placeholder: string;
-}) {
-  const [newKey, setNewKey] = useState('');
-
-  const handleAdd = () => {
-    const k = newKey.trim().toLowerCase();
-    if (k && !(k in entries)) {
-      onUpdate(k, 0);
-      setNewKey('');
-    }
-  };
-
-  return (
-    <div>
-      <label className="text-[10px] text-ink-muted block mb-0.5">{label}</label>
-      {Object.entries(entries).map(([key, val]) => (
-        <div key={key} className="flex items-center gap-1 mb-0.5">
-          <span className="text-[10px] text-ink-secondary w-20 capitalize">{key}</span>
-          <input
-            type="number"
-            value={val}
-            onChange={(e) => onUpdate(key, parseInt(e.target.value, 10) || 0)}
-            className="input-cozy input-cozy-number w-14 text-xs text-center"
-          />
-          <button
-            type="button"
-            onClick={() => onUpdate(key, null)}
-            className="p-0.5 text-ink-muted hover:text-danger-ink transition-colors"
-            title="Remove"
-          >
-            <X className="w-3 h-3" />
-          </button>
-        </div>
-      ))}
-      <div className="flex items-center gap-1 mt-0.5">
-        <input
-          type="text"
-          value={newKey}
-          onChange={(e) => setNewKey(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-          placeholder={placeholder}
-          className="input-cozy flex-1 text-xs"
-        />
-        <button
-          type="button"
-          onClick={handleAdd}
-          className="p-1 text-brand-ink hover:text-brand-ink/80 transition-colors"
-          title="Add"
-        >
-          <Plus className="w-3 h-3" />
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function ActionListEditor({
   items,

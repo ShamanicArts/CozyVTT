@@ -58,13 +58,17 @@ function orUndefined<T>(list: T[]): T[] | undefined {
  *
  * @param source The stat block being edited, or undefined when creating a new
  *               creature. Fields the form does not manage are taken from here.
+ *               Accepts a partial so a caller can merge in edits made through a
+ *               sub-editor (saves and skills) before assembling the whole block;
+ *               every required field comes from `form`, so the result is always
+ *               complete regardless of how sparse the source is.
  * @param form   The form-managed values.
  *
  * Keys set to `undefined` are omitted by JSON serialisation, so clearing an
  * input genuinely removes the field instead of leaving a stale value behind.
  */
 export function buildCreatureStatBlock(
-  source: NpcStatBlock | undefined,
+  source: Partial<NpcStatBlock> | undefined,
   form: CreatureFormFields
 ): NpcStatBlock {
   return {

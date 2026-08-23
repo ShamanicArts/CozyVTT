@@ -28,7 +28,8 @@ import { useWebSocket } from '@/contexts/WebSocketContext';
 import api from '@/services/api';
 import type { CreatureTemplate, NpcStatBlock } from '@/types';
 import { TokenType, GameSystem, AssetType } from '@/types';
-import { StatBlockViewer, buildCreatureStatBlock } from './npc-stat-blocks';
+import { StatBlockViewer, buildCreatureStatBlock, ProficiencyEditor } from './npc-stat-blocks';
+import { CHALLENGE_RATINGS } from '@/utils/rules/dnd5e';
 import Button from '@/components/ui/Button';
 import AssetPicker from '@/components/assets/AssetPicker';
 import { extractAssetId } from '@/utils/assetUrl';
@@ -37,12 +38,10 @@ import { extractAssetId } from '@/utils/assetUrl';
 // Constants
 // ============================================
 
-const CR_OPTIONS = [
-  '0', '1/8', '1/4', '1/2', '1', '2', '3', '4', '5',
-  '6', '7', '8', '9', '10', '11', '12', '13', '14', '15',
-  '16', '17', '18', '19', '20', '21', '22', '23', '24',
-  '25', '26', '27', '28', '29', '30',
-];
+// Challenge ratings come from the shared rules module so the filter dropdown
+// and the creature form cannot drift apart — and so a CR the form offers is
+// always one the proficiency-bonus table recognises.
+const CR_OPTIONS = CHALLENGE_RATINGS;
 
 const SOURCE_FILTERS = [
   { value: '', label: 'All Sources' },
@@ -865,8 +864,30 @@ function CreatureForm({ campaignId, gameSystem, editingCreature, onCreated, onEd
   const [senses, setSenses] = useState(sb?.senses ?? '');
   const [languages, setLanguages] = useState(sb?.languages ?? '');
 
+  // Saves, skills and their proficiency metadata are edited together by
+  // ProficiencyEditor, which works on a whole stat block. Holding just those
+  // three fields here keeps the rest of the form's flat state untouched.
+  const [proficiencyFields, setProficiencyFields] = useState<
+    Pick<NpcStatBlock, 'savingThrows' | 'skills' | 'proficiencies'>
+  >({
+    savingThrows: sb?.savingThrows,
+    skills: sb?.skills,
+    proficiencies: sb?.proficiencies,
+  });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // The stat block the proficiency editor sees: live ability scores and CR from
+  // this form (both feed the derived bonuses) plus the proficiency state above.
+  const workingStatBlock: NpcStatBlock = {
+    ac,
+    hpMax,
+    speed,
+    abilities: { str, dex, con, int, wis, cha },
+    challengeRating: cr || undefined,
+    ...proficiencyFields,
+  };
 
 
   const handleSubmit = async () => {
@@ -877,7 +898,9 @@ function CreatureForm({ campaignId, gameSystem, editingCreature, onCreated, onEd
     setIsSubmitting(true);
     setFormError(null);
 
-    const statBlock = buildCreatureStatBlock(sb, {
+    // Merge the proficiency edits over the source before assembling, so the
+    // carry-forward below sees the current saves and skills.
+    const statBlock = buildCreatureStatBlock({ ...sb, ...proficiencyFields }, {
       ac,
       hpMax,
       speed,
@@ -1003,14 +1026,20 @@ function CreatureForm({ campaignId, gameSystem, editingCreature, onCreated, onEd
           />
         </div>
         <div>
-          <label className="text-[10px] text-stone-gray block mb-0.5">CR</label>
-          <input
-            type="text"
+          <label className="text-[10px] text-stone-gray block mb-0.5" htmlFor="creature-cr">CR</label>
+          {/* A select, not free text: CR determines the proficiency bonus, so a
+              typo would silently change every derived save and skill. */}
+          <select
+            id="creature-cr"
             value={cr}
             onChange={(e) => setCr(e.target.value)}
-            placeholder="1/4"
             className="input-cozy w-full text-xs"
-          />
+          >
+            <option value="">—</option>
+            {CR_OPTIONS.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="text-[10px] text-stone-gray block mb-0.5">HP Max</label>
@@ -1056,6 +1085,23 @@ function CreatureForm({ campaignId, gameSystem, editingCreature, onCreated, onEd
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Saves & skills — derived from the ability scores and CR above. This
+          form had no fields for these at all, which is why editing a duplicated
+          SRD creature used to delete them. */}
+      <div>
+        <label className="text-[10px] text-stone-gray block mb-1">Saving Throws &amp; Skills</label>
+        <ProficiencyEditor
+          statBlock={workingStatBlock}
+          onChange={(updated) =>
+            setProficiencyFields({
+              savingThrows: updated.savingThrows,
+              skills: updated.skills,
+              proficiencies: updated.proficiencies,
+            })
+          }
+        />
       </div>
 
       {/* Disposition */}
