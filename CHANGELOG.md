@@ -34,6 +34,7 @@ migrations and should be evaluated on a backup before production deployment.
 - **Ping a location on the map with Tab.** Put the cursor where you mean and press Tab: a dot appears with rings radiating out of it, in your own colour and labelled with your name, visible to everyone at the table for about a second and a half. Every player gets a consistent colour automatically — there is nothing to configure and no migration. Tab only pings when the cursor is over the map and you aren't typing or tabbing between controls, so keyboard navigation is unaffected. Pings are drawn above dynamic lighting so pointing into an unlit area works, and repeat pings are rate-limited server-side. Under the OS *reduce motion* setting the rings hold still and simply fade
 - **The acting combatant's token is highlighted on the map.** During initiative, the token whose turn it is gets a pulsing gold ring, visible to everyone at the table — so it's obvious which of five identical goblins is up, without counting rows in the tracker. The ring is a gold band edged in black rather than a single colour, so it stays legible over any map image, light or dark. It respects the same visibility rules as the token itself: a creature hidden from players, or standing in unexplored fog, shows no ring on their screens, so an ambusher's position is never given away by their turn coming around. The operating system's *reduce motion* setting turns off the pulse and keeps the ring
 - **Hovering an initiative row highlights that token on the map, and vice versa.** Pointing at a name in the turn order draws a thin white outline around its token and lifts it slightly — quieter than the turn ring, and both can show at once. Hovering a token on the map tints its row in the tracker the same way. Works for players as well as the DM, is purely a pointer (it never selects or moves anything), and respects the same visibility rules, so hovering a hidden creature's row doesn't give its position away to players
+- **Creature saving throws and skills are worked out for you.** Choose proficiency or expertise and CozyVTT derives bonuses from ability scores and Challenge Rating while preserving custom overrides and existing printed values.
 
 ### Changed
 
@@ -43,6 +44,9 @@ migrations and should be evaluated on a backup before production deployment.
 - **Core frontend features use host-owned workspace, rendering, and theme
   contribution contracts.** Extensions can compose with the interface without
   replacing the campaign shell or bypassing shared lifecycle rules.
+- **Creature rolls now depend on the game system.** D&D 5e and Pathfinder 2e receive their own rules; Call of Cthulhu and Shadowrun use custom rolls instead of incorrect d20 formulas.
+- **Pathfinder 2e creatures use level and printed modifiers** rather than D&D Challenge Rating and derived ability modifiers.
+- **Challenge Rating is selected from a bounded list** because it drives derived proficiency bonuses.
 - **Fog of war is now a box selection instead of a brush.** Drag over the map and the selection snaps to whole grid squares, showing its size (`4 × 7`) as you go, so you reveal exactly the area you meant — the circular brush it replaces caught neighbouring squares by accident, which on a fog tool means showing players a room they weren't supposed to see yet. Click a single square to toggle just that one, drag in any direction, and cancel a drag with Esc or a right-drag. **The brush and its size slider are gone.** Existing maps are unaffected: the fog data was always one cell per grid square, so revealed areas carry over exactly as they were
 
 ### Fixed
@@ -53,10 +57,16 @@ migrations and should be evaluated on a backup before production deployment.
 - **Creature token images now use the real serving route** instead of the nonexistent `/api/assets/{id}/file` path.
 - **Changing a token's image updates the map immediately for everyone** instead of reusing a stale image cached only by token ID.
 - **The NPC Quick Editor header now handles long token names** without pushing its close button off-screen.
+- **Editing a creature preserves unrepresented stat-block fields,** including saves, skills, XP, and notes.
+- **Creature, token-template, and campaign-import writes reject impossible stat-block values.**
+- **Negative bonuses and multi-word skill labels now render correctly.**
 - **The initiative tracker no longer freezes after a WebSocket reconnect.** Its listener was attached to a socket instance that gets rebuilt on reconnect, so after a dropped connection the tracker silently kept showing whatever turn was current when the link went down. Combat state is now mirrored into the shared session store by a reconnect-aware subscription, and re-synced from the server each time the socket comes back
 
 ### Documentation
 
+- `docs/GAME_SYSTEMS.md` now documents creature-system integration and the distinction between derived and printed values.
+- The API reference documents creature stat-block validation, proficiency metadata, PF2e modifiers, and level.
+- The DM guide documents creature proficiency, system-specific rolls, and the proficiency-by-CR table.
 - Corrected the socket API reference for initiative, which still described the original name-based combatants (`{ name, initiative, hp? }`) years after they became token-based. Documented the `CombatState` payload while there
 - Corrected the DM guide's "Adding Combatants", which described typing a name, initiative and HP by hand rather than picking a token from the map
 - Corrected the README and user guide, which described admin logo/mascot/favicon **upload** as a shipped feature. The instance does honour custom images — they appear on the login page and across the app — but there is no upload screen yet, so the guide now explains how to change branding today (replace the images in `frontend/public/` and rebuild, or set the URLs through the settings API). The upload UI remains on the roadmap

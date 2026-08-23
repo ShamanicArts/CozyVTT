@@ -38,7 +38,16 @@ _Nothing in progress._
 
 ### Polish / tech debt
 
-- _(add items here as they come up)_
+- **Call of Cthulhu 7e and Shadowrun 6e creature stat blocks.** Creature rolls are
+  now dispatched per game system, and these two deliberately offer nothing rather
+  than the wrong dice — a d100 game and a dice-pool game have no d20 rolls,
+  ability modifiers or proficiency bonus to compute from. Their NPC tokens fall
+  back to the free-form custom roll input, which works but leaves the DM doing
+  the arithmetic. Doing this properly means a per-system creature shape:
+  characteristics and percentile skill values for CoC, attribute + skill dice
+  pools and limits for Shadowrun, plus their own stat block editors and viewers.
+  Neither has SRD seed data to test against. See the "Creature and NPC stat
+  blocks" section of `docs/GAME_SYSTEMS.md` for where the branch points are.
 
 ---
 

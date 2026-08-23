@@ -9,21 +9,23 @@ CozyVTT currently ships four systems: **D&D 5e**, **Pathfinder 2e**, **Call of C
 ## Table of Contents
 
 1. [How a game system is wired](#how-a-game-system-is-wired)
-2. [Reference systems](#reference-systems)
-3. [Naming conventions](#naming-conventions)
-4. [Step 1 — Prisma enum + migration](#step-1--prisma-enum--migration)
-5. [Step 2 — Backend character type](#step-2--backend-character-type)
-6. [Step 3 — Backend type index (`game-systems/index.ts`)](#step-3--backend-type-index-game-systemsindexts)
-7. [Step 4 — Zod schema](#step-4--zod-schema)
-8. [Step 5 — Validator index (`validators/game-systems/index.ts`)](#step-5--validator-index-validatorsgame-systemsindexts)
-9. [Step 6 — Character templates](#step-6--character-templates)
-10. [Step 7 — Frontend enum + character type](#step-7--frontend-enum--character-type)
-11. [Step 8 — Frontend display metadata](#step-8--frontend-display-metadata)
-12. [Step 9 — Character sheet component](#step-9--character-sheet-component)
-13. [Step 10 — Register the sheet in the router](#step-10--register-the-sheet-in-the-router)
-14. [Testing](#testing)
-15. [Full checklist](#full-checklist)
-16. [Legal / content note](#legal--content-note)
+2. [Creature and NPC stat blocks](#creature-and-npc-stat-blocks)
+3. [Reference systems](#reference-systems)
+4. [Naming conventions](#naming-conventions)
+5. [Step 1 — Prisma enum + migration](#step-1--prisma-enum--migration)
+6. [Step 2 — Backend character type](#step-2--backend-character-type)
+7. [Step 3 — Backend type index (`game-systems/index.ts`)](#step-3--backend-type-index-game-systemsindexts)
+8. [Step 4 — Zod schema](#step-4--zod-schema)
+9. [Step 5 — Validator index (`validators/game-systems/index.ts`)](#step-5--validator-index-validatorsgame-systemsindexts)
+10. [Step 6 — Character templates](#step-6--character-templates)
+11. [Step 7 — Frontend enum + character type](#step-7--frontend-enum--character-type)
+12. [Step 8 — Frontend display metadata](#step-8--frontend-display-metadata)
+13. [Step 9 — Character sheet component](#step-9--character-sheet-component)
+14. [Step 10 — Register the sheet in the router](#step-10--register-the-sheet-in-the-router)
+15. [Step 11 — Creature support (optional)](#step-11--creature-support-optional)
+16. [Testing](#testing)
+17. [Full checklist](#full-checklist)
+18. [Legal / content note](#legal--content-note)
 
 ---
 
@@ -47,6 +49,85 @@ Each of pieces 2–4 has a per-system file **and** an `index.ts` with a `switch`
 ### Design principle: almost everything is optional
 
 Players fill out sheets incrementally — someone may save a character with just a name. **Make the vast majority of fields optional in your Zod schema.** Require only what genuinely identifies the character (usually just the name). This is why the existing schemas are permissive; match that.
+
+---
+
+## Creature and NPC stat blocks
+
+**Creatures are a separate pipeline from characters, and the steps below do not
+cover them.** A player character is a `Character` row with a per-system JSON blob
+validated by a per-system Zod schema. A creature is a `CreatureTemplate` row (or
+a `TokenTemplate`, or a token embedded in `Map.tokens`) holding an
+**`NpcStatBlock`** — one shared shape used by every system, with system-specific
+fields left optional.
+
+That difference is deliberate. Character sheets differ wildly between systems, so
+each gets its own type. Monsters mostly need the same handful of things — a
+defence number, hit points, some attacks — so they share a shape and branch only
+where the rules genuinely diverge.
+
+### The shared shape
+
+`NpcStatBlock` is declared in `frontend/src/types/index.ts` and validated by
+`backend/src/validators/statBlock.ts`. There is **no per-system creature type**.
+
+| Field | Meaning |
+|---|---|
+| `ac`, `hpMax`, `speed`, `senses`, `languages` | Shared by every system |
+| `abilities` | Ability **scores** (D&D 5e's model) |
+| `attributeModifiers` | Ability **modifiers**, for systems that print modifiers instead |
+| `challengeRating` | D&D 5e's creature rating |
+| `level` | Creature level, for systems that rate by level instead |
+| `savingThrows`, `skills` | `Record<string, number>` of **final totals** — the value that gets rolled |
+| `proficiencies` | Optional metadata saying *why* each total is what it is |
+| `gameSystem` | Which system this block is written for |
+
+**Totals are the storage format and are not changing.** They are what the roll
+picker, the viewer, campaign export and the SRD importer all read. Proficiency
+metadata sits *alongside* them, so a stat block written before it existed still
+works: absent metadata means "take the totals as given".
+
+### Derived versus printed — the important decision
+
+Whether a creature's save and skill numbers can be *computed* is a per-system
+question, and getting it wrong invents numbers the designers never intended.
+
+- **D&D 5e derives.** A monster's proficiency bonus comes from its Challenge
+  Rating on the same curve a character's comes from level, and a save or skill is
+  ability modifier + proficiency (doubled for expertise). The maths lives in
+  `frontend/src/utils/rules/dnd5e.ts` (duplicated at
+  `backend/src/utils/rules/dnd5e.ts`; a parity test fails on drift). The editor
+  is `npc-stat-blocks/ProficiencyEditor.tsx`.
+- **Pathfinder 2e does not derive.** PF2e stat blocks print final modifiers
+  because Paizo builds creatures from level benchmark tables, not from
+  "level + proficiency rank + attribute". The printed number *is* the rule.
+  `npc-stat-blocks/Pf2eProficiencyEditor.tsx` therefore stores what the DM types
+  and computes nothing; `pf2eStatBlock.ts` adds only a loose plausibility warning
+  to catch typos, explicitly not a rules check.
+- **Call of Cthulhu 7e and Shadowrun 6e have no equivalent.** Percentile and
+  dice-pool systems have neither ability modifiers nor a proficiency bonus, so
+  there is nothing to derive and nothing sensible to offer from this data.
+
+### Where creature code branches on system
+
+Four places, all plain conditionals:
+
+| Location | What it decides |
+|---|---|
+| `npc-stat-blocks/StatBlockEditor.tsx` | CR vs Level, scores vs modifiers, which proficiency editor |
+| `npc-stat-blocks/StatBlockViewer.tsx` | Which read-only stat block renderer |
+| `utils/npcRolls.ts` (`buildNpcRolls`) | What can be rolled — **returns nothing for systems without a model** |
+| `campaign/NpcRollPicker.tsx` | Advantage-equivalent labels |
+
+### Adding creature support for a new system
+
+Optional — a system works without it, and its creatures fall back to the generic
+viewer and the free-form custom roll input. See
+[Step 11](#step-11--creature-support-optional).
+
+> **Returning no roll options is a valid, correct outcome.** Offering a d20 roll
+> for a d100 game is worse than offering nothing: the caller already falls back
+> to a custom roll input that works for any system.
 
 ---
 
@@ -459,6 +540,47 @@ The `default` / `null` / `undefined` cases fall through to the `FlexibleCharacte
 
 ---
 
+## Step 11 — Creature support (optional)
+
+Skip this and your system still works: creatures fall back to the generic stat
+block viewer, and the NPC roll picker offers its free-form custom roll input.
+Add it when your system's creatures need a shape the shared `NpcStatBlock` does
+not already express, or when their rolls can be modelled.
+
+First decide the question from
+[Creature and NPC stat blocks](#creature-and-npc-stat-blocks): **are your
+system's creature numbers derived from something, or printed as final values?**
+Answer that from the rulebook before writing code — deriving values a system
+does not derive fabricates numbers that look authoritative.
+
+1. **Roll building** — add a `case` to `buildNpcRolls`
+   (`frontend/src/utils/npcRolls.ts`). If the system has no d20-equivalent
+   structure, return the empty set; the picker falls through to a custom roll.
+   Add your value to `systemSupportsNpcRolls` only if it does.
+2. **Stat block renderer** — add a `case` to `StatBlockViewer.tsx` pointing at a
+   component beside `Dnd5eStatBlock.tsx`. `GenericStatBlock.tsx` is the fallback
+   and is often good enough.
+3. **Editor branches** — if creatures need different fields (a Level rather than
+   a Challenge Rating, modifiers rather than scores), branch in
+   `StatBlockEditor.tsx` on the `gameSystem` prop. Add new fields to
+   `NpcStatBlock` as **optional**, and to
+   `backend/src/validators/statBlock.ts` — never repurpose an existing field,
+   since a campaign can switch systems and the data has to survive.
+4. **Proficiency editor** — if saves and skills are derived, model it on
+   `ProficiencyEditor.tsx`. If they are printed, model it on
+   `Pf2eProficiencyEditor.tsx`, which deliberately computes nothing.
+5. **Roll picker labels** — add an entry to `MODE_LABELS` in
+   `NpcRollPicker.tsx` if your system names its advantage equivalent something
+   else, and to `systemSupportsAdvantage` if it has one at all.
+
+Bounds live in `backend/src/validators/statBlock.ts`. `MIN_STORED_BONUS` /
+`MAX_STORED_BONUS` are deliberately wide (±50) because they cover every system
+at once — PF2e modifiers pass +33 at high level, so a bound fitted to D&D 5e
+would reject legitimate creatures. It is a backstop against absurd data, not a
+rules check; per-system sanity belongs in the editor.
+
+---
+
 ## Testing
 
 ### Backend (automated)
@@ -518,6 +640,14 @@ The exhaustive `switch`/`Record` types mean a missed backend registration point 
 - [ ] `components/character-sheets/mySystem/MySystemCharacterSheet.tsx` (+ View/Editor/components if using the full pattern)
 - [ ] `CharacterSheetRouter.tsx` — lazy import + `case`
 - [ ] `tsc` / lint / tests / build all green; manual create → save → reload → view/edit pass done
+
+**Creatures (optional — see [Step 11](#step-11--creature-support-optional))**
+- [ ] Decided from the rulebook whether creature values are **derived** or **printed**
+- [ ] `utils/npcRolls.ts` — `case` in `buildNpcRolls` (empty set is a valid answer)
+- [ ] `StatBlockViewer.tsx` — `case`, or left on `GenericStatBlock`
+- [ ] `StatBlockEditor.tsx` — branches for any system-specific fields
+- [ ] New `NpcStatBlock` fields added as **optional**, mirrored in `validators/statBlock.ts`
+- [ ] `NpcRollPicker.tsx` — `MODE_LABELS` / `systemSupportsAdvantage` entries
 
 **Docs**
 - [ ] Game system added to the systems table in `README.md`

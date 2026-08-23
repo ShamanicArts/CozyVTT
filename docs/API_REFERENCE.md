@@ -602,7 +602,7 @@ Place a new token on a map (DM only).
 Additional fields:
 - `imageUrl` — Token image URL (use `/api/assets/tokens/:id` format). Set to `""` to clear.
 - `displayMode` — `"pog"`, `"top-down"`, or `"full-art"`
-- `statBlock` — Game-system-agnostic NPC stat block (AC, HP, attacks, etc.)
+- `statBlock` — NPC stat block (AC, HP, attacks, saves, skills). One shape shared across game systems — see [The `statBlock` object](#the-statblock-object)
 - `creatureTemplateId` — Links the token to a creature template for library integration
 
 ---
@@ -668,6 +668,70 @@ Create a new custom creature template (DM only).
 ### `PUT /api/campaigns/:id/creatures/:creatureId`
 
 Update a custom creature template (DM only). Cannot edit SRD creatures — returns `403`.
+
+Accepts any subset of the create fields; an empty body returns `400`.
+
+---
+
+### The `statBlock` object
+
+One shape shared by every game system, with system-specific fields left optional.
+Used by creature templates, token templates and map tokens alike. Validated on
+every write — see [Stat block validation](#stat-block-validation).
+
+| Field | Type | Notes |
+|---|---|---|
+| `ac` | number | Required. 0–99 |
+| `speed` | string | Required |
+| `abilities` | object | Required. `str`/`dex`/`con`/`int`/`wis`/`cha`, each 0–30. Ability **scores** (D&D 5e's model) |
+| `hpMax`, `hitDice` | number, string | Optional |
+| `attributeModifiers` | object | Optional. Same six keys, each −10 to +20. Ability **modifiers**, for systems that print modifiers instead of scores (Pathfinder 2e) |
+| `challengeRating` | string | Optional. `"0"`, `"1/8"`, `"1/4"`, `"1/2"`, `"1"`–`"30"`. In D&D 5e this determines the proficiency bonus |
+| `level` | number | Optional, −1 to 30. Creature level, for systems that rate by level rather than CR |
+| `savingThrows` | object | Optional. Keys to **final totals**, each −50 to +50 |
+| `skills` | object | Optional. Same shape as `savingThrows` |
+| `proficiencies` | object | Optional. Why each total is what it is — see below |
+| `gameSystem` | string | Optional |
+
+`savingThrows` and `skills` keys are **not enumerated**, because the stat block is
+shared across systems: D&D 5e uses the six ability keys (`str`…`cha`), Pathfinder
+2e uses `fortitude`/`reflex`/`will`, and skills may be canonical camelCase
+(`sleightOfHand`) or a custom name. Which keys are *offered* is a client concern.
+
+**`proficiencies`** — all optional:
+
+```json
+{
+  "proficiencies": {
+    "bonusOverride": 4,
+    "saves":  { "wis": "proficient" },
+    "skills": { "perception": "expertise", "stealth": "custom" }
+  }
+}
+```
+
+- Levels are `"none"`, `"proficient"`, `"expertise"` or `"custom"`.
+- `bonusOverride` (0–9) replaces the proficiency bonus that would be derived from
+  Challenge Rating.
+- `"custom"` marks a total that is set explicitly rather than derived.
+
+The totals in `savingThrows` and `skills` remain the values that are displayed and
+rolled; `proficiencies` records the reasoning behind them. **The whole object is
+optional and stat blocks written before it existed are fully valid** — absent
+metadata means the stored totals are taken as given.
+
+### Stat block validation
+
+Enforced on every creature, token-template and campaign-import write:
+
+- Save and skill bonuses: integers, −50 to +50, at most 60 entries per record.
+  The range is a cross-system backstop against absurd data, not a rules check —
+  Pathfinder 2e modifiers legitimately exceed +30 at high level, so a bound
+  fitted to D&D 5e would reject real creatures.
+- Ability scores: integers 0–30. Attribute modifiers: −10 to +20.
+- Unknown top-level keys are preserved, so older stat blocks survive a round trip.
+
+Failures return `400` with `{ "error": "Validation Error", "message": "..." }`.
 
 ---
 

@@ -205,13 +205,22 @@ After setting a token's image, you can save it back to the creature template so 
 Right-click any NPC token on the map (DM only) and choose **Roll...** to open the NPC roll picker. It surfaces every rollable option from the token's stat block:
 
 - **Ability checks** — STR, DEX, CON, INT, WIS, CHA (1d20 + ability modifier)
-- **Saving throws** — all six saves, with proficient saves marked
-- **Skills** — only skills the stat block lists explicit bonuses for
+- **Saving throws** — all six saves. A proficient save is marked ●, an expert one ◆
+- **Skills** — the skills the stat block records a bonus for, each labelled with the ability it uses. Anything else is covered by the ability checks above
 - **Combat** — attack rolls (`+N to hit` parsed from action descriptions) and damage rolls (every `XdY+Z` expression extracted from each action)
 
 For d20 systems (D&D 5e, PF2e) the picker also has an **Advantage / Disadvantage** selector that rewrites the dice expression before rolling (`2d20kh1` / `2d20kl1`). Pathfinder 2e shows the same selector labeled **Fortune / Misfortune**.
 
-If a token doesn't have a stat block, or you're running a non-d20 system, there's a **Custom Roll** input at the bottom of the picker — type any valid dice expression (e.g. `3d8+2`) and optional label, then roll. The result is broadcast to chat with the token name as context (e.g. *"Goblin: Scimitar Damage = 5"*).
+**What each system offers.** The rolls on the menu depend on your campaign's game system, because not every system has something meaningful to compute from a stat block:
+
+| System | Stat-block rolls |
+|---|---|
+| D&D 5e | Full — abilities, saves, skills and combat, with bonuses derived from ability scores and Challenge Rating |
+| Pathfinder 2e | Full — using the modifiers printed on the stat block, with Fortitude/Reflex/Will saves |
+| Call of Cthulhu 7e | Custom Roll only — a percentile system has no d20 rolls to offer |
+| Shadowrun 6e | Custom Roll only — a dice-pool system has no d20 rolls to offer |
+
+If a token doesn't have a stat block, or you're running one of the systems above that offers none, there's a **Custom Roll** input at the bottom of the picker — type any valid dice expression (e.g. `3d8+2`) and optional label, then roll. The result is broadcast to chat with the token name as context (e.g. *"Goblin: Scimitar Damage = 5"*).
 
 *Screenshot pending — NPC roll picker with stat-block-derived options.*
 
@@ -275,7 +284,8 @@ Click **+ New Creature** at the top of the Creature Library to create a custom c
 - **Name** — Required
 - **Stat Block** — The creature's combat stats (AC, speed, ability scores, attacks, etc.)
 - **HP Max** — Hit points given to tokens placed from this creature
-- **Challenge Rating** — Optional, used for filtering
+- **Challenge Rating** — Chosen from a list. Used for filtering, and in D&D 5e it also sets the creature's proficiency bonus — see [Saving Throws and Skills](#saving-throws-and-skills) below
+- **Saving Throws & Skills** — Tick which ones the creature is proficient or expert in; the bonuses are worked out for you
 - **Creature Type** — Optional (e.g., beast, undead, fiend)
 - **Token Image** — Optional. Click **Browse Assets** to pick from token images already in your asset library, or **Upload New** to add one. See [Creature Token Images](#creature-token-images) below
 - **Size** — Grid size (default 1×1)
@@ -284,9 +294,63 @@ Click **+ New Creature** at the top of the Creature Library to create a custom c
 
 Custom creatures are scoped to your campaign and fully editable.
 
+### Saving Throws and Skills
+
+Rather than typing a number for each save and skill, you tick what the creature is
+good at and CozyVTT works out the bonus. This applies everywhere a stat block is
+edited: the Creature Library, the Token Template editor, and the Quick Editor on a
+token already on the map.
+
+**In D&D 5e**, each row has two checkboxes:
+
+- **P (Proficient)** — adds the creature's proficiency bonus
+- **E (Expertise)** — doubles it. Available only once Proficient is ticked
+
+The bonus shown beside each row is the total that gets rolled, and it is the
+ability modifier plus whatever proficiency you've ticked. A commoner with Wisdom
+14 who is proficient in Perception shows **+4** — +2 from Wisdom, +2 from
+proficiency. Make her an expert and it becomes +6.
+
+**Where the proficiency bonus comes from.** It's derived from Challenge Rating,
+on exactly the same scale a player character's comes from level — a CR 7 monster
+gets the same +3 a 7th-level character does. It's shown at the top of the section
+with its source ("From CR 1/4"), and changing the CR or an ability score updates
+every derived bonus immediately.
+
+| Challenge Rating | Proficiency Bonus |
+|---|---|
+| 0 – 4 (including 1/8, 1/4, 1/2) | +2 |
+| 5 – 8 | +3 |
+| 9 – 12 | +4 |
+| 13 – 16 | +5 |
+| 17 – 20 | +6 |
+| 21 – 24 | +7 |
+| 25 – 28 | +8 |
+| 29 – 30 | +9 |
+
+**Overriding a value.** Homebrew doesn't always follow the table, and a few
+published creatures don't either. Click the **pencil** on any row to type a value
+directly; the **↺** button puts it back to the derived one. If an override is far
+outside what the creature's abilities and CR could support, it's marked with a
+warning triangle — the value is still saved, it's just flagged so a typo doesn't
+pass unnoticed. You can also override the proficiency bonus itself.
+
+**Existing creatures keep their numbers.** SRD creatures and anything you made
+earlier are read, not rewritten. CozyVTT works backwards from the printed bonus to
+show the right checkboxes — an SRD Goblin opens already showing Stealth as
+expertise, still at its printed +6. Where a printed value doesn't fit the rules
+(the Night Hag is one), it's kept exactly as published and shown as an override.
+
+**In Pathfinder 2e** this section looks different, because PF2e works
+differently: creature stat blocks print final modifiers rather than deriving them
+from proficiency ranks. You'll see **Fortitude, Reflex and Will** instead of six
+ability saves, a **Level** instead of a Challenge Rating, and you enter each
+modifier directly. CozyVTT warns if a number looks far off for the creature's
+level, but never changes it.
+
 ### Editing Custom Creatures
 
-Click the **pencil icon** next to any custom creature in the library to open it for editing. You can update any field — name, stat block, image, disposition, display mode, and all advanced stats (traits, actions, legendary actions, etc.).
+Click the **pencil icon** next to any custom creature in the library to open it for editing. You can update any field — name, stat block, saving throws and skills, image, disposition, display mode, and all advanced stats (traits, actions, legendary actions, etc.).
 
 SRD creatures cannot be edited directly. Duplicate them first, then edit the copy.
 
