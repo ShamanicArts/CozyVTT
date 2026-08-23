@@ -9,6 +9,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'crypto';
+import { normalizeSkillKey } from '../utils/rules/dnd5e';
 import logger from '../utils/logger';
 
 // ─── Open5e API Types ───────────────────────────────────────────
@@ -101,6 +102,14 @@ export function transformMonster(m: Open5eMonster) {
   if (m.wisdom_save !== null) savingThrows.wis = m.wisdom_save;
   if (m.charisma_save !== null) savingThrows.cha = m.charisma_save;
 
+  const rawSkills = m.skills ?? {};
+  const normalisedSkills: Record<string, number> | undefined =
+    Object.keys(rawSkills).length > 0
+      ? Object.fromEntries(
+          Object.entries(rawSkills).map(([key, value]) => [normalizeSkillKey(key), value])
+        )
+      : undefined;
+
   const creatureType = m.subtype
     ? `${m.size} ${m.type} (${m.subtype})`
     : `${m.size} ${m.type}`;
@@ -115,7 +124,11 @@ export function transformMonster(m: Open5eMonster) {
       int: m.intelligence, wis: m.wisdom, cha: m.charisma,
     },
     savingThrows: Object.keys(savingThrows).length > 0 ? savingThrows : undefined,
-    skills: m.skills && Object.keys(m.skills).length > 0 ? m.skills : undefined,
+    // Open5e uses its own lowercase keys, including snake_case for multi-word
+    // skills ("animal_handling"). Normalising on import means the skill lookup
+    // recognises them, so they keep their ability association in the roll
+    // picker instead of being treated as unknown custom skills.
+    skills: normalisedSkills,
     damageVulnerabilities: m.damage_vulnerabilities || undefined,
     damageResistances: m.damage_resistances || undefined,
     damageImmunities: m.damage_immunities || undefined,
