@@ -6,6 +6,117 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.0-preview.1] — 2026-08-23
+
+This preview combines the upstream 1.1.2 release and subsequent map improvements
+with a broader modernization of CozyVTT's application architecture, responsive
+workspace, data integrity, and extension platform. It includes database
+migrations and should be evaluated on a backup before production deployment.
+
+### Added
+
+- **A transport-neutral application core.** REST, WebSocket, and installed
+  extensions now enter shared campaign-scoped command and query boundaries
+  backed by explicit domain, port, adapter, and composition layers.
+- **Optimistic concurrency for map and initiative state.** Revision-aware writes
+  prevent concurrent clients from silently overwriting newer map, token, scene,
+  and combat changes.
+- **A responsive campaign workspace.** Desktop retains the resizable table while
+  compact screens provide dedicated Map, Party, Activity, and Tools destinations
+  for real mobile and tablet play.
+- **A generic extension platform.** Signed packages, scoped permissions,
+  campaign capabilities, bounded UI contributions, installation policy,
+  sandboxing, OAuth resource binding, approvals, auditing, idempotency, and
+  redacted replay outcomes are owned by CozyVTT.
+- **Versioned public capability contracts.** Finite command and query descriptors
+  can be consumed by plugins without importing backend internals or accessing
+  the database.
+- **Ping a location on the map with Tab.** Put the cursor where you mean and press Tab: a dot appears with rings radiating out of it, in your own colour and labelled with your name, visible to everyone at the table for about a second and a half. Every player gets a consistent colour automatically — there is nothing to configure and no migration. Tab only pings when the cursor is over the map and you aren't typing or tabbing between controls, so keyboard navigation is unaffected. Pings are drawn above dynamic lighting so pointing into an unlit area works, and repeat pings are rate-limited server-side. Under the OS *reduce motion* setting the rings hold still and simply fade
+- **The acting combatant's token is highlighted on the map.** During initiative, the token whose turn it is gets a pulsing gold ring, visible to everyone at the table — so it's obvious which of five identical goblins is up, without counting rows in the tracker. The ring is a gold band edged in black rather than a single colour, so it stays legible over any map image, light or dark. It respects the same visibility rules as the token itself: a creature hidden from players, or standing in unexplored fog, shows no ring on their screens, so an ambusher's position is never given away by their turn coming around. The operating system's *reduce motion* setting turns off the pulse and keeps the ring
+- **Hovering an initiative row highlights that token on the map, and vice versa.** Pointing at a name in the turn order draws a thin white outline around its token and lifts it slightly — quieter than the turn ring, and both can show at once. Hovering a token on the map tints its row in the tracker the same way. Works for players as well as the DM, is purely a pointer (it never selects or moves anything), and respects the same visibility rules, so hovering a hidden creature's row doesn't give its position away to players
+
+### Changed
+
+- **Map interaction is decomposed into focused controllers and hooks.** Canvas
+  lifecycle, gestures, pointer intent, rendering, socket subscriptions, and
+  coordinate conversion now have independently tested boundaries.
+- **Core frontend features use host-owned workspace, rendering, and theme
+  contribution contracts.** Extensions can compose with the interface without
+  replacing the campaign shell or bypassing shared lifecycle rules.
+- **Fog of war is now a box selection instead of a brush.** Drag over the map and the selection snaps to whole grid squares, showing its size (`4 × 7`) as you go, so you reveal exactly the area you meant — the circular brush it replaces caught neighbouring squares by accident, which on a fog tool means showing players a room they weren't supposed to see yet. Click a single square to toggle just that one, drag in any direction, and cancel a drag with Esc or a right-drag. **The brush and its size slider are gone.** Existing maps are unaffected: the fog data was always one cell per grid square, so revealed areas carry over exactly as they were
+
+### Fixed
+
+- MFA setup verification again enforces the five-attempt, fifteen-minute rate
+  limit retained from the upstream security contract.
+- **The initiative tracker no longer freezes after a WebSocket reconnect.** Its listener was attached to a socket instance that gets rebuilt on reconnect, so after a dropped connection the tracker silently kept showing whatever turn was current when the link went down. Combat state is now mirrored into the shared session store by a reconnect-aware subscription, and re-synced from the server each time the socket comes back
+
+### Documentation
+
+- Corrected the socket API reference for initiative, which still described the original name-based combatants (`{ name, initiative, hp? }`) years after they became token-based. Documented the `CombatState` payload while there
+- Corrected the DM guide's "Adding Combatants", which described typing a name, initiative and HP by hand rather than picking a token from the map
+- Corrected the README and user guide, which described admin logo/mascot/favicon **upload** as a shipped feature. The instance does honour custom images — they appear on the login page and across the app — but there is no upload screen yet, so the guide now explains how to change branding today (replace the images in `frontend/public/` and rebuild, or set the URLs through the settings API). The upload UI remains on the roadmap
+
+---
+
+## [1.1.2] — 2026-08-21
+
+A readability and account-management release: text is legible on every theme, admins can invite users
+by email instead of handing out passwords, and the external-reverse-proxy documentation now describes
+a setup that actually works. No breaking changes and no database migration — update and restart.
+
+### Added
+
+- **Invite users by email.** With SMTP configured, admins can add someone from **Admin → Users → Invite User** by entering just an email address and role. The person receives a link, chooses their own password, and signs in — no password is ever generated, shown to the admin, or sent by email. Links are valid for 7 days, and an **Invite** button on any user who has never signed in sends a fresh one (invalidating the previous link). Instances without SMTP keep using Create User exactly as before
+
+### Fixed
+
+- **Text is now readable on every theme.** All 16 built-in themes failed the WCAG AA contrast minimum somewhere, despite the codebase claiming otherwise: muted text — the most common text color in the app — sat between 3.3:1 and 4.4:1 on 13 themes, accent-colored text dropped to 1.84:1 on Northern Frost, and headings fell to 2.6:1 on Shadow Realm. Measured across every theme, text role and surface, **141 unreadable combinations are now zero**, with the worst pairing anywhere improved from 1.71:1 to 4.50:1
+- **Screens now follow your theme.** Error, success and warning panels, status badges, NPC stat blocks and various inline messages were built from fixed colors, so on the dark themes they appeared as pale pink or washed-out boxes with near-invisible text. Roughly 850 hardcoded colors across 50 files now use theme-aware tokens
+- Stat blocks in the creature library and NPC editor used dark text with no background of their own, making them nearly unreadable on all four dark themes
+- The Pathfinder and Call of Cthulhu stat block accents never rendered at all — they were built from dynamic class names the styling system cannot generate
+- Faint labels and icons on character sheets (as low as 1.4:1) and unreadable hint text on the DM wall, light and fog control panels
+- **Admin-issued temporary passwords now stop working once used.** Accounts created or reset by an admin were flagged as needing a password change, and the login response even said so — but nothing acted on it, so the temporary password the admin had just seen kept working indefinitely and the user was never prompted. The flag is now enforced on the server: until the password is replaced, every API call except changing it is refused, WebSocket connections are declined, and the app sends the user straight to a change-password screen
+- Resetting a user's password from the admin panel now signs out that user's existing sessions, instead of leaving them browsing on a session created with the old password
+
+### Changed
+
+- Custom theme colors are now checked for readability: the theme picker shows the contrast ratio of each key text/background pair and flags anything below the 4.5:1 minimum, and derived text shades are adjusted automatically instead of being computed by fixed lightening steps that could produce unreadable results
+- The temporary password from **Create User** is no longer displayed to the admin when the welcome email was delivered successfully — it is shown only when there is no other way to hand it over (no SMTP, or the send failed)
+- Password requirement checklists are now defined once and shared by every screen that sets a password, so they cannot drift from what the server enforces
+
+### Documentation
+
+- **Fixed the external-reverse-proxy instructions, which described a setup that cannot work.** Removing the bundled `nginx` service leaves *nothing* publishing a port — the backend and frontend are `expose`-only — so the old "Option A" sent people's proxies at a closed port. The API then either failed outright (502 during setup) or, when a proxy pointed only at the frontend, returned the web page itself for every `/api` call, which made a brand-new install show the login page instead of the setup wizard. Option A now covers publishing both services on `127.0.0.1`, why the loopback prefix matters (and that Docker's published ports bypass UFW), and the routing every proxy must do
+- **New Cloudflare Tunnel section** covering all three working setups — keeping the bundled nginx (one ingress rule), running `cloudflared` as a container on CozyVTT's network, and running it on the host with path rules — including that ingress rules match in order so the catch-all must be last, and that `localhost` inside a container means the container itself
+- **New troubleshooting section**: fresh install showing the login page instead of the setup wizard, setup failing with 502, live features not updating, `git pull` blocked by local changes, and large uploads failing — each with the one-command check that identifies it
+- **New `docker-compose.override.example.yml`** and docs for keeping personal deployment tweaks in `docker-compose.override.yml`, which Compose merges automatically and git ignores, so `git pull` stops conflicting with local edits. Also documents the `git stash` workflow for anyone who edits `docker-compose.yml` directly
+- Corrected the health-check instructions — `/health` is served by the backend and is not forwarded by the bundled Nginx, so `curl http://localhost/health` never worked; the docs now use `docker compose exec`
+- `docker-compose.yml` header comments now list everything required to run without the bundled nginx (comments only — no configuration changes)
+
+### Upgrading from 1.1.1
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+No database migration, no configuration changes. Verified by upgrading a 1.1.1 instance in place:
+existing accounts sign in with their original passwords and are **not** forced to reset, campaigns,
+characters and uploaded files are untouched, and saved theme choices — including custom colors — carry
+over exactly.
+
+Two changes are visible immediately and are intentional:
+
+- Muted and accent-colored text shifts slightly (darker on light themes, lighter on dark ones) — that
+  text was below the readable minimum on most themes
+- Error, success and warning panels now tint with your theme instead of always being pale pink or green
+
+If your instance has SMTP configured, **Admin → Users** gains an **Invite User** button; if it doesn't,
+Create User behaves exactly as before.
+
+---
+
 ## [1.1.1] — 2026-08-17
 
 A bug-fix release for two settings that looked configurable but weren't: upload size limits set in

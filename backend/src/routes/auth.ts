@@ -50,6 +50,17 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const mfaSetupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: {
+    error: "Rate Limited",
+    message: "Too many MFA verification attempts, please try again later",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 /**
  * POST /api/auth/register
  * Register a new user account
@@ -386,7 +397,7 @@ router.post("/mfa/setup", requireAuth, async (req, res) => {
       .json({ error: "Internal Server Error", message: "Failed to setup MFA" });
   }
 });
-router.post("/mfa/verify", requireAuth, async (req, res) => {
+router.post("/mfa/verify", requireAuth, mfaSetupLimiter, async (req, res) => {
   try {
     const x = await authSecurityCommands.dispatch<any, string[]>({
       type: MFA_VERIFY,

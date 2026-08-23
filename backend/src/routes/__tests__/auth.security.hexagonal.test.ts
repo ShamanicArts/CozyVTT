@@ -23,13 +23,15 @@ jest.mock("../../config/database", () => ({
 jest.mock(
   "express-rate-limit",
   () =>
-    () =>
-    (
+    (options: Record<string, unknown>) => {
+      const middleware = (
       _req: express.Request,
       _res: express.Response,
       next: express.NextFunction,
-    ) =>
-      next(),
+      ) => next();
+      Object.assign(middleware, { rateLimitOptions: options });
+      return middleware;
+    },
 );
 jest.mock("../../middleware/auth", () => ({
   requireAuth: (
@@ -68,6 +70,19 @@ describe("auth security HTTP command adapter", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     findUnique.mockResolvedValue(null);
+  });
+
+  it("rate limits MFA setup verification attempts", () => {
+    const route = (authRoutes as any).stack.find(
+      (layer: any) => layer.route?.path === "/mfa/verify",
+    );
+    const limiter = route.route.stack.find(
+      (layer: any) => layer.handle.rateLimitOptions,
+    );
+
+    expect(limiter.handle.rateLimitOptions).toEqual(
+      expect.objectContaining({ windowMs: 15 * 60 * 1000, max: 5 }),
+    );
   });
 
   it("preserves representative validation/auth contracts for every command-backed security route", async () => {
