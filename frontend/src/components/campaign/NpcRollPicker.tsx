@@ -38,8 +38,12 @@ type RollMode = 'normal' | 'advantage' | 'disadvantage';
 // ---------------------------------------------------------------------------
 
 const MODE_LABELS: Record<string, Record<RollMode, string>> = {
-  DND_5E:        { normal: 'Normal', advantage: 'Advantage', disadvantage: 'Disadvantage' },
-  PATHFINDER_2E: { normal: 'Normal', advantage: 'Fortune',   disadvantage: 'Misfortune' },
+  DND_5E:            { normal: 'Normal', advantage: 'Advantage', disadvantage: 'Disadvantage' },
+  PATHFINDER_2E:     { normal: 'Normal', advantage: 'Fortune',   disadvantage: 'Misfortune' },
+  // Listed for parity with CharacterRollPicker, which has always had it. The
+  // selector is hidden for d100 systems anyway (systemSupportsAdvantage), but
+  // the omission made the two pickers look like they disagreed.
+  CALL_OF_CTHULHU_7E: { normal: 'Normal', advantage: 'Bonus Die', disadvantage: 'Penalty Die' },
 };
 
 function getModeLabels(gameSystem: string | null): Record<RollMode, string> {
@@ -103,9 +107,13 @@ export default function NpcRollPicker({
   const [customLabel, setCustomLabel] = useState('');
   const [customError, setCustomError] = useState<string | null>(null);
 
+  // The campaign's system decides what can be rolled from a stat block, not
+  // just how the buttons are labelled. Call of Cthulhu and Shadowrun return
+  // nothing and fall through to the custom roll input below, rather than being
+  // offered D&D dice for games that have none.
   const rolls: CharacterRolls = useMemo(
-    () => buildNpcRolls(token.statBlock ?? null),
-    [token.statBlock]
+    () => buildNpcRolls(token.statBlock ?? null, gameSystem ?? null),
+    [token.statBlock, gameSystem]
   );
 
   const hasAdvantage = systemSupportsAdvantage(gameSystem ?? null);

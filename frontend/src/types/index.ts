@@ -153,8 +153,29 @@ export interface NpcStatBlock {
   senses?: string;
   /** Languages */
   languages?: string;
+  /**
+   * Attribute modifiers, used by systems that print modifiers rather than
+   * scores. Pathfinder 2e stat blocks give "Str +4" directly and have no
+   * underlying score, so deriving one from `abilities` would be an invention.
+   * Absent for D&D 5e, where `abilities` holds scores and the modifier is
+   * derived.
+   */
+  attributeModifiers?: {
+    str: number;
+    dex: number;
+    con: number;
+    int: number;
+    wis: number;
+    cha: number;
+  };
   /** Challenge rating, e.g. "1/4", "5" */
   challengeRating?: string;
+  /**
+   * Creature level, for systems that rate creatures by level rather than
+   * challenge rating (Pathfinder 2e). Kept separate from challengeRating so
+   * neither system has to pretend to use the other's scale.
+   */
+  level?: number;
   /** XP value */
   xp?: number;
   /** Special traits/abilities (name + description pairs) */
