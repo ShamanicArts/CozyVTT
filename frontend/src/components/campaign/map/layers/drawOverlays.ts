@@ -439,10 +439,20 @@ export function drawAoEOverlay(
   const cursor = { x: rawX, y: rawY };
   let ox = rawX;
   let oy = rawY;
+
+  // The cube's rectangle is computed once and reused for both the outline and
+  // the label anchor below — deriving them separately let the label drift off
+  // the snapped shape by up to half a square.
+  const cube =
+    state.config.shape === 'cube' ? cubeRect(cursor, gs, sizeSquares) : null;
+
   if (state.config.shape === 'cone') {
     ({ x: ox, y: oy } = coneApex(cursor, gs));
   } else if (state.config.shape === 'line') {
     ({ x: ox, y: oy } = lineOrigin(cursor, gs, widthSquares, angle));
+  } else if (cube) {
+    ox = cube.x + cube.size / 2;
+    oy = cube.y + cube.size / 2;
   }
 
   ctx.save();
@@ -489,8 +499,7 @@ export function drawAoEOverlay(
       // rectangle anchored at a square centre, which could not line up with the
       // grid at any angle — a 10 ft cube on a 5 ft grid straddled four squares
       // instead of covering two.
-      const rect = cubeRect(cursor, gs, sizeSquares);
-      ctx.rect(rect.x, rect.y, rect.size, rect.size);
+      if (cube) ctx.rect(cube.x, cube.y, cube.size, cube.size);
       break;
     }
   }

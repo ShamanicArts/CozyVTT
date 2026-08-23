@@ -163,7 +163,10 @@ export default function CreatureLibrary({ isOpen, onClose }: CreatureLibraryProp
       })
       .catch(() => {})
       .finally(() => setIsLoadingFavorites(false));
-  }, [isOpen, campaign?.id, sourceFilter, crFilter]);
+    // matchGameSystem belongs here with the other filters: without it, toggling
+    // between this campaign's system and all systems changed the dropdown but
+    // never refetched the list.
+  }, [isOpen, campaign?.id, sourceFilter, crFilter, matchGameSystem]);
 
   // Debounced search
   useEffect(() => {
@@ -626,7 +629,13 @@ export default function CreatureLibrary({ isOpen, onClose }: CreatureLibraryProp
 
             {/* ── Create / Edit Custom Form (inline) ── */}
             {showCreateForm && (
+              // Keyed on the creature being edited so switching directly from
+              // one creature to another remounts the form. handleEdit leaves
+              // showCreateForm true, so without this the form kept the previous
+              // creature's field state and saving wrote those stats onto the
+              // newly selected creature.
               <CreatureForm
+                key={editingCreature?.id ?? 'new'}
                 campaignId={campaign?.id || ''}
                 gameSystem={campaign?.gameSystem ?? null}
                 editingCreature={editingCreature}

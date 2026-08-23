@@ -313,7 +313,12 @@ export default function TokenTemplateLibrary({ isOpen, onClose }: TokenTemplateL
 
             {/* Create / Edit Form */}
             {showForm && (
+              // Keyed so switching straight from one template to another
+              // remounts the form — handleEdit leaves showForm true, so
+              // otherwise the previous template's field state carried over and
+              // saving wrote it onto the newly selected template.
               <TemplateForm
+                key={editingTemplate?.id ?? 'new'}
                 campaignId={campaign?.id || ''}
                 editingTemplate={editingTemplate}
                 onCreated={(t) => {
