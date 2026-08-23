@@ -44,16 +44,34 @@ describe("hexagonal architecture boundaries", () => {
   it("keeps framework and infrastructure imports out of domain, application, and ports", () => {
     const coreFiles = typescriptFiles(["domain", "application", "ports"]);
     const forbiddenImport =
-      /(?:from\s+|require\()['"](?:@prisma\/client|express|socket\.io|node:fs|fs)['"]/;
+      /(?:from\s+|require\()['"](?:@prisma\/client|express|socket\.io|node:fs|fs|\.\.\/\.\.\/(?:adapters|composition|config|services|websocket|extensions\/host)\/)/;
 
     expect(matchingLines(coreFiles, forbiddenImport)).toEqual([]);
   });
 
-  it("keeps direct Prisma mutations out of REST and websocket adapters", () => {
-    const transportFiles = typescriptFiles(["routes", "websocket"]);
-    const directMutation =
-      /\bprisma\.[A-Za-z0-9_]+\.(?:create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(/;
+  it("keeps all persistence and infrastructure dependencies out of transports", () => {
+    const transportFiles = typescriptFiles(["routes", "websocket", "middleware"]);
+    const forbiddenDependency =
+      /(?:from\s+|require\()['"](?:@prisma\/client|(?:\.\.\/)+config\/database|(?:\.\.\/)+adapters\/|(?:\.\.\/)+services\/|(?:\.\.\/)+extensions\/host|(?:node:)?fs(?:\/promises)?|sharp)['"]/;
 
-    expect(matchingLines(transportFiles, directMutation)).toEqual([]);
+    expect(matchingLines(transportFiles, forbiddenDependency)).toEqual([]);
+  });
+
+  it("forces transport mutations through the application host facade", () => {
+    const transportFiles = typescriptFiles(["routes", "websocket", "middleware"]);
+    expect(
+      matchingLines(
+        transportFiles,
+        /productionCommandBus|composition\/productionApplicationHost/,
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps the raw production command registry private to composition", () => {
+    const composition = readFileSync(
+      path.join(sourceRoot, "composition", "productionApplicationHost.ts"),
+      "utf8",
+    );
+    expect(composition).not.toMatch(/export\s+const\s+productionCommandBus/);
   });
 });

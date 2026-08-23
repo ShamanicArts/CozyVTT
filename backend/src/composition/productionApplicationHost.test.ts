@@ -1,6 +1,5 @@
 import {
   productionApplicationHost,
-  productionCommandBus,
   productionCommandIds,
 } from "./productionApplicationHost";
 import { CREATE_MAP } from "../application/maps/MapLifecycleCommands";
@@ -24,7 +23,6 @@ describe("production application host catalog", () => {
     expect(ids).toEqual(expect.arrayContaining(productionCommandIds));
     for (const id of productionCommandIds) {
       expect(productionApplicationHost.get(id)?.id).toBe(id);
-      expect(productionCommandBus.has(id)).toBe(true);
     }
     for (const id of [
       CREATE_MAP,
@@ -39,7 +37,6 @@ describe("production application host catalog", () => {
       SET_SPIRIT_TOKEN_VISIBLE,
     ]) {
       expect(productionApplicationHost.get(id)?.id).toBe(id);
-      expect(productionCommandBus.has(id)).toBe(true);
     }
   });
 

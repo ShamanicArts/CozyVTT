@@ -1,34 +1,36 @@
-import { exportCampaign } from "../../services/campaignExporter";
+import type { PrismaClient } from "@prisma/client";
+import { exportCampaign } from "./exportCampaignArchive";
 import {
   importCampaign as importArchive,
   previewCampaignImport as previewArchive,
-} from "../../services/campaignImporter";
-import {
+} from "./importCampaignArchive";
+import type {
   CampaignArchiveService,
   CampaignArchiveExportOptions,
   CampaignArchiveImportOptions,
 } from "../../ports/CampaignArchiveService";
-import {
+import type {
   CampaignArchiveExport,
   CampaignArchiveImportResult,
   CampaignArchivePreview,
 } from "../../domain/campaignArchives/CampaignArchive";
 
-/**
- * Adapter around CozyVTT's established archive engine. It deliberately keeps
- * ZIP safety checks, Prisma writes, asset persistence, and rollback behavior
- * together until that engine itself is separately decomposed.
- */
-export class LegacyCampaignArchiveService implements CampaignArchiveService {
+/** Infrastructure adapter for the ZIP, Prisma, and filesystem archive engine. */
+export class CampaignArchiveEngineAdapter implements CampaignArchiveService {
+  constructor(
+    private readonly client: PrismaClient,
+    private readonly uploadsBase = process.env.UPLOAD_DIR || "uploads",
+  ) {}
+
   exportCampaign(
     campaignId: string,
     options: CampaignArchiveExportOptions,
   ): Promise<CampaignArchiveExport> {
-    return exportCampaign(campaignId, options);
+    return exportCampaign(this.client, campaignId, options);
   }
 
   previewCampaignImport(archive: Buffer): Promise<CampaignArchivePreview> {
-    return previewArchive(archive);
+    return previewArchive(this.client, archive);
   }
 
   importCampaign(
@@ -36,6 +38,6 @@ export class LegacyCampaignArchiveService implements CampaignArchiveService {
     userId: string,
     options: CampaignArchiveImportOptions,
   ): Promise<CampaignArchiveImportResult> {
-    return importArchive(archive, userId, options);
+    return importArchive(this.client, this.uploadsBase, archive, userId, options);
   }
 }

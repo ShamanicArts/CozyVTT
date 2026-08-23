@@ -5,10 +5,8 @@
 import { Server } from "socket.io";
 import { AuthenticatedSocket } from "../auth";
 import logger from "../../utils/logger";
-import {
-  productionCommandBus,
-  productionInitiativeStateStore,
-} from "../../composition/productionApplicationHost";
+import { productionTransportCommands } from "../../composition/productionTransportCommands";
+import { productionRealtimeQueries } from "../../composition/productionRealtimeQueries";
 import {
   ADD_INITIATIVE_COMBATANT,
   AddInitiativeCombatantCommand,
@@ -36,7 +34,7 @@ import { MapRevisionConflictError } from "../../domain/maps/MapRevision";
 
 // Commands own initiative transitions, validation and persistence. Socket.IO
 // authenticates the actor and fans the resulting state out to campaign peers.
-const initiativeCommands = productionCommandBus;
+const initiativeCommands = productionTransportCommands;
 
 function commandContext(socket: AuthenticatedSocket, campaignId: string) {
   return { campaignId, userId: socket.userId!, role: socket.role };
@@ -322,10 +320,10 @@ export function registerInitiativeHandlers(
   socket.on("initiative.request_state", async () => {
     if (!socket.campaignId) return;
     try {
-      const snapshot = await productionInitiativeStateStore.get(
+      const snapshot = await productionRealtimeQueries.initiative(
         socket.campaignId,
       );
-      socket.emit("initiative.state", snapshot.state);
+      if (snapshot) socket.emit("initiative.state", snapshot.state);
     } catch (error) {
       logger.error("initiative.request_state failed", { err: error });
       socket.emit("error", { message: "Failed to load initiative state" });

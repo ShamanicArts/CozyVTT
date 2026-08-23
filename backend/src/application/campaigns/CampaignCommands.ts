@@ -8,6 +8,7 @@ import {
   InvitationWithCampaign,
 } from '../../domain/campaigns/Campaign';
 import { CampaignAdministrationRepository } from '../../ports/CampaignAdministrationRepository';
+import { CampaignInvitationNotifier } from '../../ports/CampaignInvitationNotifier';
 import { DEFAULT_VIBE_SETTINGS, findVibePeriod, validateVibeSettings, VibeSettings } from '../../utils/vibe-presets';
 import { Command, CommandHandler } from '../commands/CommandBus';
 
@@ -178,7 +179,10 @@ export class DeleteCampaign implements CommandHandler<DeleteCampaignCommand, voi
 }
 
 export class InviteToCampaign implements CommandHandler<InviteToCampaignCommand, InviteToCampaignResult> {
-  constructor(private readonly repository: CampaignAdministrationRepository) {}
+  constructor(
+    private readonly repository: CampaignAdministrationRepository,
+    private readonly notifier: CampaignInvitationNotifier,
+  ) {}
 
   async execute(command: InviteToCampaignCommand): Promise<InviteToCampaignResult> {
     if (!command.userId) throw campaignValidationError('User ID is required');
@@ -203,6 +207,17 @@ export class InviteToCampaign implements CommandHandler<InviteToCampaignCommand,
       this.repository.findUserDisplayName(command.invitedBy),
     ]);
     const invitation = await this.repository.upsertPendingInvitation({ userId: command.userId, campaignId: command.campaignId, expiresAt });
+    await this.notifier.notify({
+      invitationId: invitation.invitation.id,
+      campaignId: command.campaignId,
+      campaignName: campaign!.name,
+      campaignDescription: campaign!.description,
+      invitedBy: command.invitedBy,
+      invitedUserId: command.userId,
+      invitedUserEmail: user.email,
+      invitedUserDisplayName: user.displayName,
+      inviterDisplayName: inviterDisplayName ?? 'Your Dungeon Master',
+    });
     return {
       invitation,
       invitedUser: { email: user.email, displayName: user.displayName },

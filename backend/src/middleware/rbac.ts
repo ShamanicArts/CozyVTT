@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { CampaignRole } from '@prisma/client';
-import { prisma } from '../config/database';
+import type { CampaignAccessRole } from '../ports/AccessQueryRepository';
+import { productionAccessQueries } from '../composition/productionAccessQueries';
 import logger from '../utils/logger';
 
 /**
@@ -16,7 +16,7 @@ import logger from '../utils/logger';
  */
 export interface AuthenticatedRequest extends Request {
   campaignMembership?: {
-    role: CampaignRole;
+    role: CampaignAccessRole;
     characterIds: string[];
     campaignId: string;
   };
@@ -51,14 +51,10 @@ export async function loadCampaignMembership(
     }
 
     // Find user's membership in this campaign
-    const membership = await prisma.campaignMembership.findUnique({
-      where: {
-        userId_campaignId: {
-          userId,
-          campaignId,
-        },
-      },
-    });
+    const membership = await productionAccessQueries.campaignMembership(
+      userId,
+      campaignId,
+    );
 
     if (!membership) {
       return res.status(403).json({
@@ -130,7 +126,7 @@ export function requireDMOrPlayer(req: AuthenticatedRequest, res: Response, next
 /**
  * Require specific campaign role
  */
-export function requireCampaignRole(role: CampaignRole) {
+export function requireCampaignRole(role: CampaignAccessRole) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.campaignMembership) {
       return res.status(500).json({

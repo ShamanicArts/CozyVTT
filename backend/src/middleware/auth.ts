@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { PlatformRole } from '@prisma/client';
+type PlatformRole = "ADMIN" | "USER";
 
 /**
  * Require user to be authenticated.

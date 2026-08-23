@@ -142,7 +142,7 @@ describe("user mutation commands", () => {
   it("preserves admin deletion accounting and reset-link SMTP behavior", async () => {
     const repository = users();
     await expect(
-      new DeleteUserAsAdmin(repository).execute({
+      new DeleteUserAsAdmin(repository, { invalidate: jest.fn() }).execute({
         type: "user.admin-delete",
         actorId: "admin-1",
         userId: "user-1",

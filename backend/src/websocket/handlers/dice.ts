@@ -4,9 +4,9 @@
 
 import { Server } from "socket.io";
 import { AuthenticatedSocket } from "../auth";
-import { prisma } from "../../config/database";
+import { productionRealtimeQueries } from "../../composition/productionRealtimeQueries";
 import logger from "../../utils/logger";
-import { productionCommandBus } from "../../composition/productionApplicationHost";
+import { productionTransportCommands } from "../../composition/productionTransportCommands";
 import {
   ROLL_DICE,
   RollDiceCommand,
@@ -14,7 +14,7 @@ import {
 } from "../../application/dice/RollDice";
 import { DiceRollError } from "../../domain/dice/DiceRoll";
 
-const diceCommands = productionCommandBus;
+const diceCommands = productionTransportCommands;
 
 export function registerDiceHandlers(
   io: Server,
@@ -114,12 +114,13 @@ export function registerDiceHandlers(
       }
 
       // Verify user is DM
-      const campaign = await prisma.campaign.findUnique({
-        where: { id: socket.campaignId },
-        select: { ownerId: true },
-      });
-
-      if (!campaign || campaign.ownerId !== socket.userId) {
+      if (
+        !socket.userId ||
+        !(await productionRealtimeQueries.isCampaignOwner(
+          socket.userId,
+          socket.campaignId,
+        ))
+      ) {
         socket.emit("error", { message: "Only the DM can clear roll history" });
         return;
       }

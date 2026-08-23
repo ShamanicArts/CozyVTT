@@ -1,11 +1,8 @@
 import { Router, Response } from "express";
 import { AuthenticatedRequest } from "../middleware/rbac";
 import { authenticated } from "../middleware/compose";
-import { prisma } from "../config/database";
-import { GameSystem } from "../game-systems";
-import { validateCharacterData } from "../validators/game-systems";
 import logger from "../utils/logger";
-import { productionCommandBus } from "../composition/productionApplicationHost";
+import { productionTransportCommands } from "../composition/productionTransportCommands";
 import {
   ASSIGN_CHARACTER,
   AssignCharacterCommand,
@@ -20,10 +17,12 @@ import {
   UpdateCharacterCommand,
 } from "../application/characters/CharacterMutations";
 import { CharacterError } from "../domain/characters/Character";
+import { CharacterQueryError } from "../application/characters/CharacterQueries";
+import { productionCharacterQueries } from "../composition/productionCharacterQueries";
 
 const router = Router();
 
-const characterCommands = productionCommandBus;
+const characterCommands = productionTransportCommands;
 
 function sendCharacterError(res: Response, error: unknown): boolean {
   if (!(error instanceof CharacterError)) return false;
@@ -34,6 +33,12 @@ function sendCharacterError(res: Response, error: unknown): boolean {
       ? { validationErrors: error.validationErrors }
       : {}),
   });
+  return true;
+}
+
+function sendCharacterQueryError(res: Response, error: unknown): boolean {
+  if (!(error instanceof CharacterQueryError)) return false;
+  res.status(error.status).json({ error: error.error, message: error.message });
   return true;
 }
 
@@ -91,20 +96,7 @@ router.get(
     try {
       const userId = req.session.userId!;
 
-      const characters = await prisma.character.findMany({
-        where: { userId },
-        include: {
-          campaign: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-      });
+      const characters = await productionCharacterQueries.ownedBy(userId);
 
       return res.status(200).json({ characters });
     } catch (error) {
@@ -130,40 +122,8 @@ router.get(
     try {
       const { gameSystem, templateName } = req.params;
 
-      // Handle flexible templates (no game system)
-      if (!gameSystem || gameSystem === "null" || gameSystem === "undefined") {
-        const { FLEXIBLE_TEMPLATES } =
-          await import("../utils/character-templates/flexible-templates");
-        const template = FLEXIBLE_TEMPLATES[templateName];
-
-        if (!template) {
-          return res.status(404).json({
-            error: "Template Not Found",
-            message: `Template '${templateName}' not found for flexible characters`,
-          });
-        }
-
-        return res.status(200).json({
-          message: "Template retrieved successfully",
-          ...template,
-        });
-      }
-
-      // Validate game system
-      if (!Object.values(GameSystem).includes(gameSystem as GameSystem)) {
-        return res.status(400).json({
-          error: "Validation Error",
-          message: `Invalid game system: ${gameSystem}`,
-        });
-      }
-
-      // Import template functions
-      const { getCharacterTemplate } =
-        await import("../utils/character-templates");
-
-      // Get the template
-      const template = getCharacterTemplate(
-        gameSystem as GameSystem,
+      const template = productionCharacterQueries.template(
+        gameSystem,
         templateName,
       );
 
@@ -172,6 +132,7 @@ router.get(
         ...template,
       });
     } catch (error) {
+      if (sendCharacterQueryError(res, error)) return;
       logger.error("Error fetching character template", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",
@@ -195,63 +156,10 @@ router.get(
       const userId = req.session.userId!;
       const { id } = req.params;
 
-      const character = await prisma.character.findUnique({
-        where: { id },
-        include: {
-          campaign: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          user: {
-            select: {
-              id: true,
-              displayName: true,
-              avatarUrl: true,
-              // SECURITY: never embed `email` — this endpoint can be hit by
-              // any campaign member viewing another player's character.
-            },
-          },
-        },
-      });
-
-      if (!character) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "Character not found",
-        });
-      }
-
-      // Check authorization: owner can always view
-      if (character.userId === userId) {
-        return res.status(200).json({ character });
-      }
-
-      // If character is in a campaign, check if requester is a campaign member
-      // All campaign members can VIEW characters, but only owner/DM can EDIT
-      if (character.campaignId) {
-        const membership = await prisma.campaignMembership.findUnique({
-          where: {
-            userId_campaignId: {
-              userId,
-              campaignId: character.campaignId,
-            },
-          },
-        });
-
-        // Any campaign member (DM, PLAYER, SPECTATOR) can view characters in the campaign
-        if (membership) {
-          return res.status(200).json({ character });
-        }
-      }
-
-      // Not authorized
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "You do not have permission to view this character",
-      });
+      const character = await productionCharacterQueries.visibleTo(userId, id);
+      return res.status(200).json({ character });
     } catch (error) {
+      if (sendCharacterQueryError(res, error)) return;
       logger.error("Error fetching character", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",
@@ -275,80 +183,10 @@ router.get(
       const userId = req.session.userId!;
       const { id } = req.params;
 
-      const character = await prisma.character.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          userId: true,
-          gameSystem: true,
-          data: true,
-        },
-      });
-
-      if (!character) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "Character not found",
-        });
-      }
-
-      // Only character owner can validate (prevent info leakage)
-      if (character.userId !== userId) {
-        return res.status(403).json({
-          error: "Forbidden",
-          message: "You do not have permission to validate this character",
-        });
-      }
-
-      // Cannot validate without a game system
-      if (!character.gameSystem) {
-        return res.status(400).json({
-          isValid: false,
-          errors: [
-            {
-              path: "gameSystem",
-              message: "Character has no game system assigned",
-              code: "no_game_system",
-            },
-          ],
-        });
-      }
-
-      // Validate character data
-      try {
-        validateCharacterData(character.gameSystem as any, character.data);
-
-        return res.status(200).json({
-          isValid: true,
-        });
-      } catch (error: any) {
-        // Validation failed - return detailed errors
-        if (error.errors) {
-          const formattedErrors = error.errors.map((err: any) => ({
-            path: err.path.join(".") || "root",
-            message: err.message,
-            code: err.code,
-          }));
-
-          return res.status(200).json({
-            isValid: false,
-            errors: formattedErrors,
-          });
-        }
-
-        // Unknown validation error
-        return res.status(200).json({
-          isValid: false,
-          errors: [
-            {
-              path: "unknown",
-              message: error.message || "Unknown validation error",
-              code: "unknown",
-            },
-          ],
-        });
-      }
+      const result = await productionCharacterQueries.validate(userId, id);
+      return res.status(result.errors?.[0]?.code === "no_game_system" ? 400 : 200).json(result);
     } catch (error) {
+      if (sendCharacterQueryError(res, error)) return;
       logger.error("Error validating character", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",

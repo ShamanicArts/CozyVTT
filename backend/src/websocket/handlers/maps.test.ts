@@ -1,11 +1,13 @@
 const mockFindUnique = jest.fn();
-const mockGetSpiritVisibilityBatch = jest.fn();
+const mockSpiritVisibility = jest.fn();
 const mockFilterMapData = jest.fn();
 
 jest.mock('../../config/database', () => ({ prisma: { map: { findUnique: mockFindUnique } } }));
 jest.mock('../../utils/spirit-layer', () => ({
-  getSpiritVisibilityBatch: mockGetSpiritVisibilityBatch,
   filterMapData: mockFilterMapData,
+}));
+jest.mock('../../composition/productionRealtimeQueries', () => ({
+  productionRealtimeQueries: { spiritVisibility: mockSpiritVisibility },
 }));
 
 import { registerMapHandlers } from './maps';
@@ -43,7 +45,7 @@ describe('map.change Socket.IO adapter', () => {
   it('preserves recipient-specific filtered map broadcasts', async () => {
     const map = { id: 'map-1', campaignId: 'campaign-1', tokens: [], annotations: [] };
     mockFindUnique.mockResolvedValue(map);
-    mockGetSpiritVisibilityBatch.mockResolvedValue(new Map([['player-1', true]]));
+    mockSpiritVisibility.mockResolvedValue(new Map([['player-1', true]]));
     mockFilterMapData.mockImplementation((input: unknown, role: string) => ({ input, role }));
     const dmRecipient = { role: 'DM', userId: 'dm-1', emit: jest.fn() };
     const playerRecipient = { role: 'PLAYER', userId: 'player-1', emit: jest.fn() };

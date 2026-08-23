@@ -2,18 +2,21 @@ import { Prisma, PrismaClient } from "@prisma/client";
 import { AdminSettingsUpdate, AdminUser } from "../../domain/admin/Admin";
 import { AdminAdministrationRepository } from "../../ports/AdminAdministrationRepository";
 import { AdminAuditLog } from "../../ports/AdminPorts";
-import { updateSystemSettings } from "../../services/systemSettings";
+import type { SystemSettingsRepository } from "../../ports/SystemSettingsRepository";
 
 /** Prisma/settings-service adapter for administration commands. */
 export class PrismaAdminAdministrationRepository
   implements AdminAdministrationRepository, AdminAuditLog
 {
-  constructor(private readonly client: PrismaClient) {}
+  constructor(
+    private readonly client: PrismaClient,
+    private readonly settings: SystemSettingsRepository,
+  ) {}
 
   async updateSettings(
     data: AdminSettingsUpdate,
   ): Promise<Record<string, unknown>> {
-    return (await updateSystemSettings(data)) as Record<string, unknown>;
+    return this.settings.update(data as unknown as Record<string, unknown>);
   }
 
   async findUserByEmail(email: string): Promise<AdminUser | null> {

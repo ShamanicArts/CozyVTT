@@ -14,8 +14,8 @@ import {
   RealtimeCampaignError,
 } from "../../application/campaigns/RealtimeCampaignCommands";
 
-import { productionCommandBus } from "../../composition/productionApplicationHost";
-const commands = productionCommandBus;
+import { productionTransportCommands } from "../../composition/productionTransportCommands";
+const commands = productionTransportCommands;
 
 export function registerAtmosphereHandlers(
   _io: Server,

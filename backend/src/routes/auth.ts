@@ -1,16 +1,13 @@
 /// <reference path="../types/express.d.ts" />
 import { Router, Request, Response } from "express";
-import { sanitizeUser } from "../services/auth";
+import { publicUser } from "../application/users/UserQueries";
 import { rememberMeMaxAge } from "../config/session";
 import { requireAuth } from "../middleware/auth";
-import { prisma } from "../config/database";
-import {
-  getSystemSettings,
-  getAppearanceSettings,
-} from "../services/systemSettings";
+import { productionUserQueries } from "../composition/productionUserQueries";
+import { productionPublicSettingsQueries } from "../composition/productionPublicSettingsQueries";
 import rateLimit from "express-rate-limit";
 import logger from "../utils/logger";
-import { productionCommandBus } from "../composition/productionApplicationHost";
+import { productionTransportCommands } from "../composition/productionTransportCommands";
 import {
   LOGIN_ACCOUNT,
   LoginAccountCommand,
@@ -35,8 +32,8 @@ import {
 // ============================================
 
 const router = Router();
-const identityCommands = productionCommandBus;
-const authSecurityCommands = productionCommandBus;
+const identityCommands = productionTransportCommands;
+const authSecurityCommands = productionTransportCommands;
 
 /**
  * Rate limiting for authentication endpoints
@@ -93,7 +90,7 @@ router.post("/register", authLimiter, async (req: Request, res: Response) => {
       .status(201)
       .json({
         message: "User registered successfully",
-        user: sanitizeUser(user as any),
+        user: publicUser(user as any),
       });
   } catch (error) {
     if (error instanceof IdentityError)
@@ -149,7 +146,7 @@ router.post("/login", authLimiter, async (req: Request, res: Response) => {
       .status(200)
       .json({
         message: "Login successful",
-        user: sanitizeUser(user as any),
+        user: publicUser(user as any),
         mustChangePassword: user.mustChangePassword,
       });
   } catch (error) {
@@ -204,9 +201,7 @@ router.get("/me", async (req: Request, res: Response) => {
   }
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.session.userId },
-    });
+    const user = await productionUserQueries.current(req.session.userId);
 
     if (!user) {
       req.session.destroy(() => {});
@@ -217,7 +212,7 @@ router.get("/me", async (req: Request, res: Response) => {
     }
 
     return res.status(200).json({
-      user: sanitizeUser(user),
+      user,
     });
   } catch (error) {
     logger.error("Error in GET /me", { err: error });
@@ -450,7 +445,7 @@ router.post("/mfa/verify-login", authLimiter, async (req, res) => {
       req.session.cookie.maxAge = rememberMeMaxAge;
     const body: any = {
       message: "Login successful",
-      user: sanitizeUser(u as any),
+      user: publicUser(u as any),
       mustChangePassword: u.mustChangePassword,
     };
     if (x.backupCodeUsed) {
@@ -522,15 +517,9 @@ router.post("/mfa/backup-codes", requireAuth, async (req, res) => {
  */
 router.get("/registration-status", async (_req: Request, res: Response) => {
   try {
-    const userCount = await prisma.user.count();
-    if (userCount === 0) {
-      // Setup wizard is first — registration is implicitly available
-      return res.status(200).json({ allowRegistration: true });
-    }
-    const settings = await getSystemSettings();
     return res
       .status(200)
-      .json({ allowRegistration: settings.allowRegistration });
+      .json(await productionPublicSettingsQueries.registrationStatus());
   } catch (error) {
     // Safe fallback: hide registration link on error
     return res.status(200).json({ allowRegistration: false });
@@ -544,7 +533,7 @@ router.get("/registration-status", async (_req: Request, res: Response) => {
  */
 router.get("/appearance", async (_req: Request, res: Response) => {
   try {
-    const appearance = await getAppearanceSettings();
+    const appearance = await productionPublicSettingsQueries.appearance();
     return res.status(200).json(appearance);
   } catch (error) {
     return res.status(200).json({

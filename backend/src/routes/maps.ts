@@ -1,13 +1,12 @@
 import { Router, Response } from "express";
 import { randomUUID } from "crypto";
-import fs from "fs/promises";
 import path from "path";
 import multer from "multer";
 import { AuthenticatedRequest } from "../middleware/rbac";
 import { campaignMember, campaignDM } from "../middleware/compose";
-import { prisma } from "../config/database";
-import { filterMapData, getSpiritVisibility } from "../utils/spirit-layer";
-import { broadcastToCampaign } from "../websocket/utils";
+import { filterMapData } from "../utils/spirit-layer";
+import { productionRealtimeQueries } from "../composition/productionRealtimeQueries";
+import { productionCampaignEvents } from "../composition/productionCampaignEvents";
 import {
   WallSegmentSchema,
   WallSegmentsArraySchema,
@@ -40,10 +39,6 @@ import {
   UpdateWallSegmentCommand,
 } from "../application/scene/SceneMutations";
 import { loadFogState, SceneRole } from "../domain/scene/Scene";
-import { parseUVTT } from "../services/uvttParser";
-import { buildUVTT } from "../services/uvttExporter";
-import { getFilePath, ensureDirectory } from "../utils/fileUtils";
-import sharp from "sharp";
 import logger from "../utils/logger";
 import {
   CREATE_MAP,
@@ -70,12 +65,17 @@ import {
   UpdateMapTokenCommand,
 } from "../application/mapTokens/MapTokenMutations";
 import { MapTokenError } from "../domain/mapTokens/MapToken";
-import { productionCommandBus } from "../composition/productionApplicationHost";
+import { productionTransportCommands } from "../composition/productionTransportCommands";
 import {
   IMPORT_UVTT_MAP,
-  ImportUvttMap,
   ImportUvttMapCommand,
+  ImportUvttMapResult,
+  UvttImportError,
 } from "../application/maps/UvttMapImportCommands";
+import {
+  UvttMapExportError,
+} from "../application/maps/UvttMapExport";
+import { productionUvttMapExport } from "../composition/productionUvttMapExport";
 
 /** Multer configured for UVTT file uploads (memory storage — files are small JSON). */
 const uvttUpload = multer({
@@ -98,8 +98,8 @@ const router = Router({ mergeParams: true }); // Important: Merge params from pa
 
 // HTTP remains a transport adapter. Core map lifecycle behaviour is shared
 // with Socket.IO commands instead of coupling those surfaces to Prisma.
-const mapCoreCommands = productionCommandBus;
-const uvttImportCommands = productionCommandBus;
+const mapCoreCommands = productionTransportCommands;
+const uvttImportCommands = productionTransportCommands;
 
 function sendMapLifecycleError(res: Response, error: unknown): boolean {
   if (error instanceof MapRevisionConflictError) {
@@ -118,7 +118,7 @@ function sendMapLifecycleError(res: Response, error: unknown): boolean {
 // REST is a transport adapter. These bindings share the same scene use cases
 // as the Socket.IO map-edit handlers while preserving this route's established
 // HTTP validation, status codes, payloads, and broadcasts.
-const sceneCommands = productionCommandBus;
+const sceneCommands = productionTransportCommands;
 
 function sceneActor(campaignId: string, req?: AuthenticatedRequest) {
   return {
@@ -127,7 +127,7 @@ function sceneActor(campaignId: string, req?: AuthenticatedRequest) {
   };
 }
 
-const mapTokenCommands = productionCommandBus;
+const mapTokenCommands = productionTransportCommands;
 
 /**
  * Map CRUD Routes
@@ -179,23 +179,7 @@ router.get(
     try {
       const { campaignId } = req.params;
 
-      const maps = await prisma.map.findMany({
-        where: { campaignId },
-        select: {
-          id: true,
-          name: true,
-          imageUrl: true, // Thumbnail reference
-          width: true,
-          height: true,
-          gridSize: true,
-          feetPerSquare: true,
-          diagonalRule: true,
-          lightingEnabled: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-        orderBy: { createdAt: "desc" },
-      });
+      const maps = await productionRealtimeQueries.mapSummaries(campaignId);
 
       return res.status(200).json({ maps });
     } catch (error) {
@@ -241,76 +225,29 @@ router.post(
         );
       const gridSizePx = Number(req.body.gridSize) || 70;
 
-      // ── Parse the UVTT file ──────────────────────────────────────────────
-      let parsed;
-      try {
-        parsed = parseUVTT(req.file.buffer, gridSizePx);
-      } catch (parseErr) {
-        const msg =
-          parseErr instanceof Error
-            ? parseErr.message
-            : "Failed to parse UVTT file";
-        return res.status(400).json({ error: "Parse Error", message: msg });
-      }
-
-      // ── Save the embedded image as an asset ──────────────────────────────
-      const ext =
-        parsed.imageMimeType === "image/webp"
-          ? ".webp"
-          : parsed.imageMimeType === "image/jpeg"
-            ? ".jpg"
-            : ".png";
-      const filename = `${randomUUID()}${ext}`;
-      const uploadPath = getFilePath("MAP", "CAMPAIGN", campaignId);
-      await ensureDirectory(uploadPath);
-      const filePath = path.join(uploadPath, filename).replace(/\\/g, "/");
-      await fs.writeFile(filePath, parsed.imageBuffer);
-
-      const map = await uvttImportCommands.dispatch<
+      const result = await uvttImportCommands.dispatch<
         ImportUvttMapCommand,
-        Awaited<ReturnType<ImportUvttMap["execute"]>>
+        ImportUvttMapResult
       >({
         type: IMPORT_UVTT_MAP,
-        asset: {
-          type: "MAP",
-          scope: "CAMPAIGN",
-          uploadedById: userId,
-          campaignId,
-          filename,
-          originalName: `${mapName}${ext}`,
-          mimeType: parsed.imageMimeType,
-          fileSize: parsed.imageBuffer.length,
-          filePath,
-          name: mapName,
-          tags: ["uvtt-import"],
-        },
-        map: {
-          campaignId,
-          name: mapName,
-          width: parsed.mapWidth,
-          height: parsed.mapHeight,
-          gridSize: gridSizePx,
-          tokens: [],
-          annotations: [],
-          wallSegments: parsed.wallSegments as any,
-          lights: parsed.lightSources as any,
-          lightingEnabled: parsed.wallSegments.length > 0, // auto-enable if walls present
-        },
+        campaignId,
+        uploadedById: userId,
+        name: mapName,
+        contents: req.file.buffer,
+        gridSize: gridSizePx,
       });
 
       logger.info(
-        `[uvtt-import] Created map "${mapName}" (${parsed.mapWidth}×${parsed.mapHeight}) ` +
-          `with ${parsed.wallCount} walls + ${parsed.portalCount} doors + ${parsed.lightCount} lights`,
+        `[uvtt-import] Created map "${mapName}" with ${result.wallCount} walls, ` +
+          `${result.portalCount} doors, and ${result.lightCount} lights`,
       );
 
-      return res.status(201).json({
-        map,
-        wallCount: parsed.wallCount,
-        portalCount: parsed.portalCount,
-        lightCount: parsed.lightCount,
-        totalSegments: parsed.wallSegments.length,
-      });
+      return res.status(201).json(result);
     } catch (error) {
+      if (error instanceof UvttImportError)
+        return res
+          .status(400)
+          .json({ error: "Parse Error", message: error.message });
       logger.error("Error importing UVTT file:", error);
       return res.status(500).json({
         error: "Internal Server Error",
@@ -333,85 +270,19 @@ router.get(
     try {
       const { campaignId, id } = req.params;
 
-      const map = await prisma.map.findFirst({
-        where: { id, campaignId },
-        select: {
-          id: true,
-          name: true,
-          imageUrl: true,
-          width: true,
-          height: true,
-          gridSize: true,
-          wallSegments: true,
-          lights: true,
-        },
-      });
-      if (!map) {
-        return res
-          .status(404)
-          .json({ error: "Not Found", message: "Map not found" });
-      }
-      if (!map.imageUrl) {
-        return res
-          .status(422)
-          .json({ error: "Unprocessable Entity", message: "Map has no image" });
-      }
-
-      // Resolve asset file path
-      const assetId = path.basename(map.imageUrl);
-      const asset = await prisma.asset.findUnique({
-        where: { id: assetId },
-        select: { filePath: true },
-      });
-      if (!asset) {
-        return res.status(422).json({
-          error: "Unprocessable Entity",
-          message: "Map image asset not found",
-        });
-      }
-
-      const imagePath = path.resolve(asset.filePath.replace(/\\/g, "/"));
-      let imageBuffer: Buffer;
-      try {
-        imageBuffer = await fs.readFile(imagePath);
-      } catch {
-        return res.status(422).json({
-          error: "Unprocessable Entity",
-          message: "Map image file not found on disk",
-        });
-      }
-
-      // Get image dimensions for pixels_per_grid calculation
-      const meta = await sharp(imageBuffer).metadata();
-      const imageWidthPx = meta.width;
-
-      const wallSegments = (Array.isArray(map.wallSegments)
-        ? map.wallSegments
-        : []) as unknown as WallSegment[];
-      const lights = (Array.isArray(map.lights)
-        ? map.lights
-        : []) as unknown as LightSource[];
-
-      const uvttBuffer = buildUVTT({
-        mapWidth: map.width,
-        mapHeight: map.height,
-        gridSizePx: map.gridSize,
-        wallSegments,
-        lights,
-        imageBuffer,
-        imageWidthPx,
-      });
-
-      // Sanitize filename for Content-Disposition
-      const safeName = map.name.replace(/[^a-zA-Z0-9 _-]/g, "").trim() || "map";
+      const exported = await productionUvttMapExport.execute(campaignId, id);
       res.setHeader("Content-Type", "application/json");
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="${safeName}.uvtt"`,
+        `attachment; filename="${exported.filename}.uvtt"`,
       );
-      res.setHeader("Content-Length", uvttBuffer.length);
-      return res.send(uvttBuffer);
+      res.setHeader("Content-Length", exported.contents.length);
+      return res.send(exported.contents);
     } catch (error) {
+      if (error instanceof UvttMapExportError)
+        return res
+          .status(error.status)
+          .json({ error: error.error, message: error.message });
       logger.error("Error exporting UVTT file:", error);
       return res.status(500).json({
         error: "Internal Server Error",
@@ -440,38 +311,18 @@ router.get(
       const { campaignId, id } = req.params;
       const userId = req.session.userId!;
 
-      // Fetch the map
-      const map = await prisma.map.findUnique({
-        where: { id },
-      });
-
+      const map = await productionRealtimeQueries.mapForCampaign(campaignId, id);
       if (!map) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "Map not found",
-        });
-      }
-
-      // Verify map belongs to this campaign
-      if (map.campaignId !== campaignId) {
         return res.status(404).json({
           error: "Not Found",
           message: "Map not found in this campaign",
         });
       }
-
-      // Check user's role in campaign
-      const membership = await prisma.campaignMembership.findUnique({
-        where: {
-          userId_campaignId: {
-            userId,
-            campaignId,
-          },
-        },
-        select: { role: true },
-      });
-
-      if (!membership) {
+      const role = await productionRealtimeQueries.campaignRole(
+        userId,
+        campaignId,
+      );
+      if (!role) {
         return res.status(403).json({
           error: "Forbidden",
           message: "You are not a member of this campaign",
@@ -479,10 +330,13 @@ router.get(
       }
 
       // Get spirit layer visibility for this user
-      const spiritVisible = await getSpiritVisibility(campaignId, userId);
+      const spiritVisible = await productionRealtimeQueries.canSeeSpiritLayer(
+        campaignId,
+        userId,
+      );
 
       // Filter map data based on role and spirit visibility
-      const responseMap = filterMapData(map, membership.role, spiritVisible);
+      const responseMap = filterMapData(map as any, role, spiritVisible);
 
       return res.status(200).json({ map: responseMap, spiritVisible });
     } catch (error) {
@@ -531,7 +385,7 @@ router.put(
         });
         updatedMap = { ...updatedMap, lightingEnabled };
         try {
-          broadcastToCampaign(campaignId, "map:lighting:updated", {
+          productionCampaignEvents.publish(campaignId, "map:lighting:updated", {
             mapId: id,
             lightingEnabled,
           });
@@ -777,15 +631,12 @@ async function findMapInCampaign(
   mapId: string,
   res: Response,
 ) {
-  const map = await prisma.map.findUnique({ where: { id: mapId } });
+  const map = await productionRealtimeQueries.mapForCampaign(campaignId, mapId);
   if (!map) {
-    res.status(404).json({ error: "Not Found", message: "Map not found" });
-    return null;
-  }
-  if (map.campaignId !== campaignId) {
-    res
-      .status(404)
-      .json({ error: "Not Found", message: "Map not found in this campaign" });
+    res.status(404).json({
+      error: "Not Found",
+      message: "Map not found in this campaign",
+    });
     return null;
   }
   return map;
@@ -1084,7 +935,7 @@ router.put(
         lights: parsed.data,
       });
 
-      broadcastToCampaign(campaignId, "lights:replaced", { mapId: id, lights });
+      productionCampaignEvents.publish(campaignId, "lights:replaced", { mapId: id, lights });
       return res.status(200).json({ lights });
     } catch (error) {
       if (sendMapLifecycleError(res, error)) return;
@@ -1140,7 +991,7 @@ router.post(
         light: parsed.data,
       });
 
-      broadcastToCampaign(campaignId, "light:added", {
+      productionCampaignEvents.publish(campaignId, "light:added", {
         mapId: id,
         light: parsed.data,
       });
@@ -1196,7 +1047,7 @@ router.patch(
         light,
       });
 
-      broadcastToCampaign(campaignId, "light:updated", { mapId: id, light });
+      productionCampaignEvents.publish(campaignId, "light:updated", { mapId: id, light });
       return res.status(200).json({ light });
     } catch (error) {
       if (sendMapLifecycleError(res, error)) return;
@@ -1240,7 +1091,7 @@ router.delete(
         lightId,
       });
 
-      broadcastToCampaign(campaignId, "light:removed", { mapId: id, lightId });
+      productionCampaignEvents.publish(campaignId, "light:removed", { mapId: id, lightId });
       return res.status(200).json({ message: "Light source deleted" });
     } catch (error) {
       if (sendMapLifecycleError(res, error)) return;
@@ -1359,7 +1210,7 @@ router.put(
 
       // Broadcast to all clients in this campaign so they don't need to reload
       try {
-        broadcastToCampaign(campaignId, "map:lighting:updated", {
+        productionCampaignEvents.publish(campaignId, "map:lighting:updated", {
           mapId: id,
           lightingEnabled,
         });

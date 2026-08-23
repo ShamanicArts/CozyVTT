@@ -6,10 +6,8 @@
 import { Server } from "socket.io";
 import { throttle } from "lodash";
 import { AuthenticatedSocket } from "../auth";
-import {
-  getSpiritVisibilityBatch,
-  filterTokensByLighting,
-} from "../../utils/spirit-layer";
+import { filterTokensByLighting } from "../../utils/spirit-layer";
+import { productionRealtimeQueries } from "../../composition/productionRealtimeQueries";
 import type { WallSegment } from "../../types/walls";
 import logger from "../../utils/logger";
 import { tokenMoveLimiter } from "../shared";
@@ -24,7 +22,7 @@ import {
   StartTokenMoveCommand,
   StartTokenMoveResult,
 } from "../../application/tokens/TokenMovement";
-import { productionCommandBus } from "../../composition/productionApplicationHost";
+import { productionTransportCommands } from "../../composition/productionTransportCommands";
 import {
   TokenMovementError,
   TokenMovementRole,
@@ -34,7 +32,7 @@ import { MapRevisionConflictError } from "../../domain/maps/MapRevision";
 // Socket.IO remains a transport and recipient-filtering adapter. The mutation
 // and its authorization now run through the same command bus future HTTP,
 // import and capability adapters will use.
-const tokenMovementCommands = productionCommandBus;
+const tokenMovementCommands = productionTransportCommands;
 
 function actorFor(socket: AuthenticatedSocket, campaignId: string) {
   return {
@@ -85,7 +83,7 @@ export function registerTokenHandlers(
         // Role-filtered broadcast for spirit tokens
         if (token.layer === "spirit") {
           const campaignSockets = await io.in(socket.campaignId).fetchSockets();
-          const visibility = await getSpiritVisibilityBatch(
+          const visibility = await productionRealtimeQueries.spiritVisibility(
             socket.campaignId,
             campaignSockets
               .map((s) => (s as unknown as AuthenticatedSocket).userId)
@@ -194,7 +192,7 @@ export function registerTokenHandlers(
         // Role-filtered broadcast for spirit tokens
         if (movingToken && movingToken.layer === "spirit") {
           const campaignSockets = await io.in(socket.campaignId).fetchSockets();
-          const visibility = await getSpiritVisibilityBatch(
+          const visibility = await productionRealtimeQueries.spiritVisibility(
             socket.campaignId,
             campaignSockets
               .map((s) => (s as unknown as AuthenticatedSocket).userId)
@@ -306,7 +304,7 @@ export function registerTokenHandlers(
         // Role-filtered broadcast for spirit tokens
         if (token.layer === "spirit") {
           const campaignSockets = await io.in(socket.campaignId).fetchSockets();
-          const visibility = await getSpiritVisibilityBatch(
+          const visibility = await productionRealtimeQueries.spiritVisibility(
             socket.campaignId,
             campaignSockets
               .map((s) => (s as unknown as AuthenticatedSocket).userId)

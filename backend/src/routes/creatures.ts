@@ -7,10 +7,8 @@
 import { Router, Response } from "express";
 import { AuthenticatedRequest } from "../middleware/rbac";
 import { campaignMember, campaignDM } from "../middleware/compose";
-import { prisma } from "../config/database";
-import { getSrdSeedStatus } from "../services/creatureSeed";
 import logger from "../utils/logger";
-import { productionCommandBus } from "../composition/productionApplicationHost";
+import { productionTransportCommands } from "../composition/productionTransportCommands";
 import {
   CREATE_CREATURE,
   UPDATE_CREATURE,
@@ -20,9 +18,10 @@ import {
   SEED_SRD_CREATURES,
   CreatureError,
 } from "../application/creatures/CreatureMutations";
+import { productionCreatureQueries } from "../composition/productionCreatureQueries";
 
 const router = Router({ mergeParams: true });
-const creatureCommands = productionCommandBus;
+const creatureCommands = productionTransportCommands;
 function creatureError(res: Response, e: unknown) {
   if (!(e instanceof CreatureError)) return false;
   res.status(e.status).json({ error: e.error, message: e.message });
@@ -43,7 +42,7 @@ router.get(
   campaignMember,
   async (_req: AuthenticatedRequest, res: Response) => {
     try {
-      const status = await getSrdSeedStatus(prisma);
+      const status = await productionCreatureQueries.seedStatus();
       return res.json({
         ...status,
         seedInProgress,
@@ -126,40 +125,17 @@ router.get(
       );
       const skip = Math.max(0, parseInt(offset as string, 10) || 0);
 
-      // Build where clause: include SRD (campaignId null) + this campaign's customs
-      const where: Record<string, unknown> = {
-        OR: [{ campaignId: null }, { campaignId }],
-      };
-
-      if (search) {
-        where.name = { contains: search as string, mode: "insensitive" };
-      }
-      if (source) {
-        where.source = source as string;
-      }
-      if (cr) {
-        where.challengeRating = cr as string;
-      }
-      if (gameSystem) {
-        where.gameSystem = gameSystem as string;
-      }
-
-      const [templates, total] = await Promise.all([
-        prisma.creatureTemplate.findMany({
-          where: where as any,
-          orderBy: { name: "asc" },
-          take,
-          skip,
+      return res.json(
+        await productionCreatureQueries.list({
+          campaignId,
+          search: typeof search === "string" ? search : undefined,
+          source: typeof source === "string" ? source : undefined,
+          challengeRating: typeof cr === "string" ? cr : undefined,
+          gameSystem: typeof gameSystem === "string" ? gameSystem : undefined,
+          limit: take,
+          offset: skip,
         }),
-        prisma.creatureTemplate.count({ where: where as any }),
-      ]);
-
-      return res.json({
-        creatures: templates,
-        total,
-        limit: take,
-        offset: skip,
-      });
+      );
     } catch (error) {
       logger.error("Error listing creature templates:", error);
       return res
@@ -183,18 +159,9 @@ router.get(
     try {
       const { creatureId } = req.params;
 
-      const template = await prisma.creatureTemplate.findUnique({
-        where: { id: creatureId },
-      });
-
-      if (!template) {
-        return res
-          .status(404)
-          .json({ error: "Not Found", message: "Creature template not found" });
-      }
-
-      return res.json(template);
+      return res.json(await productionCreatureQueries.find(creatureId));
     } catch (error) {
+      if (creatureError(res, error)) return;
       logger.error("Error getting creature template:", error);
       return res
         .status(500)
@@ -272,35 +239,6 @@ router.put(
       const { campaignId, creatureId } = req.params;
       const data = req.body;
 
-      const existing = await prisma.creatureTemplate.findUnique({
-        where: { id: creatureId },
-      });
-
-      if (!existing) {
-        return res
-          .status(404)
-          .json({ error: "Not Found", message: "Creature template not found" });
-      }
-
-      // Prevent editing SRD creatures
-      if (existing.source === "srd") {
-        return res.status(403).json({
-          error: "Forbidden",
-          message:
-            "Cannot edit SRD creatures. Duplicate it first to create a custom version.",
-        });
-      }
-
-      // Prevent editing another campaign's creatures
-      if (existing.campaignId !== campaignId) {
-        return res
-          .status(403)
-          .json({
-            error: "Forbidden",
-            message: "Cannot edit creatures from another campaign",
-          });
-      }
-
       const updated = await creatureCommands.dispatch({
         type: UPDATE_CREATURE,
         campaignId,
@@ -334,31 +272,6 @@ router.delete(
     try {
       const { campaignId, creatureId } = req.params;
 
-      const existing = await prisma.creatureTemplate.findUnique({
-        where: { id: creatureId },
-      });
-
-      if (!existing) {
-        return res
-          .status(404)
-          .json({ error: "Not Found", message: "Creature template not found" });
-      }
-
-      if (existing.source === "srd") {
-        return res
-          .status(403)
-          .json({ error: "Forbidden", message: "Cannot delete SRD creatures" });
-      }
-
-      if (existing.campaignId !== campaignId) {
-        return res
-          .status(403)
-          .json({
-            error: "Forbidden",
-            message: "Cannot delete creatures from another campaign",
-          });
-      }
-
       await creatureCommands.dispatch({
         type: DELETE_CREATURE,
         campaignId,
@@ -391,16 +304,6 @@ router.post(
     try {
       const { campaignId, creatureId } = req.params;
       const userId = req.session.userId!;
-
-      const source = await prisma.creatureTemplate.findUnique({
-        where: { id: creatureId },
-      });
-
-      if (!source) {
-        return res
-          .status(404)
-          .json({ error: "Not Found", message: "Creature template not found" });
-      }
 
       const duplicate = await creatureCommands.dispatch({
         type: DUPLICATE_CREATURE,
@@ -436,16 +339,9 @@ router.get(
       const { campaignId } = req.params;
       const userId = req.session.userId!;
 
-      const favorites = await prisma.creatureFavorite.findMany({
-        where: { campaignId, userId },
-        include: { creature: true },
-        orderBy: { creature: { name: "asc" } },
-      });
-
-      return res.json({
-        favoriteIds: favorites.map((f) => f.creatureId),
-        creatures: favorites.map((f) => f.creature),
-      });
+      return res.json(
+        await productionCreatureQueries.favorites(campaignId, userId),
+      );
     } catch (error) {
       logger.error("Error listing creature favorites:", error);
       return res

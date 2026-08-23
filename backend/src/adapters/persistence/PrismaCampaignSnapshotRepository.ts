@@ -1,12 +1,16 @@
 import type { PrismaClient } from "@prisma/client";
 import type { CampaignSnapshotRepository } from "../../ports/CampaignSnapshotRepository";
-import { filterMapData, getSpiritVisibility } from "../../utils/spirit-layer";
+import type { SpiritVisibilityPolicy } from "../../ports/SpiritVisibilityPolicy";
+import { filterMapData } from "../../utils/spirit-layer";
 import { emptyInitiativeState } from "../../domain/initiative/Initiative";
 
 export class PrismaCampaignSnapshotRepository
   implements CampaignSnapshotRepository
 {
-  constructor(private readonly client: PrismaClient) {}
+  constructor(
+    private readonly client: PrismaClient,
+    private readonly spiritVisibility: SpiritVisibilityPolicy,
+  ) {}
 
   async load(input: {
     campaignId: string;
@@ -39,7 +43,7 @@ export class PrismaCampaignSnapshotRepository
       },
     });
     if (!campaign) return null;
-    const spiritVisible = await getSpiritVisibility(
+    const spiritVisible = await this.spiritVisibility.canSeeSpiritLayer(
       input.campaignId,
       input.principalId,
     );

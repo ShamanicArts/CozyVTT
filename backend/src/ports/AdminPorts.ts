@@ -15,6 +15,11 @@ export interface AdminBackupStore {
   restore(uploadedZip: string): Promise<void>;
 }
 
+export interface AdminBackupQueryStore {
+  list(): Promise<BackupSummary[]>;
+  read(filename: string): Promise<Buffer | null>;
+}
+
 export interface AdminMailer {
   isConfigured(): boolean;
   sendTestEmail(email: string, displayName: string): Promise<void>;

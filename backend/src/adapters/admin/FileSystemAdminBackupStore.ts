@@ -11,13 +11,15 @@ import {
   BackupSummary,
   adminError,
 } from "../../domain/admin/Admin";
-import { AdminBackupStore } from "../../ports/AdminPorts";
+import { AdminBackupQueryStore, AdminBackupStore } from "../../ports/AdminPorts";
 import { extractArchiveSafely } from "../../utils/archive";
 
 const execFileAsync = promisify(execFile);
 
 /** Filesystem/Postgres-client adapter for full instance backup lifecycle. */
-export class FileSystemAdminBackupStore implements AdminBackupStore {
+export class FileSystemAdminBackupStore
+  implements AdminBackupStore, AdminBackupQueryStore
+{
   constructor(
     private readonly uploadsDir: string,
     private readonly backupDir: string,
@@ -96,6 +98,36 @@ export class FileSystemAdminBackupStore implements AdminBackupStore {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  async list(): Promise<BackupSummary[]> {
+    try {
+      await fs.mkdir(this.backupDir, { recursive: true });
+      const files = await fs.readdir(this.backupDir);
+      const backups = await Promise.all(
+        files
+          .filter((filename) => /^backup-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.zip$/.test(filename))
+          .map(async (filename) => {
+            const stat = await fs.stat(path.join(this.backupDir, filename));
+            return {
+              filename,
+              sizeBytes: stat.size,
+              createdAt: stat.mtime.toISOString(),
+            };
+          }),
+      );
+      return backups.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    } catch {
+      return [];
+    }
+  }
+
+  async read(filename: string): Promise<Buffer | null> {
+    try {
+      return await fs.readFile(path.join(this.backupDir, filename));
+    } catch {
+      return null;
     }
   }
 

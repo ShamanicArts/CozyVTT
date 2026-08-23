@@ -12,6 +12,8 @@ import { SessionLifecycleError } from "../../domain/campaigns/SessionLifecycle";
 import { CampaignSessionRepository } from "../../ports/CampaignSessionRepository";
 import { CampaignSessionState } from "../../ports/CampaignSessionState";
 
+const notifier = { notify: jest.fn(async () => undefined) };
+
 const session = (overrides: Record<string, unknown> = {}) => ({
   id: "session-1",
   campaignId: "campaign-1",
@@ -47,7 +49,7 @@ describe("campaign session lifecycle commands", () => {
     store.findCampaignStatus.mockResolvedValue({ status: "PREPARATION" });
     store.nextSessionNumber.mockResolvedValue(3);
     store.createSession.mockResolvedValue(session());
-    await new StartCampaignSession(store, snapshots).execute({
+    await new StartCampaignSession(store, snapshots, notifier).execute({
       type: START_CAMPAIGN_SESSION,
       campaignId: "campaign-1",
     });
@@ -62,7 +64,7 @@ describe("campaign session lifecycle commands", () => {
     const snapshots = state();
     store.findCampaignStatus.mockResolvedValue({ status: "ACTIVE" });
     await expect(
-      new StartCampaignSession(store, snapshots).execute({
+      new StartCampaignSession(store, snapshots, notifier).execute({
         type: START_CAMPAIGN_SESSION,
         campaignId: "campaign-1",
       }),
@@ -82,7 +84,7 @@ describe("campaign session lifecycle commands", () => {
     const saved = { mapId: "map-1" };
     store.findSession.mockResolvedValue(session());
     snapshots.capture.mockResolvedValue(saved);
-    await new PauseCampaignSession(store, snapshots).execute({
+    await new PauseCampaignSession(store, snapshots, notifier).execute({
       type: PAUSE_CAMPAIGN_SESSION,
       campaignId: "campaign-1",
       sessionId: "session-1",
@@ -98,7 +100,7 @@ describe("campaign session lifecycle commands", () => {
     const snapshots = state();
     store.findSession.mockResolvedValue(session());
     snapshots.capture.mockResolvedValue({ mapId: "map-1" });
-    const result = await new EndCampaignSession(store, snapshots).execute({
+    const result = await new EndCampaignSession(store, snapshots, notifier).execute({
       type: END_CAMPAIGN_SESSION,
       campaignId: "campaign-1",
       sessionId: "session-1",
@@ -122,7 +124,7 @@ describe("campaign session lifecycle commands", () => {
     store.findLastSession.mockResolvedValue(
       session({ endedAt: new Date(), savedState: saved }),
     );
-    await new ResumeCampaignSession(store, snapshots).execute({
+    await new ResumeCampaignSession(store, snapshots, notifier).execute({
       type: RESUME_CAMPAIGN_SESSION,
       campaignId: "campaign-1",
     });

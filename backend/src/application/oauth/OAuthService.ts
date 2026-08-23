@@ -3,7 +3,7 @@ import type { OAuthResourceDescriptor } from "../../extensions/contracts";
 import type {
   HttpTransportAuthorizationService,
   TrustedHttpTransportRegistry,
-} from "../../extensions/host/TrustedHttpTransportRegistry";
+} from "../../ports/OAuthHttpTransport";
 import type { OAuthRepository, OAuthTokenIdentity } from "../../ports/OAuthRepository";
 
 const AUTHORIZATION_TTL_MS = 10 * 60_000;

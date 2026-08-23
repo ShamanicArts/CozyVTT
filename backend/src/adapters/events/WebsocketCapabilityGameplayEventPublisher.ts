@@ -8,7 +8,6 @@ import type { FinalizeTokenMoveResult } from "../../application/tokens/TokenMove
 import {
   filterMapData,
   filterTokensByLighting,
-  getSpiritVisibilityBatch,
 } from "../../utils/spirit-layer";
 import type { AuthenticatedSocket } from "../../websocket/auth";
 import { getSocketInstance } from "../../websocket/socketInstance";
@@ -18,7 +17,10 @@ import type { WallSegment } from "../../types/walls";
 export class WebsocketCapabilityGameplayEventPublisher implements CapabilityGameplayEventPublisher {
   constructor(
     private readonly socketServer: () => Server = getSocketInstance,
-    private readonly spiritVisibility: typeof getSpiritVisibilityBatch = getSpiritVisibilityBatch,
+    private readonly spiritVisibility: (
+      campaignId: string,
+      userIds: readonly string[],
+    ) => Promise<Map<string, boolean>> = async () => new Map(),
   ) {}
 
   async syncMap(campaignId: string, map: unknown): Promise<void> {

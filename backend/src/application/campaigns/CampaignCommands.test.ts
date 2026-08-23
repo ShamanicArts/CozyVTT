@@ -126,7 +126,9 @@ describe('campaign administration commands', () => {
       campaign: { id: 'campaign-1', name: 'Briar Hollow' },
     });
 
-    const result = await new InviteToCampaign(store).execute({
+    const result = await new InviteToCampaign(store, {
+      notify: jest.fn(async () => undefined),
+    }).execute({
       type: INVITE_TO_CAMPAIGN, campaignId: 'campaign-1', invitedBy: 'owner-1', userId: 'player-1', expiresInDays: undefined,
     });
 

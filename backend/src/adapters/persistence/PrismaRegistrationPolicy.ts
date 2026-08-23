@@ -1,9 +1,12 @@
 import { PrismaClient } from "@prisma/client";
 import { RegistrationPolicy } from "../../ports/RegistrationPolicy";
-import { getSystemSettings } from "../../services/systemSettings";
+import type { SystemSettingsRepository } from "../../ports/SystemSettingsRepository";
 
 export class PrismaRegistrationPolicy implements RegistrationPolicy {
-  constructor(private readonly client: PrismaClient) {}
+  constructor(
+    private readonly client: PrismaClient,
+    private readonly systemSettings: SystemSettingsRepository,
+  ) {}
   userCount(): Promise<number> {
     return this.client.user.count();
   }
@@ -11,7 +14,7 @@ export class PrismaRegistrationPolicy implements RegistrationPolicy {
     allowRegistration: boolean;
     requireAdminApproval: boolean;
   }> {
-    const settings = await getSystemSettings();
+    const settings = await this.systemSettings.load();
     return {
       allowRegistration: settings.allowRegistration,
       requireAdminApproval: settings.requireAdminApproval,

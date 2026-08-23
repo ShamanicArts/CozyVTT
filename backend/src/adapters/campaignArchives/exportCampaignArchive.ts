@@ -10,8 +10,8 @@ import archiver from 'archiver';
 import { PassThrough } from 'stream';
 import path from 'path';
 import fs from 'fs';
-import { prisma } from '../config/database';
-import logger from '../utils/logger';
+import type { PrismaClient } from '@prisma/client';
+import logger from '../../utils/logger';
 
 // ── Exported types ──────────────────────────────────────────────────────────
 
@@ -39,8 +39,8 @@ function extractAssetId(url: string | null | undefined): string | null {
 }
 
 /** Resolve an asset ID to its file path on disk. Returns null if not found. */
-async function resolveAssetFile(assetId: string): Promise<{ filePath: string; mimeType: string; originalName: string; type: string; fileSize: number } | null> {
-  const asset = await prisma.asset.findUnique({ where: { id: assetId } });
+async function resolveAssetFile(client: PrismaClient, assetId: string): Promise<{ filePath: string; mimeType: string; originalName: string; type: string; fileSize: number } | null> {
+  const asset = await client.asset.findUnique({ where: { id: assetId } });
   if (!asset) return null;
 
   // asset.filePath is stored as a relative path from the project root (e.g. "uploads/maps/...")
@@ -62,13 +62,14 @@ async function resolveAssetFile(assetId: string): Promise<{ filePath: string; mi
 // ── Export service ───────────────────────────────────────────────────────────
 
 export async function exportCampaign(
+  client: PrismaClient,
   campaignId: string,
   options: ExportOptions = {}
 ): Promise<ExportResult> {
   const { includeAudio = false, includeTokens = true } = options;
 
   // 1. Fetch campaign with all related data
-  const campaign = await prisma.campaign.findUnique({
+  const campaign = await client.campaign.findUnique({
     where: { id: campaignId },
     include: {
       maps: true,
@@ -88,7 +89,7 @@ export async function exportCampaign(
     const id = extractAssetId(url);
     if (!id) return null;
     if (!assetMap.has(id)) {
-      const resolved = await resolveAssetFile(id);
+      const resolved = await resolveAssetFile(client, id);
       if (resolved) {
         // Skip audio files unless explicitly included
         if (resolved.type === 'AUDIO' && !includeAudio) return null;

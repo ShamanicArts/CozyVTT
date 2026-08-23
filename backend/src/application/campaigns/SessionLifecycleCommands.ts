@@ -4,6 +4,7 @@ import {
 } from "../../domain/campaigns/SessionLifecycle";
 import { CampaignSessionRepository } from "../../ports/CampaignSessionRepository";
 import { CampaignSessionState } from "../../ports/CampaignSessionState";
+import { CampaignSessionNotifier } from "../../ports/CampaignSessionNotifier";
 import { Command, CommandHandler } from "../commands/CommandBus";
 
 export const START_CAMPAIGN_SESSION = "campaign.session.start" as const;
@@ -42,6 +43,7 @@ abstract class SessionCommandBase {
   constructor(
     protected readonly repository: CampaignSessionRepository,
     protected readonly state: CampaignSessionState,
+    protected readonly notifier: CampaignSessionNotifier,
   ) {}
 
   protected async sessionInCampaign(
@@ -92,6 +94,16 @@ export class StartCampaignSession
       "ACTIVE",
       new Date(),
     );
+    await this.notifier.notify({
+      campaignId: command.campaignId,
+      event: "session.started",
+      message: `Session ${session.sessionNumber} has started!`,
+      payload: {
+        sessionId: session.id,
+        sessionNumber: session.sessionNumber,
+        startedAt: session.startedAt.toISOString(),
+      },
+    });
     return session;
   }
 }
@@ -113,6 +125,12 @@ export class PauseCampaignSession
     );
     await this.repository.saveSessionState(command.sessionId, state);
     await this.repository.updateCampaignStatus(command.campaignId, "PAUSED");
+    await this.notifier.notify({
+      campaignId: command.campaignId,
+      event: "session.paused",
+      message: `Session ${session.sessionNumber} has been paused. See you next time!`,
+      payload: { sessionId: session.id, sessionNumber: session.sessionNumber },
+    });
     return session;
   }
 }
@@ -144,6 +162,16 @@ export class EndCampaignSession
       ...(notes ? { notes } : {}),
     });
     await this.repository.updateCampaignStatus(command.campaignId, "INACTIVE");
+    await this.notifier.notify({
+      campaignId: command.campaignId,
+      event: "session.ended",
+      message: `Session ${session.sessionNumber} has ended.${command.saveState ? " Game state saved!" : ""}`,
+      payload: {
+        sessionId: session.id,
+        sessionNumber: session.sessionNumber,
+        stateSaved: command.saveState,
+      },
+    });
     return { session, stateSaved: command.saveState };
   }
 }
@@ -175,6 +203,16 @@ export class ResumeCampaignSession
       "ACTIVE",
       new Date(),
     );
+    await this.notifier.notify({
+      campaignId: command.campaignId,
+      event: "session.resumed",
+      message: `Session ${session.sessionNumber} has been resumed!`,
+      payload: {
+        sessionId: session.id,
+        sessionNumber: session.sessionNumber,
+        startedAt: session.startedAt.toISOString(),
+      },
+    });
     return session;
   }
 }

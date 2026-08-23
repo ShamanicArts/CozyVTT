@@ -2,7 +2,6 @@ import { Router, Response } from "express";
 import rateLimit from "express-rate-limit";
 import { AuthenticatedRequest } from "../middleware/rbac";
 import { authenticated } from "../middleware/compose";
-import { prisma } from "../config/database";
 import {
   UploadRequest,
   uploadGeneric,
@@ -12,18 +11,15 @@ import {
   validateFileType,
   validateFileSize,
 } from "../middleware/fileValidation";
-import { AssetType, AssetScope, deleteFile } from "../utils/fileUtils";
-import path from "path";
-import fs from "fs";
-import sharp from "sharp";
 import logger from "../utils/logger";
-import { productionCommandBus } from "../composition/productionApplicationHost";
+import { productionTransportCommands } from "../composition/productionTransportCommands";
 import {
   CREATE_ASSET,
   CreateAsset,
   CreateAssetCommand,
   DELETE_ASSET,
   DeleteAssetCommand,
+  DISCARD_ASSET_UPLOAD,
   isAssetMutationError,
   PREPARE_ASSET_UPLOAD,
   PrepareAssetUpload,
@@ -32,12 +28,14 @@ import {
   UpdateAssetScope,
   UpdateAssetScopeCommand,
 } from "../application/assets/AssetMutations";
+import { AssetQueryError } from "../application/assets/AssetQueries";
+import { productionAssetQueries } from "../composition/productionAssetQueries";
 
 const router = Router();
 
 // HTTP owns multipart parsing and byte inspection; the command bus owns asset
 // authorization and mutations so capability/extension adapters can reuse them.
-const assetCommands = productionCommandBus;
+const assetCommands = productionTransportCommands;
 
 function assetActor(req: AuthenticatedRequest) {
   return {
@@ -48,6 +46,12 @@ function assetActor(req: AuthenticatedRequest) {
 
 function sendAssetMutationError(res: Response, error: unknown): boolean {
   if (!isAssetMutationError(error)) return false;
+  res.status(error.status).json({ error: error.error, message: error.message });
+  return true;
+}
+
+function sendAssetQueryError(res: Response, error: unknown): boolean {
+  if (!(error instanceof AssetQueryError)) return false;
   res.status(error.status).json({ error: error.error, message: error.message });
   return true;
 }
@@ -80,10 +84,6 @@ const uploadLimiter = rateLimit({
  * Converts Windows backslashes to forward slashes so paths recorded during
  * local Windows development (npm run dev) resolve correctly in Linux Docker.
  */
-function normalizePath(filePath: string): string {
-  return path.resolve(filePath.replace(/\\/g, "/"));
-}
-
 /**
  * Set cache headers for a served asset and answer conditional requests.
  * Asset files are stored under UUID filenames and never mutated in place
@@ -141,114 +141,22 @@ router.get(
       // Pagination parameters
       const pageNum = parseInt(page as string) || 1;
       const limitNum = Math.min(parseInt(limit as string) || 50, 100); // Max 100 per page
-      const skip = (pageNum - 1) * limitNum;
-
-      // Build filter conditions
-      const where: any = {};
-
-      // Type filter
-      if (type) {
-        where.type = type as AssetType;
-      }
-
-      // Scope filter
-      if (scope) {
-        where.scope = scope as AssetScope;
-      }
-
-      // Name search
-      if (search) {
-        where.name = { contains: search as string, mode: "insensitive" };
-      }
-
-      // Campaign filter
       const isAdmin = req.session.platformRole === "ADMIN";
-
-      // Admin-only: filter by uploader
-      if (uploadedBy && isAdmin) {
-        where.uploadedById = uploadedBy as string;
-      }
-
-      if (campaignId) {
-        // Admin bypasses membership check
-        if (!isAdmin) {
-          const membership = await prisma.campaignMembership.findUnique({
-            where: {
-              userId_campaignId: {
-                userId,
-                campaignId: campaignId as string,
-              },
-            },
-          });
-
-          if (!membership) {
-            return res.status(403).json({
-              error: "Forbidden",
-              message: "You do not have access to this campaign",
-            });
-          }
-        }
-
-        where.campaignId = campaignId;
-      } else if (!isAdmin) {
-        // Non-admin: enforce three-scope visibility rules
-        const userMemberships = await prisma.campaignMembership.findMany({
-          where: { userId },
-          select: { campaignId: true },
-        });
-
-        const campaignIds = userMemberships.map(
-          (m: { campaignId: string }) => m.campaignId,
-        );
-
-        where.OR = [
-          { scope: "GLOBAL" }, // Platform-wide assets
-          { scope: "USER", uploadedById: userId }, // User's own personal assets
-          ...campaignIds.map((cId: string) => ({
-            scope: "CAMPAIGN",
-            campaignId: cId,
-          })), // Campaign assets
-        ];
-      }
-      // Admin with no campaignId: no OR filter — sees all assets across all scopes/users
-
-      // Get total count for pagination
-      const total = await prisma.asset.count({ where });
-
-      // Get paginated assets
-      const assets = await prisma.asset.findMany({
-        where,
-        include: {
-          uploadedBy: {
-            select: {
-              id: true,
-              displayName: true,
-            },
-          },
-          campaign: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-        skip,
-        take: limitNum,
-      });
-
-      return res.json({
-        assets,
-        pagination: {
+      return res.json(
+        await productionAssetQueries.list({
+          userId,
+          isAdmin,
+          type: typeof type === "string" ? type : undefined,
+          scope: typeof scope === "string" ? scope : undefined,
+          campaignId: typeof campaignId === "string" ? campaignId : undefined,
+          search: typeof search === "string" ? search : undefined,
+          uploadedBy: typeof uploadedBy === "string" ? uploadedBy : undefined,
           page: pageNum,
           limit: limitNum,
-          total,
-          totalPages: Math.ceil(total / limitNum),
-        },
-      });
+        }),
+      );
     } catch (error) {
+      if (sendAssetQueryError(res, error)) return;
       logger.error("Error listing assets", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",
@@ -305,26 +213,20 @@ router.post(
     } catch (error) {
       if (sendAssetMutationError(res, error)) {
         if (req.file?.path) {
-          try {
-            await deleteFile(req.file.path);
-          } catch (deleteError) {
-            logger.error("Error deleting file after validation error", {
-              err: deleteError,
-            });
-          }
+          await assetCommands.dispatch({
+            type: DISCARD_ASSET_UPLOAD,
+            filePath: req.file.path,
+          });
         }
         return;
       }
       logger.error("Error in upload validation", { err: error });
       // Clean up uploaded file
       if (req.file?.path) {
-        try {
-          await deleteFile(req.file.path);
-        } catch (deleteError) {
-          logger.error("Error deleting file after validation error", {
-            err: deleteError,
-          });
-        }
+        await assetCommands.dispatch({
+          type: DISCARD_ASSET_UPLOAD,
+          filePath: req.file.path,
+        });
       }
       return res.status(500).json({
         error: "Internal Server Error",
@@ -354,16 +256,10 @@ router.post(
         file.mimetype.startsWith("image/")
       ) {
         try {
-          const thumbnailFilename = `thumb_${file.filename}`;
-          const thumbnailDir = path.dirname(file.path);
-          thumbnailPath = path.join(thumbnailDir, thumbnailFilename);
-
-          await sharp(file.path)
-            .resize(512, 512, {
-              fit: "inside", // Maintain aspect ratio
-              withoutEnlargement: true, // Don't upscale small images
-            })
-            .toFile(thumbnailPath);
+          thumbnailPath = await productionAssetQueries.createThumbnail(
+            file.path,
+            file.filename,
+          );
         } catch (thumbnailError) {
           logger.error("Error generating thumbnail", { err: thumbnailError });
           // Don't fail the upload if thumbnail generation fails
@@ -425,62 +321,14 @@ router.get(
       const { id } = req.params;
       const userId = req.session.userId!;
 
-      const asset = await prisma.asset.findUnique({
-        where: { id },
-        include: {
-          uploadedBy: {
-            select: {
-              id: true,
-              displayName: true,
-            },
-          },
-          campaign: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      });
-
-      if (!asset) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "Asset not found",
-        });
-      }
-
-      const isAdmin = req.session.platformRole === "ADMIN";
-
-      // USER-scoped assets: only owner or admin can access
-      if (asset.scope === "USER" && asset.uploadedById !== userId && !isAdmin) {
-        return res.status(403).json({
-          error: "Forbidden",
-          message: "You do not have access to this asset",
-        });
-      }
-
-      // CAMPAIGN-scoped assets: only campaign members can access
-      if (asset.scope === "CAMPAIGN" && asset.campaignId && !isAdmin) {
-        const membership = await prisma.campaignMembership.findUnique({
-          where: {
-            userId_campaignId: {
-              userId,
-              campaignId: asset.campaignId,
-            },
-          },
-        });
-
-        if (!membership) {
-          return res.status(403).json({
-            error: "Forbidden",
-            message: "You do not have access to this asset",
-          });
-        }
-      }
+      const asset = await productionAssetQueries.metadata(
+        { userId, isAdmin: req.session.platformRole === "ADMIN" },
+        id,
+      );
 
       return res.json({ asset });
     } catch (error) {
+      if (sendAssetQueryError(res, error)) return;
       logger.error("Error fetching asset", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",
@@ -534,59 +382,19 @@ router.get(
       const { id } = req.params;
       const userId = req.session.userId!;
 
-      const asset = await prisma.asset.findUnique({
-        where: { id },
-      });
-
-      if (!asset) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "Asset not found",
-        });
-      }
-
-      // Check access permissions
-      const isAdminDownload = req.session.platformRole === "ADMIN";
-      if (
-        asset.scope === "USER" &&
-        asset.uploadedById !== userId &&
-        !isAdminDownload
-      ) {
-        return res
-          .status(403)
-          .json({
-            error: "Forbidden",
-            message: "You do not have access to this asset",
-          });
-      }
-      if (asset.scope === "CAMPAIGN" && asset.campaignId && !isAdminDownload) {
-        const membership = await prisma.campaignMembership.findUnique({
-          where: {
-            userId_campaignId: { userId, campaignId: asset.campaignId },
-          },
-        });
-        if (!membership) {
-          return res
-            .status(403)
-            .json({
-              error: "Forbidden",
-              message: "You do not have access to this asset",
-            });
-        }
-      }
-
-      // Check if file exists (normalize path for cross-platform compatibility)
-      const downloadPath = normalizePath(asset.filePath);
-      if (!fs.existsSync(downloadPath)) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "Asset file not found on server",
-        });
-      }
-
-      // Send file with original name
-      return res.download(downloadPath, asset.originalName);
+      const { asset, contents } = await productionAssetQueries.file(
+        { userId, isAdmin: req.session.platformRole === "ADMIN" },
+        id,
+        {
+          missingAsset: "Asset not found",
+          missingFile: "Asset file not found on server",
+        },
+      );
+      res.attachment(asset.originalName);
+      res.type(asset.mimeType);
+      return res.send(contents);
     } catch (error) {
+      if (sendAssetQueryError(res, error)) return;
       logger.error("Error downloading asset", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",
@@ -609,60 +417,22 @@ router.get(
       const { id } = req.params;
       const userId = req.session.userId!;
 
-      const asset = await prisma.asset.findUnique({
-        where: { id, type: "MAP" },
-      });
-
-      if (!asset) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "Map asset not found",
-        });
-      }
-
-      // Check access permissions
-      const isAdminMap = req.session.platformRole === "ADMIN";
-      if (
-        asset.scope === "USER" &&
-        asset.uploadedById !== userId &&
-        !isAdminMap
-      ) {
-        return res
-          .status(403)
-          .json({
-            error: "Forbidden",
-            message: "You do not have access to this asset",
-          });
-      }
-      if (asset.scope === "CAMPAIGN" && asset.campaignId && !isAdminMap) {
-        const membership = await prisma.campaignMembership.findUnique({
-          where: {
-            userId_campaignId: { userId, campaignId: asset.campaignId },
-          },
-        });
-        if (!membership) {
-          return res
-            .status(403)
-            .json({
-              error: "Forbidden",
-              message: "You do not have access to this asset",
-            });
-        }
-      }
-
-      // Check if file exists (normalize path for cross-platform compatibility)
-      const mapPath = normalizePath(asset.filePath);
-      if (!fs.existsSync(mapPath)) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "Asset file not found on server",
-        });
-      }
+      const { asset, contents } = await productionAssetQueries.file(
+        { userId, isAdmin: req.session.platformRole === "ADMIN" },
+        id,
+        {
+          type: "MAP",
+          missingAsset: "Map asset not found",
+          missingFile: "Asset file not found on server",
+        },
+      );
 
       // Send file with appropriate content type
       if (handleAssetCaching(req, res, asset.id)) return;
-      return res.sendFile(mapPath);
+      res.type(asset.mimeType);
+      return res.send(contents);
     } catch (error) {
+      if (sendAssetQueryError(res, error)) return;
       logger.error("Error serving map", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",
@@ -685,60 +455,22 @@ router.get(
       const { id } = req.params;
       const userId = req.session.userId!;
 
-      const asset = await prisma.asset.findUnique({
-        where: { id, type: "TOKEN" },
-      });
-
-      if (!asset) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "Token asset not found",
-        });
-      }
-
-      // Check access permissions
-      const isAdminToken = req.session.platformRole === "ADMIN";
-      if (
-        asset.scope === "USER" &&
-        asset.uploadedById !== userId &&
-        !isAdminToken
-      ) {
-        return res
-          .status(403)
-          .json({
-            error: "Forbidden",
-            message: "You do not have access to this asset",
-          });
-      }
-      if (asset.scope === "CAMPAIGN" && asset.campaignId && !isAdminToken) {
-        const membership = await prisma.campaignMembership.findUnique({
-          where: {
-            userId_campaignId: { userId, campaignId: asset.campaignId },
-          },
-        });
-        if (!membership) {
-          return res
-            .status(403)
-            .json({
-              error: "Forbidden",
-              message: "You do not have access to this asset",
-            });
-        }
-      }
-
-      // Check if file exists (normalize path for cross-platform compatibility)
-      const tokenPath = normalizePath(asset.filePath);
-      if (!fs.existsSync(tokenPath)) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "Asset file not found on server",
-        });
-      }
+      const { asset, contents } = await productionAssetQueries.file(
+        { userId, isAdmin: req.session.platformRole === "ADMIN" },
+        id,
+        {
+          type: "TOKEN",
+          missingAsset: "Token asset not found",
+          missingFile: "Asset file not found on server",
+        },
+      );
 
       // Send file with appropriate content type
       if (handleAssetCaching(req, res, asset.id)) return;
-      return res.sendFile(tokenPath);
+      res.type(asset.mimeType);
+      return res.send(contents);
     } catch (error) {
+      if (sendAssetQueryError(res, error)) return;
       logger.error("Error serving token", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",
@@ -761,59 +493,18 @@ router.get(
       const { id } = req.params;
       const userId = req.session.userId!;
 
-      const asset = await prisma.asset.findUnique({
-        where: { id, type: "AUDIO" },
-      });
-
-      if (!asset) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "Audio asset not found",
-        });
-      }
-
-      // Check access permissions
-      const isAdminAudio = req.session.platformRole === "ADMIN";
-      if (
-        asset.scope === "USER" &&
-        asset.uploadedById !== userId &&
-        !isAdminAudio
-      ) {
-        return res
-          .status(403)
-          .json({
-            error: "Forbidden",
-            message: "You do not have access to this asset",
-          });
-      }
-      if (asset.scope === "CAMPAIGN" && asset.campaignId && !isAdminAudio) {
-        const membership = await prisma.campaignMembership.findUnique({
-          where: {
-            userId_campaignId: { userId, campaignId: asset.campaignId },
-          },
-        });
-        if (!membership) {
-          return res
-            .status(403)
-            .json({
-              error: "Forbidden",
-              message: "You do not have access to this asset",
-            });
-        }
-      }
-
-      // Check if file exists (normalize path for cross-platform compatibility)
-      const audioPath = normalizePath(asset.filePath);
-      if (!fs.existsSync(audioPath)) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "Asset file not found on server",
-        });
-      }
+      const { asset, contents } = await productionAssetQueries.file(
+        { userId, isAdmin: req.session.platformRole === "ADMIN" },
+        id,
+        {
+          type: "AUDIO",
+          missingAsset: "Audio asset not found",
+          missingFile: "Asset file not found on server",
+        },
+      );
 
       // Stream audio file
-      const stat = fs.statSync(audioPath);
-      const fileSize = stat.size;
+      const fileSize = contents.length;
       const range = req.headers.range;
 
       if (range) {
@@ -822,7 +513,7 @@ router.get(
         const start = parseInt(parts[0], 10);
         const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
         const chunksize = end - start + 1;
-        const file = fs.createReadStream(audioPath, { start, end });
+        const chunk = contents.subarray(start, end + 1);
         const head = {
           "Content-Range": `bytes ${start}-${end}/${fileSize}`,
           "Accept-Ranges": "bytes",
@@ -830,7 +521,7 @@ router.get(
           "Content-Type": asset.mimeType,
         };
         res.writeHead(206, head);
-        return file.pipe(res);
+        return res.end(chunk);
       } else {
         // No range, send entire file
         const head = {
@@ -838,9 +529,10 @@ router.get(
           "Content-Type": asset.mimeType,
         };
         res.writeHead(200, head);
-        return fs.createReadStream(audioPath).pipe(res);
+        return res.end(contents);
       }
     } catch (error) {
+      if (sendAssetQueryError(res, error)) return;
       logger.error("Error streaming audio", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",
@@ -863,39 +555,16 @@ router.get(
     try {
       const { userId } = req.params;
 
-      // Find the user's avatar asset
-      const asset = await prisma.asset.findFirst({
-        where: {
-          type: "AVATAR",
-          uploadedById: userId,
-        },
-        orderBy: {
-          createdAt: "desc", // Get most recent avatar
-        },
-      });
-
-      if (!asset) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "User avatar not found",
-        });
-      }
-
-      // Check if file exists (normalize path for cross-platform compatibility)
-      const avatarPath = normalizePath(asset.filePath);
-      if (!fs.existsSync(avatarPath)) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "Avatar file not found on server",
-        });
-      }
+      const { asset, contents } = await productionAssetQueries.avatar(userId);
 
       // Send file with appropriate content type. Avatar URLs are per-USER and
       // resolve to the newest upload, so they are not immutable — short max-age
       // plus ETag revalidation keeps them fresh without a full re-download.
       if (handleAssetCaching(req, res, asset.id, { immutable: false })) return;
-      return res.sendFile(avatarPath);
+      res.type(asset.mimeType);
+      return res.send(contents);
     } catch (error) {
+      if (sendAssetQueryError(res, error)) return;
       logger.error("Error serving avatar", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",

@@ -1,13 +1,13 @@
 import { Router } from "express";
-import { PrismaPluginAccessRepository } from "../adapters/persistence/PrismaPluginAccessRepository";
-import { PluginCredentialService } from "../application/capabilities/PluginCredentialService";
-import { sha256Digest } from "../application/capabilities/PluginCredentialAuthenticator";
-import { prisma } from "../config/database";
 import { requireAuth } from "../middleware/auth";
+import {
+  productionPluginAccess,
+  productionPluginCredentials,
+} from "../composition/productionPluginAccess";
 
 const router = Router();
-const access = new PrismaPluginAccessRepository(prisma);
-const credentials = new PluginCredentialService(access, sha256Digest);
+const access = productionPluginAccess;
+const credentials = productionPluginCredentials;
 
 router.get("/credentials", requireAuth, async (req, res) =>
   res.json({ credentials: await credentials.list(req.session.userId!) }),

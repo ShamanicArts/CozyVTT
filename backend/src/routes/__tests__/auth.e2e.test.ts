@@ -13,21 +13,30 @@ jest.mock('express-rate-limit', () => {
   return () => (_req: any, _res: any, next: any) => next();
 });
 
-// Mock system settings so the register route behaves predictably
-jest.mock('../../services/systemSettings', () => ({
-  getSystemSettings: jest.fn().mockResolvedValue({
+// Keep registration policy deterministic while exercising real database adapters.
+jest.mock('../../composition/productionPublicSettingsQueries', () => {
+  const settings = {
     id: 'test-settings',
     setupCompleted: true,
     instanceName: 'CozyVTT Test',
     timezone: 'UTC',
     allowRegistration: true,
     requireAdminApproval: false,
-  }),
-  isSetupCompleted: jest.fn().mockResolvedValue(true),
-  updateSystemSettings: jest.fn(),
-  markSetupCompleted: jest.fn(),
-  hasUsers: jest.fn().mockResolvedValue(true),
-}));
+  };
+  return {
+    productionSystemSettings: {
+      userCount: jest.fn().mockResolvedValue(1),
+      load: jest.fn().mockResolvedValue(settings),
+      completeSetup: jest.fn(),
+      update: jest.fn(),
+    },
+    productionPublicSettingsQueries: {
+      registrationStatus: jest.fn().mockResolvedValue({ allowRegistration: true }),
+      appearance: jest.fn().mockResolvedValue({}),
+      setupCompleted: jest.fn().mockResolvedValue(true),
+    },
+  };
+});
 
 import request from 'supertest';
 import { createTestApp } from '../../__tests__/helpers/test-app';

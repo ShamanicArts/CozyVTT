@@ -7,19 +7,11 @@ import {
   campaignDM,
   adminOnly,
 } from "../middleware/compose";
-import { prisma } from "../config/database";
-import {
-  sendSystemMessage,
-  broadcastToUser,
-  broadcastToCampaign,
-} from "../websocket/utils";
-import {
-  isSmtpConfigured,
-  sendCampaignInvitationEmail,
-} from "../services/email";
+import { CampaignHttpQueryError } from "../application/campaigns/CampaignHttpQueries";
+import { productionCampaignHttpQueries } from "../composition/productionQueryHost";
 import { CreateCampaignSchema } from "../validators/campaigns";
 import logger from "../utils/logger";
-import { productionCommandBus } from "../composition/productionApplicationHost";
+import { productionTransportCommands } from "../composition/productionTransportCommands";
 import {
   CHANGE_CAMPAIGN_MEMBER_ROLE,
   CREATE_CAMPAIGN,
@@ -74,11 +66,11 @@ import {
 
 const router = Router();
 
-const campaignCommands = productionCommandBus;
+const campaignCommands = productionTransportCommands;
 
-const campaignArchiveCommands = productionCommandBus;
+const campaignArchiveCommands = productionTransportCommands;
 
-const campaignSessionCommands = productionCommandBus;
+const campaignSessionCommands = productionTransportCommands;
 
 function sendCampaignCommandError(res: Response, error: unknown): boolean {
   if (!isCampaignCommandError(error)) return false;
@@ -143,39 +135,7 @@ router.get(
       // members. Emails are PII and only the owner of an account (via
       // /auth/me) or platform admins should ever receive them. Same rule
       // applies to every other endpoint in this file that embeds users.
-      const memberships = await prisma.campaignMembership.findMany({
-        where: { userId },
-        include: {
-          campaign: {
-            include: {
-              owner: {
-                select: {
-                  id: true,
-                  displayName: true,
-                  avatarUrl: true,
-                },
-              },
-              memberships: {
-                include: {
-                  user: {
-                    select: {
-                      id: true,
-                      displayName: true,
-                      avatarUrl: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-
-      const campaigns = memberships.map((m) => ({
-        ...m.campaign,
-        userRole: m.role,
-        characterIds: m.characterIds,
-      }));
+      const campaigns = await productionCampaignHttpQueries.forUser(userId);
 
       return res.status(200).json({ campaigns });
     } catch (error) {
@@ -246,93 +206,18 @@ router.get(
     try {
       const { campaignId } = req.params;
 
-      const campaign = await prisma.campaign.findUnique({
-        where: { id: campaignId },
-        include: {
-          // SECURITY: never embed `email` in member-facing payloads —
-          // any campaign member can hit this endpoint.
-          owner: {
-            select: {
-              id: true,
-              displayName: true,
-              avatarUrl: true,
-            },
-          },
-          memberships: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  displayName: true,
-                  avatarUrl: true,
-                },
-              },
-            },
-          },
-          // PERFORMANCE: return map/character METADATA only. The full
-          // token/wall/fog/light blobs and full character sheets are unbounded and
-          // were never used from this payload — the active map's full data loads via
-          // GET /api/maps/:id (spirit-filtered) and character sheets via
-          // GET /api/characters/:id. Frontend only reads ids + a few metadata fields
-          // from these arrays (map move-to-map, token ownership).
-          maps: {
-            select: {
-              id: true,
-              campaignId: true,
-              name: true,
-              imageUrl: true,
-              width: true,
-              height: true,
-              gridSize: true,
-              feetPerSquare: true,
-              diagonalRule: true,
-              baseLayerUrl: true,
-              spiritLayerUrl: true,
-              lightingEnabled: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-          },
-          characters: {
-            select: {
-              id: true,
-              userId: true,
-              campaignId: true,
-              gameSystem: true,
-              name: true,
-              tokenImageUrl: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-          },
-          // Include the most recent open session for session controls UI
-          sessions: {
-            where: { endedAt: null },
-            orderBy: { startedAt: "desc" },
-            take: 1,
-            select: { id: true, sessionNumber: true, startedAt: true },
-          },
-        },
-      });
-
-      if (!campaign) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "Campaign not found",
-        });
-      }
-
-      // Flatten sessions array → activeSession (first open session, or null)
-      const { sessions: _sessions, ...campaignRest } = campaign;
+      const campaign = await productionCampaignHttpQueries.details(
+        campaignId,
+        req.campaignMembership!.role,
+      );
       return res.status(200).json({
-        campaign: {
-          ...campaignRest,
-          activeSession:
-            _sessions && _sessions.length > 0 ? _sessions[0] : null,
-          userRole: req.campaignMembership!.role,
-        },
+        campaign,
       });
     } catch (error) {
+      if (error instanceof CampaignHttpQueryError)
+        return res
+          .status(error.status)
+          .json({ error: error.error, message: error.message });
       logger.error("Error fetching campaign", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",
@@ -349,44 +234,6 @@ router.get(
  * Requires: Campaign membership (any role)
  */
 
-/** Extract { current, max, temp } from character data in a game-system-aware way */
-function extractCharacterHp(
-  gameSystem: string | null,
-  data: unknown,
-): { current: number; max: number; temp: number } | null {
-  if (!data || !gameSystem) return null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const d = data as any;
-  switch (gameSystem) {
-    case "DND_5E":
-    case "PATHFINDER_2E":
-    case "FLEXIBLE": {
-      if (d.hp && typeof d.hp.maximum === "number" && d.hp.maximum > 0) {
-        return {
-          current:
-            typeof d.hp.current === "number" ? d.hp.current : d.hp.maximum,
-          max: d.hp.maximum,
-          temp: typeof d.hp.temporary === "number" ? d.hp.temporary : 0,
-        };
-      }
-      return null;
-    }
-    case "CALL_OF_CTHULHU_7E": {
-      const hp = d.derivedStats?.hp;
-      if (hp && typeof hp.maximum === "number" && hp.maximum > 0) {
-        return {
-          current: typeof hp.current === "number" ? hp.current : hp.maximum,
-          max: hp.maximum,
-          temp: 0,
-        };
-      }
-      return null;
-    }
-    default:
-      return null;
-  }
-}
-
 router.get(
   "/:campaignId/characters",
   campaignMember,
@@ -394,56 +241,8 @@ router.get(
     try {
       const { campaignId } = req.params;
 
-      // Fetch all memberships with their character assignments
-      const memberships = await prisma.campaignMembership.findMany({
-        where: { campaignId },
-        include: {
-          user: {
-            select: {
-              id: true,
-              displayName: true,
-              avatarUrl: true,
-            },
-          },
-        },
-      });
-
-      // Get all character IDs from all memberships
-      const allCharacterIds = memberships.flatMap((m) => m.characterIds);
-
-      // Fetch character details including data for HP extraction
-      const characters = await prisma.character.findMany({
-        where: {
-          id: { in: allCharacterIds },
-        },
-        select: {
-          id: true,
-          name: true,
-          tokenImageUrl: true,
-          gameSystem: true,
-          userId: true,
-          data: true,
-        },
-      });
-
-      // Build response — extract HP from character data, never expose raw data
-      const roster = memberships.map((membership) => {
-        const memberCharacters = characters
-          .filter((c) => membership.characterIds.includes(c.id))
-          .map(({ data, ...char }) => ({
-            ...char,
-            hp: extractCharacterHp(char.gameSystem, data),
-          }));
-
-        return {
-          userId: membership.userId,
-          userName: membership.user.displayName,
-          userAvatar: membership.user.avatarUrl,
-          role: membership.role,
-          joinedAt: membership.joinedAt,
-          characters: memberCharacters,
-        };
-      });
+      const roster =
+        await productionCampaignHttpQueries.characterRoster(campaignId);
 
       return res.status(200).json({ roster });
     } catch (error) {
@@ -578,36 +377,7 @@ router.get(
     try {
       const { campaignId } = req.params;
 
-      // Find existing member user IDs
-      const memberships = await prisma.campaignMembership.findMany({
-        where: { campaignId },
-        select: { userId: true },
-      });
-
-      // Find pending invitation user IDs
-      const pendingInvitations = await prisma.campaignInvitation.findMany({
-        where: { campaignId, status: "PENDING" },
-        select: { userId: true },
-      });
-
-      const excludedIds = [
-        ...memberships.map((m) => m.userId),
-        ...pendingInvitations.map((i) => i.userId),
-      ];
-
-      // SECURITY: narrow select to displayName/avatar only. Any authenticated
-      // DM can call this endpoint, and `sanitizeUser` only strips password/MFA
-      // — it does NOT strip email. Returning emails here would let any DM
-      // harvest every account's email address via the invite picker.
-      const users = await prisma.user.findMany({
-        where: { id: { notIn: excludedIds } },
-        orderBy: { displayName: "asc" },
-        select: {
-          id: true,
-          displayName: true,
-          avatarUrl: true,
-        },
-      });
+      const users = await productionCampaignHttpQueries.invitableUsers(campaignId);
 
       return res.status(200).json({ users });
     } catch (error) {
@@ -643,36 +413,6 @@ router.post(
         userId: req.body.userId,
         expiresInDays: req.body.expiresInDays,
       });
-
-      // Broadcast invitation.received to the invited user (WebSocket, if online)
-      try {
-        broadcastToUser(req.body.userId, "invitation.received", {
-          invitationId: result.invitation.invitation.id,
-          campaignId,
-          campaignName: result.campaign.name,
-          invitedBy: req.session.userId,
-          timestamp: new Date().toISOString(),
-        });
-      } catch (error) {
-        logger.error("Failed to broadcast invitation", { err: error });
-        // Don't fail the request if broadcast fails
-      }
-
-      // Send invitation email if SMTP is configured
-      if (isSmtpConfigured()) {
-        sendCampaignInvitationEmail(
-          result.invitedUser.email,
-          result.invitedUser.displayName,
-          result.campaign.name,
-          result.inviterDisplayName ?? "Your Dungeon Master",
-          result.campaign.description ?? null,
-        ).catch((err) => {
-          logger.error(
-            `[campaigns] Failed to send invitation email to ${result.invitedUser.email}`,
-            { err: err },
-          );
-        });
-      }
 
       return res.status(201).json({
         message: "Invitation sent successfully",
@@ -768,24 +508,7 @@ router.get(
   adminOnly,
   async (_req: AuthenticatedRequest, res: Response) => {
     try {
-      const campaigns = await prisma.campaign.findMany({
-        include: {
-          owner: {
-            select: {
-              id: true,
-              displayName: true,
-              email: true,
-            },
-          },
-          _count: {
-            select: {
-              memberships: true,
-              maps: true,
-              characters: true,
-            },
-          },
-        },
-      });
+      const campaigns = await productionCampaignHttpQueries.all();
 
       return res.status(200).json({ campaigns });
     } catch (error) {
@@ -830,57 +553,15 @@ router.get(
         });
       }
 
-      // Get total message count
-      const totalCount = await prisma.message.count({
-        where: { campaignId },
-      });
-
-      // Fetch messages with pagination (newest first)
-      const messages = await prisma.message.findMany({
-        where: { campaignId },
-        include: {
-          user: {
-            select: {
-              id: true,
-              displayName: true,
-            },
-          },
-        },
-        orderBy: {
-          createdAt: "desc", // Newest first
-        },
-        take: limitNum,
-        skip: offsetNum,
-      });
-
-      // Format messages for response (exclude DICE_ROLL messages from chat)
-      const formattedMessages = messages
-        .filter((msg) => msg.type !== "DICE_ROLL")
-        .map((msg) => ({
-          id: msg.id,
-          userId: msg.userId,
-          userName: msg.user?.displayName || null,
-          user: msg.user
-            ? {
-                id: msg.user.id,
-                displayName: msg.user.displayName,
-              }
-            : null,
-          content: msg.content,
-          type: msg.type,
-          metadata: msg.metadata || null,
-          createdAt: msg.createdAt.toISOString(), // Changed from 'timestamp' to 'createdAt'
-        }));
-
-      return res.status(200).json({
-        messages: formattedMessages,
-        pagination: {
-          total: totalCount,
-          limit: limitNum,
-          offset: offsetNum,
-          hasMore: offsetNum + limitNum < totalCount,
-        },
-      });
+      return res
+        .status(200)
+        .json(
+          await productionCampaignHttpQueries.messages(
+            campaignId,
+            limitNum,
+            offsetNum,
+          ),
+        );
     } catch (error) {
       logger.error("Error fetching messages", { err: error });
       return res.status(500).json({
@@ -910,24 +591,6 @@ router.post(
       >({
         type: START_CAMPAIGN_SESSION,
         campaignId,
-      });
-
-      // Send system message
-      await sendSystemMessage(
-        campaignId,
-        `Session ${session.sessionNumber} has started!`,
-        {
-          sessionId: session.id,
-          sessionNumber: session.sessionNumber,
-          action: "session.started",
-        },
-      );
-
-      // Broadcast session.started so all connected clients update campaign status
-      broadcastToCampaign(campaignId, "session.started", {
-        sessionId: session.id,
-        sessionNumber: session.sessionNumber,
-        startedAt: session.startedAt.toISOString(),
       });
 
       return res.status(201).json({
@@ -962,30 +625,13 @@ router.put(
     try {
       const { campaignId, sessionId } = req.params;
 
-      const session = await campaignSessionCommands.dispatch<
+      await campaignSessionCommands.dispatch<
         PauseCampaignSessionCommand,
         Awaited<ReturnType<PauseCampaignSession["execute"]>>
       >({
         type: PAUSE_CAMPAIGN_SESSION,
         campaignId,
         sessionId,
-      });
-
-      // Send system message
-      await sendSystemMessage(
-        campaignId,
-        `Session ${session.sessionNumber} has been paused. See you next time!`,
-        {
-          sessionId: session.id,
-          sessionNumber: session.sessionNumber,
-          action: "session.paused",
-        },
-      );
-
-      // Broadcast session.paused so all connected clients update campaign status
-      broadcastToCampaign(campaignId, "session.paused", {
-        sessionId: session.id,
-        sessionNumber: session.sessionNumber,
       });
 
       return res.status(200).json({
@@ -1027,26 +673,6 @@ router.put(
         saveState,
         notes,
       });
-      const session = result.session;
-
-      // Send system message
-      await sendSystemMessage(
-        campaignId,
-        `Session ${session.sessionNumber} has ended.${result.stateSaved ? " Game state saved!" : ""}`,
-        {
-          sessionId: session.id,
-          sessionNumber: session.sessionNumber,
-          action: "session.ended",
-          stateSaved: result.stateSaved,
-        },
-      );
-
-      // Broadcast session.ended so all connected clients update campaign status to INACTIVE
-      broadcastToCampaign(campaignId, "session.ended", {
-        sessionId: session.id,
-        sessionNumber: session.sessionNumber,
-      });
-
       return res.status(200).json({
         message: "Session ended successfully",
         stateSaved: result.stateSaved,
@@ -1081,24 +707,6 @@ router.put(
       >({
         type: RESUME_CAMPAIGN_SESSION,
         campaignId,
-      });
-
-      // Send system message
-      await sendSystemMessage(
-        campaignId,
-        `Session ${lastSession.sessionNumber} has been resumed!`,
-        {
-          sessionId: lastSession.id,
-          sessionNumber: lastSession.sessionNumber,
-          action: "session.resumed",
-        },
-      );
-
-      // Broadcast session.resumed so all connected clients update campaign status
-      broadcastToCampaign(campaignId, "session.resumed", {
-        sessionId: lastSession.id,
-        sessionNumber: lastSession.sessionNumber,
-        startedAt: lastSession.startedAt.toISOString(),
       });
 
       return res.status(200).json({

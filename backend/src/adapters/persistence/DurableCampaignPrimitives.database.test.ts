@@ -189,7 +189,9 @@ describeDatabase("durable campaign primitives against PostgreSQL", () => {
   });
 
   it("returns a server-filtered player snapshot", async () => {
-    const snapshot = await new PrismaCampaignSnapshotRepository(prisma).load({
+    const snapshot = await new PrismaCampaignSnapshotRepository(prisma, {
+      canSeeSpiritLayer: async () => false,
+    }).load({
       campaignId,
       principalId: playerId,
       role: "PLAYER",

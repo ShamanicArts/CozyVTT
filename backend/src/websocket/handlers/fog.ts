@@ -4,7 +4,7 @@
 
 import { Server } from "socket.io";
 import { AuthenticatedSocket } from "../auth";
-import { prisma } from "../../config/database";
+import { productionRealtimeQueries } from "../../composition/productionRealtimeQueries";
 import { FogOperationSchema } from "../../validators/walls";
 import type { FogState } from "../../types/walls";
 import logger from "../../utils/logger";
@@ -17,7 +17,7 @@ import {
   APPLY_FOG_OPERATION,
   ApplyFogOperationCommand,
 } from "../../application/scene/SceneMutations";
-import { productionCommandBus } from "../../composition/productionApplicationHost";
+import { productionTransportCommands } from "../../composition/productionTransportCommands";
 import {
   FogState as SceneFogState,
   SceneMutationError,
@@ -25,7 +25,7 @@ import {
 } from "../../domain/scene/Scene";
 import { MapRevisionConflictError } from "../../domain/maps/MapRevision";
 
-const fogCommands = productionCommandBus;
+const fogCommands = productionTransportCommands;
 
 function actorFor(socket: AuthenticatedSocket, campaignId: string) {
   return { campaignId, role: socket.role as SceneRole };
@@ -113,17 +113,11 @@ export function registerFogHandlers(
       const { mapId } = data;
       if (!mapId) return;
 
-      const map = await prisma.map.findUnique({
-        where: { id: mapId },
-        select: {
-          campaignId: true,
-          fogData: true,
-          width: true,
-          height: true,
-          gridSize: true,
-        },
-      });
-      if (!map || map.campaignId !== socket.campaignId) return;
+      const map = await productionRealtimeQueries.mapForCampaign(
+        socket.campaignId,
+        mapId,
+      );
+      if (!map) return;
 
       const fog: FogState = loadFogState(map, map.fogData as FogState | null);
       if (socket.role === "DM") {

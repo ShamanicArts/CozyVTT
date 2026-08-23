@@ -17,6 +17,7 @@ export const PREPARE_ASSET_UPLOAD = 'asset.upload.prepare' as const;
 export const CREATE_ASSET = 'asset.create' as const;
 export const DELETE_ASSET = 'asset.delete' as const;
 export const UPDATE_ASSET_SCOPE = 'asset.scope.update' as const;
+export const DISCARD_ASSET_UPLOAD = 'asset.upload.discard' as const;
 
 export interface PreparedAssetUpload {
   type: AssetType;
@@ -49,6 +50,18 @@ export interface UpdateAssetScopeCommand extends Command<AssetView> {
   readonly actor: AssetActor;
   readonly assetId: string;
   readonly input: { scope?: unknown; campaignId?: unknown };
+}
+
+export interface DiscardAssetUploadCommand extends Command<void> {
+  readonly type: typeof DISCARD_ASSET_UPLOAD;
+  readonly filePath: string;
+}
+
+export class DiscardAssetUpload implements CommandHandler<DiscardAssetUploadCommand, void> {
+  constructor(private readonly files: AssetFileStore) {}
+  async execute(command: DiscardAssetUploadCommand): Promise<void> {
+    try { await this.files.remove(command.filePath); } catch { /* cleanup is best effort */ }
+  }
 }
 
 /** Shared authorization policy so HTTP, capabilities, and future adapters cannot drift. */

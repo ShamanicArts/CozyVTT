@@ -110,7 +110,7 @@ import {
   UpdateWallSegment,
 } from "../application/scene/SceneMutations";
 import { PrismaTokenMovementRepository } from "../adapters/persistence/PrismaTokenMovementRepository";
-import { PrismaSpiritVisibilityPolicy } from "../adapters/authorization/PrismaSpiritVisibilityPolicy";
+import { productionRealtimeQueries } from "./productionRealtimeQueries";
 import {
   FINALIZE_TOKEN_MOVE,
   PREVIEW_TOKEN_MOVE,
@@ -141,7 +141,7 @@ import {
   UpdateCampaignVibe,
 } from "../application/campaigns/CampaignCommands";
 import { PrismaCampaignSessionRepository } from "../adapters/persistence/PrismaCampaignSessionRepository";
-import { LegacyCampaignSessionState } from "../adapters/sessionState/LegacyCampaignSessionState";
+import { PrismaCampaignSessionState } from "../adapters/persistence/PrismaCampaignSessionState";
 import {
   END_CAMPAIGN_SESSION,
   PAUSE_CAMPAIGN_SESSION,
@@ -186,16 +186,25 @@ import { DiceParserExpressionRoller } from "../adapters/dice/DiceParserExpressio
 import { SocketCampaignDiceRollRateGate } from "../adapters/rateLimiting/SocketCampaignDiceRollRateGate";
 import { PrismaInitiativeRepository } from "../adapters/persistence/PrismaInitiativeRepository";
 import { PrismaInitiativeCombatStateStore } from "../adapters/persistence/PrismaInitiativeCombatStateStore";
-import { LegacyAuthenticationService } from "../adapters/auth/LegacyAuthenticationService";
+import { PrismaAuthenticationService } from "../adapters/auth/PrismaAuthenticationService";
+import { LoginSessionInvalidator } from "../adapters/auth/LoginSessionInvalidator";
+import {
+  INITIALIZE_SETUP,
+  InitializeSetup,
+} from "../application/identity/Setup";
+import { productionSystemSettings } from "./productionPublicSettingsQueries";
 import { PrismaRegistrationPolicy } from "../adapters/persistence/PrismaRegistrationPolicy";
 import { PrismaAuthSecurityRepository } from "../adapters/persistence/PrismaAuthSecurityRepository";
 import { SmtpPasswordResetNotifier } from "../adapters/email/SmtpPasswordResetNotifier";
-import { LegacyCampaignArchiveService } from "../adapters/campaignArchives/LegacyCampaignArchiveService";
+import { CampaignArchiveEngineAdapter } from "../adapters/campaignArchives/CampaignArchiveEngineAdapter";
 import { PrismaCreatureRepository } from "../adapters/persistence/PrismaCreatureRepository";
 import { PrismaUserMutationRepository } from "../adapters/persistence/PrismaUserMutationRepository";
 import { PrismaUvttMapImportRepository } from "../adapters/persistence/PrismaUvttMapImportRepository";
+import { NodeUvttImportSource } from "../adapters/assets/NodeUvttImportSource";
 import { PrismaCapabilityGameplayMembership } from "../adapters/persistence/PrismaCapabilityGameplayMembership";
 import { WebsocketCapabilityGameplayEventPublisher } from "../adapters/events/WebsocketCapabilityGameplayEventPublisher";
+import { CampaignInvitationEventPublisher } from "../adapters/events/CampaignInvitationEventPublisher";
+import { WebsocketCampaignSessionNotifier } from "../adapters/events/WebsocketCampaignSessionNotifier";
 import {
   PUBLIC_ADD_TO_COMBAT,
   PUBLIC_ADJUST_CHARACTER_HP,
@@ -259,7 +268,7 @@ import {
 import { findCoreCapabilityCommand } from "../application/capabilities/CoreCapabilityCatalog";
 
 /** Single process-wide handler graph for commands shared by HTTP and Socket.IO. */
-export const productionCommandBus = new CommandBus();
+const productionCommandBus = new CommandBus();
 const transactionContext = productionTransactionContext;
 const transactionalPrisma = productionPrisma;
 const maps = new PrismaMapCoreRepository(transactionalPrisma);
@@ -307,7 +316,7 @@ productionCommandBus.register(
   new SetSceneLightingEnabled(scene),
 );
 const movement = new PrismaTokenMovementRepository(transactionalPrisma);
-const movementSpiritVisibility = new PrismaSpiritVisibilityPolicy();
+const movementSpiritVisibility = productionRealtimeQueries;
 productionCommandBus.register(
   START_TOKEN_MOVE,
   new StartTokenMove(movement, movementSpiritVisibility),
@@ -332,7 +341,7 @@ productionCommandBus.register(
 productionCommandBus.register(DELETE_CAMPAIGN, new DeleteCampaign(campaigns));
 productionCommandBus.register(
   INVITE_TO_CAMPAIGN,
-  new InviteToCampaign(campaigns),
+  new InviteToCampaign(campaigns, new CampaignInvitationEventPublisher()),
 );
 productionCommandBus.register(
   REMOVE_CAMPAIGN_MEMBER,
@@ -351,22 +360,23 @@ productionCommandBus.register(
   new DeclineCampaignInvitation(campaigns),
 );
 const sessions = new PrismaCampaignSessionRepository(transactionalPrisma);
-const sessionState = new LegacyCampaignSessionState();
+const sessionState = new PrismaCampaignSessionState(transactionalPrisma);
+const sessionNotifier = new WebsocketCampaignSessionNotifier();
 productionCommandBus.register(
   START_CAMPAIGN_SESSION,
-  new StartCampaignSession(sessions, sessionState),
+  new StartCampaignSession(sessions, sessionState, sessionNotifier),
 );
 productionCommandBus.register(
   PAUSE_CAMPAIGN_SESSION,
-  new PauseCampaignSession(sessions, sessionState),
+  new PauseCampaignSession(sessions, sessionState, sessionNotifier),
 );
 productionCommandBus.register(
   END_CAMPAIGN_SESSION,
-  new EndCampaignSession(sessions, sessionState),
+  new EndCampaignSession(sessions, sessionState, sessionNotifier),
 );
 productionCommandBus.register(
   RESUME_CAMPAIGN_SESSION,
-  new ResumeCampaignSession(sessions, sessionState),
+  new ResumeCampaignSession(sessions, sessionState, sessionNotifier),
 );
 const realtime = new PrismaCampaignRealtimeRepository(transactionalPrisma);
 const realtimeEvents = new WebsocketCampaignRealtimeEventPublisher();
@@ -420,7 +430,7 @@ productionCommandBus.register(
   new CopyTokenTemplate(templates),
 );
 productionCommandBus.register(CHANGE_MAP, new ChangeMap(maps));
-const archiveService = new LegacyCampaignArchiveService();
+const archiveService = new CampaignArchiveEngineAdapter(transactionalPrisma);
 productionCommandBus.register(
   Archives.EXPORT_CAMPAIGN_ARCHIVE,
   new Archives.ExportCampaignArchive(archiveService),
@@ -435,7 +445,10 @@ productionCommandBus.register(
 );
 productionCommandBus.register(
   IMPORT_UVTT_MAP,
-  new ImportUvttMap(new PrismaUvttMapImportRepository(transactionalPrisma)),
+  new ImportUvttMap(
+    new PrismaUvttMapImportRepository(transactionalPrisma),
+    new NodeUvttImportSource(),
+  ),
 );
 const userMutations = new PrismaUserMutationRepository(transactionalPrisma);
 const extensionInstallations = new PrismaExtensionInstallationRepository(
@@ -460,11 +473,14 @@ productionCommandBus.register(
 );
 productionCommandBus.register(
   Users.DELETE_USER_AS_ADMIN,
-  new Users.DeleteUserAsAdmin(userMutations),
+  new Users.DeleteUserAsAdmin(userMutations, new LoginSessionInvalidator()),
 );
 productionCommandBus.register(
   Users.RESET_USER_PASSWORD_AS_ADMIN,
-  new Users.ResetUserPasswordAsAdmin(userMutations),
+  new Users.ResetUserPasswordAsAdmin(
+    userMutations,
+    new ArgonAdminPasswordHasher(),
+  ),
 );
 productionCommandBus.register(
   Users.SEND_USER_PASSWORD_RESET_LINK,
@@ -630,6 +646,10 @@ productionCommandBus.register(
   new Assets.CreateAsset(assetsRepository, assetFiles),
 );
 productionCommandBus.register(
+  Assets.DISCARD_ASSET_UPLOAD,
+  new Assets.DiscardAssetUpload(assetFiles),
+);
+productionCommandBus.register(
   Assets.DELETE_ASSET,
   new Assets.DeleteAsset(assetsRepository, assetFiles),
 );
@@ -659,12 +679,19 @@ productionCommandBus.register(
   Characters.COPY_CHARACTER,
   new Characters.CopyCharacter(characterRepository, characterEvents),
 );
-const authentication = new LegacyAuthenticationService();
+const authentication = new PrismaAuthenticationService(
+  transactionalPrisma,
+  new ArgonAdminPasswordHasher(),
+);
+productionCommandBus.register(
+  INITIALIZE_SETUP,
+  new InitializeSetup(productionSystemSettings, authentication),
+);
 productionCommandBus.register(
   Identity.REGISTER_ACCOUNT,
   new Identity.RegisterAccount(
     authentication,
-    new PrismaRegistrationPolicy(transactionalPrisma),
+    new PrismaRegistrationPolicy(transactionalPrisma, productionSystemSettings),
   ),
 );
 productionCommandBus.register(
@@ -672,6 +699,7 @@ productionCommandBus.register(
   new Identity.LoginAccount(authentication),
 );
 const authSecurity = new PrismaAuthSecurityRepository(transactionalPrisma);
+const authPasswords = new ArgonAdminPasswordHasher();
 productionCommandBus.register(
   AuthSecurity.FORGOT_PASSWORD,
   new AuthSecurity.ForgotPassword(
@@ -681,15 +709,15 @@ productionCommandBus.register(
 );
 productionCommandBus.register(
   AuthSecurity.RESET_PASSWORD,
-  new AuthSecurity.ResetPassword(authSecurity),
+  new AuthSecurity.ResetPassword(authSecurity, authPasswords),
 );
 productionCommandBus.register(
   AuthSecurity.CHANGE_PASSWORD,
-  new AuthSecurity.ChangePassword(authSecurity),
+  new AuthSecurity.ChangePassword(authSecurity, authPasswords),
 );
 productionCommandBus.register(
   AuthSecurity.DELETE_ACCOUNT,
-  new AuthSecurity.DeleteAccount(authSecurity),
+  new AuthSecurity.DeleteAccount(authSecurity, authPasswords),
 );
 productionCommandBus.register(
   AuthSecurity.MFA_SETUP,
@@ -705,14 +733,15 @@ productionCommandBus.register(
 );
 productionCommandBus.register(
   AuthSecurity.MFA_DISABLE,
-  new AuthSecurity.MfaDisable(authSecurity),
+  new AuthSecurity.MfaDisable(authSecurity, authPasswords),
 );
 productionCommandBus.register(
   AuthSecurity.MFA_BACKUP_CODES,
-  new AuthSecurity.MfaBackupCodes(authSecurity),
+  new AuthSecurity.MfaBackupCodes(authSecurity, authPasswords),
 );
 const adminRepository = new PrismaAdminAdministrationRepository(
   transactionalPrisma,
+  productionSystemSettings,
 );
 const adminMailer = new ServiceAdminMailer();
 const adminBackups = new FileSystemAdminBackupStore(
@@ -784,7 +813,11 @@ productionCommandBus.register(
 const capabilityMemberships = new PrismaCapabilityGameplayMembership(
   transactionalPrisma,
 );
-const capabilityEvents = new WebsocketCapabilityGameplayEventPublisher();
+const capabilityEvents = new WebsocketCapabilityGameplayEventPublisher(
+  undefined,
+  (campaignId, userIds) =>
+    productionRealtimeQueries.spiritVisibility(campaignId, userIds),
+);
 productionCommandBus.register(
   PUBLIC_SPAWN_ACTOR,
   new SpawnCapabilityActor(

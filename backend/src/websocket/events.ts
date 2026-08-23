@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import { AuthenticatedSocket, authenticateSocket, authenticateCampaign } from './auth';
-import { prisma } from '../config/database';
+import { productionRealtimeQueries } from '../composition/productionRealtimeQueries';
 import { sendSystemMessage } from './utils';
 import logger from '../utils/logger';
 import { registerTokenHandlers } from './handlers/tokens';
@@ -103,16 +103,15 @@ export function registerEventHandlers(io: Server): void {
         });
 
         // Get user information for system message
-        const user = await prisma.user.findUnique({
-          where: { id: socket.userId },
-          select: { displayName: true },
-        });
+        const displayName = socket.userId
+          ? await productionRealtimeQueries.displayName(socket.userId)
+          : null;
 
         // Send system message to campaign
-        if (user) {
+        if (displayName) {
           await sendSystemMessage(
             data.campaignId,
-            `${user.displayName} has joined the campaign.`,
+            `${displayName} has joined the campaign.`,
             { userId: socket.userId, action: 'user.joined' }
           );
         }
@@ -157,17 +156,16 @@ export function registerEventHandlers(io: Server): void {
       // Notify campaign members if user was in a campaign
       if (socket.campaignId) {
         // Get user information for system message
-        const user = await prisma.user.findUnique({
-          where: { id: socket.userId },
-          select: { displayName: true },
-        });
+        const displayName = socket.userId
+          ? await productionRealtimeQueries.displayName(socket.userId)
+          : null;
 
         // Send system message to campaign (best-effort — campaign may have been deleted)
-        if (user) {
+        if (displayName) {
           try {
             await sendSystemMessage(
               socket.campaignId,
-              `${user.displayName} has left the campaign.`,
+              `${displayName} has left the campaign.`,
               { userId: socket.userId, action: 'user.left' }
             );
           } catch {

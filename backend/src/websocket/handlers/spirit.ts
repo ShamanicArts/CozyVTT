@@ -5,16 +5,12 @@
 
 import { Server } from "socket.io";
 import { AuthenticatedSocket } from "../auth";
-import {
-  getSpiritVisibilityBatch,
-  filterMapData,
-} from "../../utils/spirit-layer";
+import { filterMapData } from "../../utils/spirit-layer";
 import { sendSystemMessage } from "../utils";
 import logger from "../../utils/logger";
 import { Token } from "../shared";
-import { productionCommandBus } from "../../composition/productionApplicationHost";
-import { PrismaRealtimeSpiritRepository } from "../../adapters/persistence/PrismaRealtimeSpiritRepository";
-import { prisma } from "../../config/database";
+import { productionTransportCommands } from "../../composition/productionTransportCommands";
+import { productionRealtimeQueries } from "../../composition/productionRealtimeQueries";
 import {
   RealtimeSpiritError,
   SET_SPIRIT_LAYER_ENABLED,
@@ -25,8 +21,7 @@ import {
 } from "../../application/scene/RealtimeSpiritCommands";
 import { MapRevisionConflictError } from "../../domain/maps/MapRevision";
 
-const commands = productionCommandBus;
-const repository = new PrismaRealtimeSpiritRepository(prisma);
+const commands = productionTransportCommands;
 
 export function registerSpiritHandlers(
   io: Server,
@@ -66,14 +61,13 @@ export function registerSpiritHandlers(
 
       // Also broadcast updated filtered map data so clients update their spirit layer rendering
       // Fetch the campaign's current map to send role-filtered updates
-      const currentMapId = await repository.findCurrentMapId(socket.campaignId);
+      const currentMap = await productionRealtimeQueries.currentMap(
+        socket.campaignId,
+      );
 
-      if (currentMapId) {
-        const currentMap = await repository.findMap(currentMapId);
-
-        if (currentMap) {
+      if (currentMap) {
           const campaignSockets = await io.in(socket.campaignId).fetchSockets();
-          const visibility = await getSpiritVisibilityBatch(
+          const visibility = await productionRealtimeQueries.spiritVisibility(
             socket.campaignId,
             campaignSockets
               .map((s) => (s as unknown as AuthenticatedSocket).userId)
@@ -103,7 +97,6 @@ export function registerSpiritHandlers(
               spiritVisible,
             });
           }
-        }
       }
 
       // Send system message
@@ -191,7 +184,7 @@ export function registerSpiritHandlers(
 
         // Role-filtered broadcast: use per-socket filtering
         const sockets = await io.in(socket.campaignId).fetchSockets();
-        const visibility = await getSpiritVisibilityBatch(
+        const visibility = await productionRealtimeQueries.spiritVisibility(
           socket.campaignId,
           sockets
             .map((s) => (s as unknown as AuthenticatedSocket).userId)

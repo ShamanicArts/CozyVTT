@@ -1,27 +1,13 @@
 import { Router } from "express";
-import { prisma } from "../config/database";
-import { createTrustedExtensionHost } from "../extensions/host";
 import { requireAuth } from "../middleware/auth";
+import { productionExtensionOperations } from "../composition/productionExtensionOperations";
 
 const router = Router();
 
 /** Active installations may contribute validated, data-only themes. */
 router.get("/contributions", requireAuth, async (_req, res) => {
   try {
-    const host = createTrustedExtensionHost(prisma);
-    const renderers = await host.listActiveRendererContributions();
-    return res.json({
-      themes: await host.listActiveThemeContributions(),
-      renderers: renderers.map(({ extensionId, renderer }) => ({
-        extensionId,
-        renderer: {
-          id: renderer.id,
-          name: renderer.name,
-          contractVersion: renderer.contractVersion,
-          moduleUrl: `/api/extensions/contributions/renderers/${encodeURIComponent(extensionId)}/${encodeURIComponent(renderer.id)}`,
-        },
-      })),
-    });
+    return res.json(await productionExtensionOperations.contributions());
   } catch {
     return res.json({ themes: [], renderers: [] });
   }
@@ -32,8 +18,7 @@ router.get(
   requireAuth,
   async (req, res) => {
     try {
-      const host = createTrustedExtensionHost(prisma);
-      const module = await host.readActiveRendererModule(
+      const module = await productionExtensionOperations.renderer(
         req.params.extensionId,
         req.params.rendererId,
       );

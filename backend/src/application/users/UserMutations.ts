@@ -6,7 +6,8 @@ import {
   UserMutationRepository,
   UserProfileUpdate,
 } from "../../ports/UserMutationRepository";
-import { hashPassword } from "../../services/auth";
+import type { UserSessionInvalidator } from "../../ports/UserSessionInvalidator";
+import type { PasswordHasher } from "../../ports/PasswordHasher";
 import { sanitizeInput, validateEmail } from "../../utils/validation";
 import {
   isBuiltInThemeId,
@@ -181,7 +182,10 @@ export class DeleteUserAsAdmin implements CommandHandler<
   DeleteUserAsAdminCommand,
   number
 > {
-  constructor(private readonly users: UserMutationRepository) {}
+  constructor(
+    private readonly users: UserMutationRepository,
+    private readonly sessions: UserSessionInvalidator,
+  ) {}
   async execute(command: DeleteUserAsAdminCommand): Promise<number> {
     if (command.userId === command.actorId)
       throw new UserMutationError(
@@ -193,6 +197,7 @@ export class DeleteUserAsAdmin implements CommandHandler<
     if (!user) throw new UserMutationError(404, "Not Found", "User not found");
     const userAssetCount = await this.users.countUserAssets(command.userId);
     await this.users.deleteUser(command.userId);
+    await this.sessions.invalidate(command.userId);
     return userAssetCount;
   }
 }
@@ -201,13 +206,16 @@ export class ResetUserPasswordAsAdmin implements CommandHandler<
   ResetUserPasswordAsAdminCommand,
   string
 > {
-  constructor(private readonly users: UserMutationRepository) {}
+  constructor(
+    private readonly users: UserMutationRepository,
+    private readonly passwords: PasswordHasher,
+  ) {}
   async execute(command: ResetUserPasswordAsAdminCommand): Promise<string> {
     if (!(await this.users.findUser(command.userId)))
       throw new UserMutationError(404, "Not Found", "User not found");
     const temporaryPassword = generateTemporaryPassword();
     await this.users.updateUser(command.userId, {
-      passwordHash: await hashPassword(temporaryPassword),
+      passwordHash: await this.passwords.hash(temporaryPassword),
       mustChangePassword: true,
     } as UserProfileUpdate);
     return temporaryPassword;

@@ -153,6 +153,10 @@ export function durableExecutionMiddleware(
   return async (dispatch, metadata, next) => {
     const context = dispatch.context;
     if (!context) return next();
+    // Human transports already enforce session identity and application-level
+    // authorization. Durable grants, capability audit, idempotency, and outbox
+    // policy apply to plugin/extension origins only.
+    if (context.origin === "TRANSPORT") return next();
     const digest = digestCanonical(dispatch.input);
     const audit = async (
       decision: "ALLOWED" | "DENIED" | "EXECUTED" | "FAILED",

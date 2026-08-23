@@ -8,7 +8,7 @@ import {
 } from "../../ports/AuthSecurityRepository";
 import { PasswordResetNotifier } from "../../ports/PasswordResetNotifier";
 import { IdentityError } from "../../domain/identity/Identity";
-import { hashPassword, verifyPassword } from "../../services/auth";
+import type { PasswordHasher } from "../../ports/PasswordHasher";
 import { validatePasswordStrength } from "../../utils/validation";
 type ForgotPasswordCommand = Command<{ smtp: boolean }> & { email?: unknown };
 type ResetPasswordCommand = Command<void> & {
@@ -89,7 +89,10 @@ export class ResetPassword implements CommandHandler<
   ResetPasswordCommand,
   void
 > {
-  constructor(private r: AuthSecurityRepository) {}
+  constructor(
+    private r: AuthSecurityRepository,
+    private passwords: PasswordHasher,
+  ) {}
   async execute(c: ResetPasswordCommand): Promise<void> {
     if (!c.token || !c.newPassword)
       throw err(400, "Validation Error", "Token and new password are required");
@@ -102,7 +105,7 @@ export class ResetPassword implements CommandHandler<
       );
     const v = validatePasswordStrength(c.newPassword);
     if (!v.valid) throw err(400, "Validation Error", v.errors.join(", "));
-    await this.r.updatePassword(t.userId, await hashPassword(c.newPassword));
+    await this.r.updatePassword(t.userId, await this.passwords.hash(c.newPassword));
     await this.r.markResetUsed(t.id);
   }
 }
@@ -110,7 +113,10 @@ export class ChangePassword implements CommandHandler<
   ChangePasswordCommand,
   void
 > {
-  constructor(private r: AuthSecurityRepository) {}
+  constructor(
+    private r: AuthSecurityRepository,
+    private passwords: PasswordHasher,
+  ) {}
   async execute(c: ChangePasswordCommand): Promise<void> {
     if (!c.currentPassword || !c.newPassword)
       throw err(
@@ -120,18 +126,21 @@ export class ChangePassword implements CommandHandler<
       );
     const u = await this.r.findUser(c.userId);
     if (!u) throw err(404, "Not Found", "User not found");
-    if (!(await verifyPassword(u.passwordHash, c.currentPassword)))
+    if (!(await this.passwords.verify(u.passwordHash, c.currentPassword)))
       throw err(401, "Authentication Failed", "Current password is incorrect");
     const v = validatePasswordStrength(c.newPassword);
     if (!v.valid) throw err(400, "Validation Error", v.errors.join(", "));
-    await this.r.updatePassword(u.id, await hashPassword(c.newPassword));
+    await this.r.updatePassword(u.id, await this.passwords.hash(c.newPassword));
   }
 }
 export class DeleteAccount implements CommandHandler<
   DeleteAccountCommand,
   void
 > {
-  constructor(private r: AuthSecurityRepository) {}
+  constructor(
+    private r: AuthSecurityRepository,
+    private passwords: PasswordHasher,
+  ) {}
   async execute(c: DeleteAccountCommand): Promise<void> {
     if (!c.password)
       throw err(
@@ -141,7 +150,7 @@ export class DeleteAccount implements CommandHandler<
       );
     const u = await this.r.findUser(c.userId);
     if (!u) throw err(404, "Not Found", "User not found");
-    if (!(await verifyPassword(u.passwordHash, c.password)))
+    if (!(await this.passwords.verify(u.passwordHash, c.password)))
       throw err(401, "Authentication Failed", "Incorrect password");
     await this.r.deleteUser(u.id);
   }
@@ -246,7 +255,10 @@ export class MfaVerifyLogin implements CommandHandler<
   }
 }
 export class MfaDisable implements CommandHandler<MfaDisableCommand, void> {
-  constructor(private r: AuthSecurityRepository) {}
+  constructor(
+    private r: AuthSecurityRepository,
+    private passwords: PasswordHasher,
+  ) {}
   async execute(c: MfaDisableCommand): Promise<void> {
     if (!c.password || !c.token)
       throw err(
@@ -260,7 +272,7 @@ export class MfaDisable implements CommandHandler<MfaDisableCommand, void> {
       throw err(403, "Forbidden", "Admin accounts must keep MFA enabled.");
     if (!u.mfaEnabled || !u.mfaSecret)
       throw err(400, "Bad Request", "MFA is not enabled");
-    if (!(await verifyPassword(u.passwordHash, c.password)))
+    if (!(await this.passwords.verify(u.passwordHash, c.password)))
       throw err(401, "Authentication Failed", "Incorrect password");
     if (!valid(u.mfaSecret, c.token))
       throw err(401, "Invalid Code", "Invalid authentication code");
@@ -275,13 +287,16 @@ export class MfaBackupCodes implements CommandHandler<
   MfaBackupCodesCommand,
   string[]
 > {
-  constructor(private r: AuthSecurityRepository) {}
+  constructor(
+    private r: AuthSecurityRepository,
+    private passwords: PasswordHasher,
+  ) {}
   async execute(c: MfaBackupCodesCommand): Promise<string[]> {
     if (!c.password) throw err(400, "Validation Error", "Password is required");
     const u = await this.r.findUser(c.userId);
     if (!u) throw err(404, "Not Found", "User not found");
     if (!u.mfaEnabled) throw err(400, "Bad Request", "MFA is not enabled");
-    if (!(await verifyPassword(u.passwordHash, c.password)))
+    if (!(await this.passwords.verify(u.passwordHash, c.password)))
       throw err(401, "Authentication Failed", "Incorrect password");
     const x = codes();
     await this.r.updateMfa(u.id, { mfaBackupCodes: x.map(hash) });

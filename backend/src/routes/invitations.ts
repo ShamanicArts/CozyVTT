@@ -6,10 +6,9 @@
 import { Router, Response } from "express";
 import { AuthenticatedRequest } from "../middleware/rbac";
 import { authenticated } from "../middleware/compose";
-import { prisma } from "../config/database";
-import { broadcastToCampaign } from "../websocket/utils";
+import { productionCampaignEvents } from "../composition/productionCampaignEvents";
 import logger from "../utils/logger";
-import { productionCommandBus } from "../composition/productionApplicationHost";
+import { productionTransportCommands } from "../composition/productionTransportCommands";
 import {
   ACCEPT_CAMPAIGN_INVITATION,
   DECLINE_CAMPAIGN_INVITATION,
@@ -18,10 +17,11 @@ import {
   DeclineCampaignInvitationCommand,
   isCampaignCommandError,
 } from "../application/campaigns/CampaignCommands";
+import { productionInvitationQueries } from "../composition/productionInvitationQueries";
 
 const router = Router();
 
-const invitationCommands = productionCommandBus;
+const invitationCommands = productionTransportCommands;
 
 /**
  * GET /api/invitations
@@ -34,31 +34,8 @@ router.get(
     try {
       const userId = req.session.userId!;
 
-      const invitations = await prisma.campaignInvitation.findMany({
-        where: {
-          userId,
-          status: "PENDING",
-        },
-        include: {
-          campaign: {
-            select: {
-              id: true,
-              name: true,
-              description: true,
-              gameSystem: true,
-              status: true,
-              owner: {
-                select: {
-                  displayName: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-      });
+      const invitations =
+        await productionInvitationQueries.pendingForUser(userId);
 
       return res.json(invitations);
     } catch (error) {
@@ -94,7 +71,7 @@ router.post(
 
       // Broadcast roster.updated to campaign members
       try {
-        broadcastToCampaign(result.invitation.campaignId, "roster.updated", {
+        productionCampaignEvents.publish(result.invitation.campaignId, "roster.updated", {
           action: "member.joined",
           userId,
           campaignId: result.invitation.campaignId,

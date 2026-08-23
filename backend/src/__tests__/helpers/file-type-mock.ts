@@ -3,7 +3,7 @@
  *
  * `file-type` v17+ ships no CommonJS build, so ts-jest's CJS transform fails
  * to resolve it — any suite that (transitively) imports fileValidation.ts or
- * campaignImporter.ts would crash at module load. Mapped in jest.config.js
+ * campaign archive imports would crash at module load. Mapped in jest.config.js
  * via moduleNameMapper.
  *
  * No current test exercises real magic-byte validation. If one ever does,

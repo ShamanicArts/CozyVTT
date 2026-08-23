@@ -1,7 +1,7 @@
 /**
  * Safe ZIP archive helpers.
  *
- * Shared by the campaign importer (services/campaignImporter.ts) and the admin
+ * Shared by campaign archive infrastructure and the admin
  * backup restore (routes/admin.ts) so both apply the same protections:
  *   - Path traversal (zip-slip): entry paths that escape the destination via
  *     "..", absolute paths, or backslashes are rejected.

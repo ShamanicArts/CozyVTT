@@ -1,5 +1,5 @@
 import { Socket } from 'socket.io';
-import { prisma } from '../config/database';
+import { productionRealtimeQueries } from '../composition/productionRealtimeQueries';
 import logger from '../utils/logger';
 
 /**
@@ -28,19 +28,9 @@ export async function authenticateSocket(socket: AuthenticatedSocket): Promise<b
       return false;
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.userId },
-      select: { id: true, mustChangePassword: true },
-    });
+    const user = await productionRealtimeQueries.authenticatedUser(session.userId);
 
     if (!user) {
-      return false;
-    }
-
-    if (user.mustChangePassword) {
-      logger.warn("WebSocket rejected: password change required", {
-        userId: user.id,
-      });
       return false;
     }
 
@@ -65,37 +55,20 @@ export async function authenticateCampaign(
       return { success: false, error: 'Socket not authenticated' };
     }
 
-    // Verify campaign exists
-    const campaign = await prisma.campaign.findUnique({
-      where: { id: campaignId },
-      select: { id: true, name: true, status: true },
-    });
-
-    if (!campaign) {
-      return { success: false, error: 'Campaign not found' };
-    }
-
-    // Verify user is a member of the campaign
-    const membership = await prisma.campaignMembership.findUnique({
-      where: {
-        userId_campaignId: {
-          userId: socket.userId,
-          campaignId,
-        },
-      },
-      select: { role: true },
-    });
-
-    if (!membership) {
+    const role = await productionRealtimeQueries.campaignRole(
+      socket.userId,
+      campaignId,
+    );
+    if (!role) {
       return { success: false, error: 'You are not a member of this campaign' };
     }
 
     socket.campaignId = campaignId;
-    socket.role = membership.role;
+    socket.role = role;
 
     return {
       success: true,
-      role: membership.role,
+      role,
     };
   } catch (error) {
     logger.error('WebSocket campaign authentication error', { err: error });

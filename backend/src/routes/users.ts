@@ -1,11 +1,8 @@
 import { Router, Request, Response } from "express";
 import { requireAuth, requireAdmin } from "../middleware/auth";
-import { prisma } from "../config/database";
-import { sanitizeUser } from "../services/auth";
 import type { UserPreferences } from "../validators/userPreferences";
 import logger from "../utils/logger";
-import { destroyUserLoginSessions } from "../services/sessionStore";
-import { productionCommandBus } from "../composition/productionApplicationHost";
+import { productionTransportCommands } from "../composition/productionTransportCommands";
 import {
   DELETE_USER_AS_ADMIN,
   DeleteUserAsAdminCommand,
@@ -19,6 +16,11 @@ import {
   UpdateUserProfileCommand,
 } from "../application/users/UserMutations";
 import { UserMutationError } from "../domain/users/UserMutations";
+import {
+  UserQueryError,
+  publicUser,
+} from "../application/users/UserQueries";
+import { productionUserQueries } from "../composition/productionUserQueries";
 
 /**
  * User Management Routes
@@ -26,7 +28,7 @@ import { UserMutationError } from "../domain/users/UserMutations";
  */
 
 const router = Router();
-const userMutationCommands = productionCommandBus;
+const userMutationCommands = productionTransportCommands;
 
 function sendUserMutationError(res: Response, error: unknown): boolean {
   if (!(error instanceof UserMutationError)) return false;
@@ -37,6 +39,12 @@ function sendUserMutationError(res: Response, error: unknown): boolean {
       message: error.message,
       ...(error.details ? { details: error.details } : {}),
     });
+  return true;
+}
+
+function sendUserQueryError(res: Response, error: unknown): boolean {
+  if (!(error instanceof UserQueryError)) return false;
+  res.status(error.status).json({ error: error.error, message: error.message });
   return true;
 }
 
@@ -51,14 +59,7 @@ router.get(
   requireAdmin,
   async (_req: Request, res: Response) => {
     try {
-      const users = await prisma.user.findMany({
-        orderBy: { createdAt: "desc" },
-      });
-
-      // Sanitize all users before returning
-      const sanitizedUsers = users.map((user) => sanitizeUser(user));
-
-      return res.status(200).json({ users: sanitizedUsers });
+      return res.status(200).json({ users: await productionUserQueries.list() });
     } catch (error) {
       logger.error("Error fetching users", { err: error });
       return res.status(500).json({
@@ -80,27 +81,14 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
     const requestingUserId = req.session.userId;
     const isAdmin = req.session.platformRole === "ADMIN";
 
-    // Check authorization: user can only view their own profile unless admin
-    if (id !== requestingUserId && !isAdmin) {
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "You do not have permission to view this user",
-      });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id },
+    const user = await productionUserQueries.find({
+      actorId: requestingUserId!,
+      isAdmin,
+      userId: id,
     });
-
-    if (!user) {
-      return res.status(404).json({
-        error: "Not Found",
-        message: "User not found",
-      });
-    }
-
-    return res.status(200).json({ user: sanitizeUser(user) });
+    return res.status(200).json({ user });
   } catch (error) {
+    if (sendUserQueryError(res, error)) return;
     logger.error("Error fetching user", { err: error });
     return res.status(500).json({
       error: "Internal Server Error",
@@ -135,7 +123,7 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
       .status(200)
       .json({
         message: "User updated successfully",
-        user: sanitizeUser(user as any),
+        user: publicUser(user as any),
       });
   } catch (error) {
     if (sendUserMutationError(res, error)) return;
@@ -163,28 +151,14 @@ router.get(
       const { id } = req.params;
       const requestingUserId = req.session.userId;
       const isAdmin = req.session.platformRole === "ADMIN";
-      if (id !== requestingUserId && !isAdmin) {
-        return res.status(403).json({
-          error: "Forbidden",
-          message: "You do not have permission to view this user's preferences",
-        });
-      }
-
-      const user = await prisma.user.findUnique({
-        where: { id },
-        select: { id: true, preferences: true },
-      });
-
-      if (!user) {
-        return res.status(404).json({
-          error: "Not Found",
-          message: "User not found",
-        });
-      }
-
-      const preferences = (user.preferences as UserPreferences | null) ?? {};
+      const preferences = (await productionUserQueries.preferences({
+        actorId: requestingUserId!,
+        isAdmin,
+        userId: id,
+      })) as UserPreferences;
       return res.status(200).json({ preferences });
     } catch (error) {
+      if (sendUserQueryError(res, error)) return;
       logger.error("Error fetching user preferences", { err: error });
       return res.status(500).json({
         error: "Internal Server Error",
@@ -292,7 +266,6 @@ router.post(
         type: RESET_USER_PASSWORD_AS_ADMIN,
         userId: id,
       });
-      await destroyUserLoginSessions(id);
       return res.status(200).json({
         message: "Password reset successfully",
         temporaryPassword,

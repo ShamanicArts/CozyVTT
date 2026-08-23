@@ -4,18 +4,11 @@
 // All routes require platform ADMIN role.
 // ============================================
 
-import fs from "fs/promises";
-import path from "path";
-import multer from "multer";
 import { Response, Router } from "express";
 import { requireAuth, requireAdmin } from "../middleware/auth";
-import { prisma } from "../config/database";
-import { getSystemSettings } from "../services/systemSettings";
-import { sanitizeUser } from "../services/auth";
-import { isSmtpConfigured } from "../services/email";
-import { FILE_SIZE_LIMITS } from "../utils/fileUtils";
+import { publicUser } from "../application/users/UserQueries";
 import logger from "../utils/logger";
-import { productionCommandBus } from "../composition/productionApplicationHost";
+import { productionTransportCommands } from "../composition/productionTransportCommands";
 import {
   APPROVE_ADMIN_USER,
   ApproveAdminUserCommand,
@@ -43,43 +36,13 @@ import {
   UPDATE_ADMIN_SETTINGS,
   UpdateAdminSettingsCommand,
 } from "../application/admin/AdminMutations";
-
-const UPLOADS_DIR = process.env.UPLOAD_DIR || "uploads";
-const BACKUP_DIR = path.join(UPLOADS_DIR, "backups");
-const BACKUP_FILENAME_RE = /^backup-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.zip$/;
-
-// Guards for restoring an uploaded backup archive (see utils/archive.ts).
-// A full-instance backup legitimately bundles every uploaded file, but the
-// upload itself is capped at 4 GB by multer and media compresses poorly, so a
-// 10 GB decompressed ceiling comfortably fits real backups while stopping a
-// zip bomb long before it can exhaust the disk.
-
-// Multer storage for restore uploads — saves the uploaded ZIP to BACKUP_DIR temporarily
-const restoreStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    fs.mkdir(BACKUP_DIR, { recursive: true })
-      .then(() => cb(null, BACKUP_DIR))
-      .catch((err) => cb(err, BACKUP_DIR));
-  },
-  filename: (_req, _file, cb) => {
-    cb(null, `restore-temp-${Date.now()}.zip`);
-  },
-});
-const restoreUpload = multer({
-  storage: restoreStorage,
-  limits: { fileSize: 4 * 1024 * 1024 * 1024 }, // 4 GB max
-  fileFilter: (_req, file, cb) => {
-    if (file.originalname.toLowerCase().endsWith(".zip")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only .zip backup files are accepted"));
-    }
-  },
-});
+import { AdminQueryError } from "../application/admin/AdminQueries";
+import { productionAdminQueries } from "../composition/productionAdminQueries";
+import { productionAdminRestoreUpload } from "../composition/productionAdminRestoreUpload";
 
 const router = Router();
 
-const adminCommands = productionCommandBus;
+const adminCommands = productionTransportCommands;
 
 function adminActor(req: { session: { userId?: string } }) {
   return { userId: req.session.userId! };
@@ -103,49 +66,7 @@ router.use(requireAuth, requireAdmin);
 // ============================================
 router.get("/stats", async (_req, res) => {
   try {
-    const [
-      userCount,
-      campaignCount,
-      activeCampaignCount,
-      assetStats,
-      activeSessionCount,
-      sessionCount,
-      characterCount,
-      mapCount,
-      assetBreakdownRaw,
-    ] = await Promise.all([
-      prisma.user.count(),
-      prisma.campaign.count(),
-      prisma.campaign.count({ where: { status: "ACTIVE" } }),
-      prisma.asset.aggregate({ _sum: { fileSize: true } }),
-      prisma.session.count({ where: { endedAt: null } }),
-      prisma.session.count(),
-      prisma.character.count(),
-      prisma.map.count(),
-      prisma.asset.groupBy({
-        by: ["type"],
-        _count: { id: true },
-        _sum: { fileSize: true },
-      }),
-    ]);
-
-    const assetBreakdown = assetBreakdownRaw.map((row) => ({
-      type: row.type,
-      count: row._count.id,
-      sizeBytes: row._sum.fileSize ?? 0,
-    }));
-
-    return res.json({
-      userCount,
-      campaignCount,
-      activeCampaignCount,
-      totalStorageBytes: assetStats._sum.fileSize ?? 0,
-      activeSessionCount,
-      sessionCount,
-      characterCount,
-      mapCount,
-      assetBreakdown,
-    });
+    return res.json(await productionAdminQueries.stats());
   } catch (error) {
     logger.error("Error fetching admin stats", { err: error });
     return res
@@ -163,7 +84,7 @@ router.get("/stats", async (_req, res) => {
 // ============================================
 router.get("/settings", async (_req, res) => {
   try {
-    const settings = await getSystemSettings();
+    const settings = await productionAdminQueries.settings();
     return res.json({ settings });
   } catch (error) {
     logger.error("Error fetching system settings", { err: error });
@@ -213,7 +134,7 @@ router.post("/users", async (req, res) => {
 
     return res.status(201).json({
       message: "User created successfully",
-      user: sanitizeUser(result.user as any),
+      user: publicUser(result.user as any),
       temporaryPassword: result.temporaryPassword,
     });
   } catch (error) {
@@ -230,13 +151,13 @@ router.post("/users", async (req, res) => {
 
 router.post("/users/invite", async (req, res) => {
   try {
-    const result = await productionCommandBus.dispatch<
+    const result = await productionTransportCommands.dispatch<
       InviteAdminUserCommand,
       Awaited<ReturnType<InviteAdminUser["execute"]>>
     >({ type: INVITE_ADMIN_USER, actor: adminActor(req), input: req.body });
     return res.status(201).json({
       message: `Invitation sent to ${result.user.email}`,
-      user: sanitizeUser(result.user as any),
+      user: publicUser(result.user as any),
       expiresInDays: result.expiresInDays,
     });
   } catch (error) {
@@ -251,7 +172,7 @@ router.post("/users/invite", async (req, res) => {
 
 router.post("/users/:id/resend-invite", async (req, res) => {
   try {
-    const result = await productionCommandBus.dispatch<
+    const result = await productionTransportCommands.dispatch<
       ResendAdminUserInviteCommand,
       { expiresInDays: number }
     >({
@@ -331,74 +252,7 @@ router.post("/users/:id/reset-mfa", async (req, res) => {
 // ============================================
 router.get("/activity", async (_req, res) => {
   try {
-    // Query the connect-pg-simple session table for active sessions.
-    // Only userId and expiry are extracted — no tokens or sensitive session data.
-    const rawSessions = await prisma.$queryRaw<
-      { userId: string; expire: Date }[]
-    >`
-      SELECT sess->>'userId' AS "userId", expire
-      FROM session
-      WHERE expire > NOW() AND sess->>'userId' IS NOT NULL
-    `;
-
-    const onlineUserIds = [...new Set(rawSessions.map((s) => s.userId))];
-
-    const [recentUsers, recentSessions, onlineUsersData, recentLogs] =
-      await Promise.all([
-        prisma.user.findMany({
-          orderBy: { createdAt: "desc" },
-          take: 50,
-          select: {
-            id: true,
-            email: true,
-            displayName: true,
-            platformRole: true,
-            mfaEnabled: true,
-            createdAt: true,
-            lastLoginAt: true,
-          },
-        }),
-        prisma.session.findMany({
-          orderBy: { startedAt: "desc" },
-          take: 20,
-          include: {
-            campaign: {
-              select: { id: true, name: true },
-            },
-          },
-        }),
-        onlineUserIds.length > 0
-          ? prisma.user.findMany({
-              where: { id: { in: onlineUserIds } },
-              select: {
-                id: true,
-                email: true,
-                displayName: true,
-                platformRole: true,
-                lastLoginAt: true,
-              },
-            })
-          : Promise.resolve([]),
-        prisma.systemLog.findMany({
-          orderBy: { createdAt: "desc" },
-          take: 100,
-          select: {
-            id: true,
-            level: true,
-            message: true,
-            userId: true,
-            context: true,
-            createdAt: true,
-          },
-        }),
-      ]);
-
-    const onlineUsers = onlineUsersData.map((u) => ({
-      ...u,
-      sessionExpiry: rawSessions.find((s) => s.userId === u.id)?.expire ?? null,
-    }));
-
-    return res.json({ recentUsers, recentSessions, onlineUsers, recentLogs });
+    return res.json(await productionAdminQueries.activity());
   } catch (error) {
     logger.error("Error fetching admin activity", { err: error });
     return res
@@ -415,27 +269,9 @@ router.get("/activity", async (_req, res) => {
 // Returns read-only server configuration values
 // (upload limits, session timeouts, SMTP status).
 // ============================================
-router.get("/config", (_req, res) => {
-  return res.json({
-    uploadLimits: {
-      MAP: FILE_SIZE_LIMITS.MAP,
-      TOKEN: FILE_SIZE_LIMITS.TOKEN,
-      AUDIO: FILE_SIZE_LIMITS.AUDIO,
-      AVATAR: FILE_SIZE_LIMITS.AVATAR,
-    },
-    sessionTimeoutMs: parseInt(process.env.SESSION_MAX_AGE || "3600000"),
-    rememberMeTimeoutMs: parseInt(
-      process.env.REMEMBER_ME_MAX_AGE || "2592000000",
-    ),
-    smtp: {
-      configured: isSmtpConfigured(),
-      host: process.env.SMTP_HOST || null,
-      port: parseInt(process.env.SMTP_PORT || "587"),
-      user: process.env.SMTP_USER || null,
-      secure: process.env.SMTP_SECURE === "true",
-    },
-  });
-});
+router.get("/config", (_req, res) =>
+  res.json(productionAdminQueries.serverConfig()),
+);
 
 // ============================================
 // POST /api/admin/smtp/test
@@ -488,21 +324,7 @@ router.post("/backups", async (req, res) => {
 // ============================================
 router.get("/backups", async (_req, res) => {
   try {
-    await fs.mkdir(BACKUP_DIR, { recursive: true });
-    const files = await fs.readdir(BACKUP_DIR);
-    const backups = await Promise.all(
-      files
-        .filter((f) => BACKUP_FILENAME_RE.test(f))
-        .map(async (f) => {
-          const stat = await fs.stat(path.join(BACKUP_DIR, f));
-          return {
-            filename: f,
-            sizeBytes: stat.size,
-            createdAt: stat.mtime.toISOString(),
-          };
-        }),
-    );
-    backups.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const backups = await productionAdminQueries.listBackups();
     return res.json({ backups });
   } catch {
     return res.json({ backups: [] });
@@ -516,22 +338,18 @@ router.get("/backups", async (_req, res) => {
 router.get("/backups/:filename/download", async (req, res) => {
   const { filename } = req.params;
 
-  if (!BACKUP_FILENAME_RE.test(filename)) {
-    return res
-      .status(400)
-      .json({ error: "Bad Request", message: "Invalid backup filename" });
-  }
-
-  const filepath = path.join(BACKUP_DIR, filename);
   try {
-    await fs.access(filepath);
-  } catch {
-    return res
-      .status(404)
-      .json({ error: "Not Found", message: "Backup file not found" });
+    const contents = await productionAdminQueries.backup(filename);
+    res.attachment(filename);
+    res.type("application/zip");
+    return res.send(contents);
+  } catch (error) {
+    if (error instanceof AdminQueryError)
+      return res
+        .status(error.status)
+        .json({ error: error.error, message: error.message });
+    throw error;
   }
-
-  return res.download(filepath, filename);
 });
 
 // ============================================
@@ -567,7 +385,7 @@ router.delete("/backups/:filename", async (req, res) => {
 // ============================================
 router.post(
   "/backups/restore",
-  restoreUpload.single("backup"),
+  productionAdminRestoreUpload.single("backup"),
   async (req, res) => {
     if (!req.file) {
       return res

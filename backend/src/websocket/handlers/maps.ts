@@ -4,12 +4,10 @@
 
 import { Server } from "socket.io";
 import { AuthenticatedSocket } from "../auth";
-import {
-  getSpiritVisibilityBatch,
-  filterMapData,
-} from "../../utils/spirit-layer";
+import { filterMapData } from "../../utils/spirit-layer";
+import { productionRealtimeQueries } from "../../composition/productionRealtimeQueries";
 import logger from "../../utils/logger";
-import { productionCommandBus } from "../../composition/productionApplicationHost";
+import { productionTransportCommands } from "../../composition/productionTransportCommands";
 import {
   CHANGE_MAP,
   ChangeMap,
@@ -17,7 +15,7 @@ import {
 } from "../../application/maps/MapLifecycleCommands";
 import { MapLifecycleError } from "../../domain/maps/MapLifecycle";
 
-const mapChangeCommands = productionCommandBus;
+const mapChangeCommands = productionTransportCommands;
 
 export function registerMapHandlers(
   io: Server,
@@ -56,7 +54,7 @@ export function registerMapHandlers(
       // spiritVisible is included in the payload so the client knows whether
       // to show the spirit overlay for this specific viewer.
       const campaignSockets = await io.in(socket.campaignId).fetchSockets();
-      const visibility = await getSpiritVisibilityBatch(
+      const visibility = await productionRealtimeQueries.spiritVisibility(
         socket.campaignId,
         campaignSockets
           .map((s) => (s as unknown as AuthenticatedSocket).userId)

@@ -6,7 +6,7 @@
 import { Server } from "socket.io";
 import { AuthenticatedSocket } from "../auth";
 import logger from "../../utils/logger";
-import { productionCommandBus } from "../../composition/productionApplicationHost";
+import { productionTransportCommands } from "../../composition/productionTransportCommands";
 import {
   RealtimeCharacterError,
   UPDATE_CHARACTER_HP,
@@ -14,7 +14,7 @@ import {
   UpdateCharacterHpCommand,
 } from "../../application/characters/RealtimeCharacterCommands";
 
-const commands = productionCommandBus;
+const commands = productionTransportCommands;
 
 export function registerCharacterHandlers(
   io: Server,

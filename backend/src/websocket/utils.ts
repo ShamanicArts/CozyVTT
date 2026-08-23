@@ -1,5 +1,5 @@
 import logger from "../utils/logger";
-import { productionCommandBus } from "../composition/productionApplicationHost";
+import { productionTransportCommands } from "../composition/productionTransportCommands";
 import {
   CREATE_SYSTEM_MESSAGE,
   CreateSystemMessage,
@@ -14,7 +14,7 @@ export {
   setSocketInstance,
 } from "./socketInstance";
 
-const systemMessageCommands = productionCommandBus;
+const systemMessageCommands = productionTransportCommands;
 
 /**
  * WebSocket Utility Functions

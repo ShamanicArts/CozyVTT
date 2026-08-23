@@ -4,12 +4,10 @@ import {
   PASSWORD_CHANGE_REQUIRED,
 } from "./passwordChange";
 
-const mockFindUnique = jest.fn();
-jest.mock("../config/database", () => ({
-  prisma: {
-    user: {
-      findUnique: (...args: unknown[]) => mockFindUnique(...args),
-    },
+const mockMustChangePassword = jest.fn();
+jest.mock("../composition/productionAccessQueries", () => ({
+  productionAccessQueries: {
+    mustChangePassword: (...args: unknown[]) => mockMustChangePassword(...args),
   },
 }));
 
@@ -49,7 +47,7 @@ describe("requirePasswordChanged", () => {
       mockNext,
     );
     expect(mockNext).toHaveBeenCalledTimes(2);
-    expect(mockFindUnique).not.toHaveBeenCalled();
+    expect(mockMustChangePassword).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -102,17 +100,17 @@ describe("requirePasswordChanged", () => {
   });
 
   it("loads and caches the flag for legacy sessions", async () => {
-    mockFindUnique.mockResolvedValue({ mustChangePassword: true });
+    mockMustChangePassword.mockResolvedValue(true);
     const req = mockReq("/campaigns", { userId: "user-1" });
     const { res, status } = mockRes();
     await requirePasswordChanged(req, res, mockNext);
-    expect(mockFindUnique).toHaveBeenCalledTimes(1);
+    expect(mockMustChangePassword).toHaveBeenCalledTimes(1);
     expect(status).toHaveBeenCalledWith(403);
     expect(req.session.mustChangePassword).toBe(true);
   });
 
   it("fails open when a legacy-session lookup fails", async () => {
-    mockFindUnique.mockRejectedValue(new Error("connection refused"));
+    mockMustChangePassword.mockRejectedValue(new Error("connection refused"));
     const { res, status } = mockRes();
     await requirePasswordChanged(
       mockReq("/campaigns", { userId: "user-1" }),

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { prisma } from "../config/database";
+import { productionAccessQueries } from "../composition/productionAccessQueries";
 import logger from "../utils/logger";
 
 export const PASSWORD_CHANGE_REQUIRED = "PASSWORD_CHANGE_REQUIRED";
@@ -19,13 +19,12 @@ async function isPasswordChangePending(req: Request): Promise<boolean> {
   }
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.session.userId },
-      select: { mustChangePassword: true },
-    });
-    if (!user) return false;
-    req.session.mustChangePassword = user.mustChangePassword;
-    return user.mustChangePassword;
+    const mustChangePassword = await productionAccessQueries.mustChangePassword(
+      req.session.userId!,
+    );
+    if (mustChangePassword === null) return false;
+    req.session.mustChangePassword = mustChangePassword;
+    return mustChangePassword;
   } catch (error) {
     logger.error("Error checking password-change status", { err: error });
     return false;

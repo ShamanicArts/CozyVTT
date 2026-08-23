@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { isSetupCompleted } from '../services/systemSettings';
+import { productionPublicSettingsQueries } from '../composition/productionPublicSettingsQueries';
 import logger from '../utils/logger';
 
 /**
@@ -29,7 +29,7 @@ export async function requireSetupComplete(
   }
 
   try {
-    const setupComplete = await isSetupCompleted();
+    const setupComplete = await productionPublicSettingsQueries.setupCompleted();
 
     if (!setupComplete) {
       return res.status(403).json({

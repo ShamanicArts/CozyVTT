@@ -1,19 +1,17 @@
 import { Response, Router } from "express";
-import { ExtensionPrincipalType, ExtensionPermission } from "@prisma/client";
-import { prisma } from "../config/database";
-import { ExtensionAdministrationService } from "../application/extensions/ExtensionAdministration";
-import { PrismaExtensionAdministrationRepository } from "../adapters/persistence/PrismaExtensionAdministrationRepository";
-import {
-  ExtensionHostError,
-  type ExtensionHostService,
-} from "../extensions/host";
+import type {
+  ExtensionGrantPermission,
+  ExtensionGrantPrincipal,
+} from "../ports/ExtensionAdministrationRepository";
 import { requireAdmin, requireAuth } from "../middleware/auth";
-import { productionExtensionRuntime } from "../composition/productionExtensionRuntime";
+import { productionExtensionAdministration } from "../composition/productionExtensionAdministration";
+import {
+  ExtensionOperationError,
+} from "../application/extensions/ExtensionOperations";
+import { productionExtensionOperations } from "../composition/productionExtensionOperations";
 
 const router = Router();
-const administration = new ExtensionAdministrationService(
-  new PrismaExtensionAdministrationRepository(prisma),
-);
+const administration = productionExtensionAdministration;
 
 router.use(requireAuth, requireAdmin);
 
@@ -46,20 +44,16 @@ router.delete("/grants/:grantId", async (req, res) => {
 });
 
 router.get("/available", async (_req, res) => {
-  const host = getHost(res);
-  if (!host) return;
   try {
-    return res.json({ packages: await host.listAvailable() });
+    return res.json({ packages: await productionExtensionOperations.available() });
   } catch (error) {
     return sendHostError(res, error);
   }
 });
 
 router.get("/", async (_req, res) => {
-  const host = getHost(res);
-  if (!host) return;
   try {
-    return res.json({ installations: await host.list() });
+    return res.json({ installations: await productionExtensionOperations.list() });
   } catch (error) {
     return sendHostError(res, error);
   }
@@ -72,8 +66,6 @@ router.post("/install", async (req, res) => {
       error: "Validation Error",
       message: "packageId must be a valid extension id",
     });
-  const host = getHost(res);
-  if (!host) return;
   const mode =
     req.body?.mode === "sandboxed"
       ? "sandboxed"
@@ -88,50 +80,36 @@ router.post("/install", async (req, res) => {
   try {
     return res
       .status(201)
-      .json({ installation: await host.install(packageId, mode) });
+      .json({ installation: await productionExtensionOperations.install(packageId, mode) });
   } catch (error) {
     return sendHostError(res, error);
   }
 });
 
 router.post("/:extensionId/activate", async (req, res) =>
-  lifecycle(res, req.params.extensionId, (host, id) => host.activate(id)),
+  lifecycle(res, req.params.extensionId, (id) => productionExtensionOperations.activate(id)),
 );
 router.post("/:extensionId/deactivate", async (req, res) =>
-  lifecycle(res, req.params.extensionId, (host, id) => host.deactivate(id)),
+  lifecycle(res, req.params.extensionId, (id) => productionExtensionOperations.deactivate(id)),
 );
 router.delete("/:extensionId", async (req, res) =>
-  lifecycle(res, req.params.extensionId, async (host, id) => {
-    await host.uninstall(id);
+  lifecycle(res, req.params.extensionId, async (id) => {
+    await productionExtensionOperations.uninstall(id);
     return undefined;
   }),
 );
 
-function getHost(res: Response): ExtensionHostService | null {
-  try {
-    return productionExtensionRuntime().host;
-  } catch {
-    res.status(503).json({
-      error: "Extension Host Unavailable",
-      message: "Trusted extension packages are not configured on this server",
-    });
-    return null;
-  }
-}
-
 async function lifecycle<T>(
   res: Response,
   extensionId: string,
-  action: (host: ExtensionHostService, id: string) => Promise<T>,
+  action: (id: string) => Promise<T>,
 ): Promise<Response> {
   if (!validExtensionId(extensionId))
     return res
       .status(400)
       .json({ error: "Validation Error", message: "Invalid extension id" });
-  const host = getHost(res);
-  if (!host) return res;
   try {
-    const result = await action(host, extensionId);
+    const result = await action(extensionId);
     return result === undefined
       ? res.status(204).send()
       : res.json({ installation: result });
@@ -141,31 +119,14 @@ async function lifecycle<T>(
 }
 
 function sendHostError(res: Response, error: unknown): Response {
-  if (error instanceof ExtensionHostError) {
-    const status =
-      error.code === "UNKNOWN_INSTALLATION"
-        ? 404
-        : error.code === "UNTRUSTED_PACKAGE" ||
-            error.code === "CHECKSUM_MISMATCH"
-          ? 403
-          : 409;
-    return res.status(status).json({
-      error: "Extension Host Error",
-      message: safeHostMessage(error.code),
-    });
-  }
+  if (error instanceof ExtensionOperationError)
+    return res
+      .status(error.status)
+      .json({ error: error.error, message: error.message });
   return res.status(500).json({
     error: "Internal Server Error",
     message: "Extension operation failed",
   });
-}
-
-function safeHostMessage(code: ExtensionHostError["code"]): string {
-  if (code === "UNTRUSTED_PACKAGE" || code === "CHECKSUM_MISMATCH")
-    return "The package is not approved for in-process execution";
-  if (code === "UNKNOWN_INSTALLATION")
-    return "Extension installation not found";
-  return "The extension operation could not be completed";
 }
 
 function validExtensionId(value: unknown): string | null {
@@ -176,11 +137,11 @@ function validExtensionId(value: unknown): string | null {
 }
 
 function readGrantInput(value: unknown): {
-  principalType: ExtensionPrincipalType;
+  principalType: ExtensionGrantPrincipal;
   principalId: string;
   scopeCampaignId: string;
   extensionId: string;
-  permission: ExtensionPermission;
+  permission: ExtensionGrantPermission;
   expiresAt: Date | null;
 } | null {
   if (
@@ -193,12 +154,8 @@ function readGrantInput(value: unknown): {
   const extensionId = validExtensionId(value.extensionId);
   if (!extensionId) return null;
   if (
-    !Object.values(ExtensionPrincipalType).includes(
-      value.principalType as ExtensionPrincipalType,
-    ) ||
-    !Object.values(ExtensionPermission).includes(
-      value.permission as ExtensionPermission,
-    )
+    !["USER", "PLUGIN", "SYSTEM"].includes(String(value.principalType)) ||
+    !["READ", "WRITE", "EXECUTE", "ADMIN"].includes(String(value.permission))
   )
     return null;
   let expiresAt: Date | null = null;
@@ -211,11 +168,11 @@ function readGrantInput(value: unknown): {
     expiresAt = new Date(value.expiresAt);
   }
   return {
-    principalType: value.principalType as ExtensionPrincipalType,
+    principalType: value.principalType as ExtensionGrantPrincipal,
     principalId: value.principalId,
     scopeCampaignId: value.scopeCampaignId,
     extensionId,
-    permission: value.permission as ExtensionPermission,
+    permission: value.permission as ExtensionGrantPermission,
     expiresAt,
   };
 }

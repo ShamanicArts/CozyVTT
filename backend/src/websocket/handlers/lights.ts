@@ -5,7 +5,7 @@
 
 import { Server } from "socket.io";
 import { AuthenticatedSocket } from "../auth";
-import { prisma } from "../../config/database";
+import { productionRealtimeQueries } from "../../composition/productionRealtimeQueries";
 import {
   LightSourceSchema,
   LightSourcesArraySchema,
@@ -23,11 +23,11 @@ import {
   UPDATE_LIGHT_SOURCE,
   UpdateLightSourceCommand,
 } from "../../application/scene/SceneMutations";
-import { productionCommandBus } from "../../composition/productionApplicationHost";
+import { productionTransportCommands } from "../../composition/productionTransportCommands";
 import { SceneMutationError, SceneRole } from "../../domain/scene/Scene";
 import { MapRevisionConflictError } from "../../domain/maps/MapRevision";
 
-const lightCommands = productionCommandBus;
+const lightCommands = productionTransportCommands;
 
 function actorFor(socket: AuthenticatedSocket, campaignId: string) {
   return { campaignId, role: socket.role as SceneRole };
@@ -230,11 +230,11 @@ export function registerLightHandlers(
       if (!socket.campaignId) return;
       const { mapId } = data;
       if (!mapId) return;
-      const map = await prisma.map.findUnique({
-        where: { id: mapId },
-        select: { campaignId: true, lights: true },
-      });
-      if (!map || map.campaignId !== socket.campaignId) return;
+      const map = await productionRealtimeQueries.mapForCampaign(
+        socket.campaignId,
+        mapId,
+      );
+      if (!map) return;
       const lights = (Array.isArray(map.lights)
         ? map.lights
         : []) as unknown as LightSource[];

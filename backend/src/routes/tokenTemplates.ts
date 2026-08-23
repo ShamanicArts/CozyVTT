@@ -7,7 +7,6 @@
 import { Router, Response } from "express";
 import { AuthenticatedRequest } from "../middleware/rbac";
 import { campaignMember, campaignDM } from "../middleware/compose";
-import { prisma } from "../config/database";
 import {
   CreateTokenTemplateSchema,
   CreateTokenTemplateInput,
@@ -15,7 +14,7 @@ import {
   SaveTokenAsTemplateSchema,
 } from "../validators/tokenTemplates";
 import logger from "../utils/logger";
-import { productionCommandBus } from "../composition/productionApplicationHost";
+import { productionTransportCommands } from "../composition/productionTransportCommands";
 import {
   CREATE_TOKEN_TEMPLATE,
   CreateTokenTemplate,
@@ -34,12 +33,16 @@ import {
   UPDATE_TOKEN_TEMPLATE,
   UpdateTokenTemplateCommand,
 } from "../application/tokenTemplates/TokenTemplateMutations";
+import {
+  TokenTemplateQueryError,
+} from "../application/tokenTemplates/TokenTemplateQueries";
+import { productionTokenTemplateQueries } from "../composition/productionTokenTemplateQueries";
 
 const router = Router({ mergeParams: true });
 
 // HTTP is an adapter: validated request data is dispatched to an application
 // command rather than coupling this endpoint directly to Prisma.
-const tokenTemplateCommands = productionCommandBus;
+const tokenTemplateCommands = productionTransportCommands;
 function tokenError(res: Response, error: unknown) {
   if (!(error instanceof TokenTemplateMutationError)) return false;
   res.status(error.status).json({ error: error.error, message: error.message });
@@ -84,30 +87,21 @@ router.get(
       );
       const skip = Math.max(0, parseInt(offset as string, 10) || 0);
 
-      const where: Record<string, unknown> = { campaignId };
-
-      if (search && typeof search === "string") {
-        where.name = { contains: search, mode: "insensitive" };
-      }
-      if (
+      const templateType =
         type &&
         typeof type === "string" &&
         ["player", "npc", "object"].includes(type)
-      ) {
-        where.type = type;
-      }
-
-      const [templates, total] = await Promise.all([
-        prisma.tokenTemplate.findMany({
-          where: where as any,
-          orderBy: { name: "asc" },
-          take,
-          skip,
+          ? (type as "player" | "npc" | "object")
+          : undefined;
+      return res.json(
+        await productionTokenTemplateQueries.list({
+          campaignId,
+          search: typeof search === "string" ? search : undefined,
+          type: templateType,
+          limit: take,
+          offset: skip,
         }),
-        prisma.tokenTemplate.count({ where: where as any }),
-      ]);
-
-      return res.json({ templates, total, limit: take, offset: skip });
+      );
     } catch (error) {
       logger.error("Error listing token templates:", error);
       return res.status(500).json({
@@ -129,22 +123,12 @@ router.get(
     try {
       const { campaignId, id } = req.params;
 
-      const template = await prisma.tokenTemplate.findUnique({ where: { id } });
-
-      if (!template) {
-        return res
-          .status(404)
-          .json({ error: "Not Found", message: "Token template not found" });
-      }
-      if (template.campaignId !== campaignId) {
-        return res.status(403).json({
-          error: "Forbidden",
-          message: "Token template belongs to another campaign",
-        });
-      }
-
-      return res.json(template);
+      return res.json(await productionTokenTemplateQueries.find(campaignId, id));
     } catch (error) {
+      if (error instanceof TokenTemplateQueryError)
+        return res
+          .status(error.status)
+          .json({ error: error.error, message: error.message });
       logger.error("Error getting token template:", error);
       return res.status(500).json({
         error: "Internal Server Error",

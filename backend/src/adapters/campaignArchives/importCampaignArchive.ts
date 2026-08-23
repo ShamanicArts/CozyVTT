@@ -15,8 +15,7 @@ import { randomUUID } from 'crypto';
 import path from 'path';
 import fs from 'fs';
 import unzipper from 'unzipper';
-import { Prisma } from '@prisma/client';
-import { prisma } from '../config/database';
+import { Prisma, type PrismaClient } from '@prisma/client';
 import { fileTypeFromBuffer } from 'file-type';
 import {
   ManifestSchema,
@@ -26,12 +25,10 @@ import {
   TokenTemplateImportSchema,
   AssetManifestSchema,
   IMPORT_LIMITS,
-} from '../validators/campaignImport';
-import type { MapData, AssetManifestData } from '../validators/campaignImport';
-import { isSafeArchivePath } from '../utils/archive';
-import logger from '../utils/logger';
-
-const UPLOADS_BASE = process.env.UPLOAD_DIR || 'uploads';
+} from '../../validators/campaignImport';
+import type { MapData, AssetManifestData } from '../../validators/campaignImport';
+import { isSafeArchivePath } from '../../utils/archive';
+import logger from '../../utils/logger';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -88,17 +85,18 @@ async function validateMagicBytes(buffer: Buffer, declaredMime: string): Promise
 }
 
 /** Get max decompressed size from system settings. */
-async function getMaxImportSize(): Promise<number> {
-  const settings = await prisma.systemSettings.findFirst();
+async function getMaxImportSize(client: PrismaClient): Promise<number> {
+  const settings = await client.systemSettings.findFirst();
   return settings?.campaignExportSizeLimit ?? 524288000; // 500 MB default
 }
 
 // ── Preview ───────────────────────────────────────────────────────
 
 export async function previewCampaignImport(
+  client: PrismaClient,
   zipBuffer: Buffer
 ): Promise<CampaignImportPreview> {
-  const maxSize = await getMaxImportSize();
+  const maxSize = await getMaxImportSize(client);
   if (zipBuffer.length > maxSize) {
     throw new Error(`Archive exceeds maximum size of ${Math.round(maxSize / 1024 / 1024)} MB`);
   }
@@ -123,12 +121,14 @@ export async function previewCampaignImport(
 // ── Import ────────────────────────────────────────────────────────
 
 export async function importCampaign(
+  client: PrismaClient,
+  uploadsBase: string,
   zipBuffer: Buffer,
   importingUserId: string,
   options: ImportOptions = {}
 ): Promise<ImportResult> {
   const { importTokens = true, campaignName } = options;
-  const maxSize = await getMaxImportSize();
+  const maxSize = await getMaxImportSize(client);
 
   if (zipBuffer.length > maxSize) {
     throw new Error(`Archive exceeds maximum size of ${Math.round(maxSize / 1024 / 1024)} MB`);
@@ -200,7 +200,7 @@ export async function importCampaign(
     ],
   };
 
-  const campaign = await prisma.campaign.create({
+  const campaign = await client.campaign.create({
     data: {
       id: newCampaignId,
       name: campaignName || campaignSettings.name,
@@ -216,7 +216,7 @@ export async function importCampaign(
   });
 
   // Create DM membership
-  await prisma.campaignMembership.create({
+  await client.campaignMembership.create({
     data: {
       id: randomUUID(),
       userId: importingUserId,
@@ -248,7 +248,7 @@ export async function importCampaign(
     const newId = randomUUID();
     const newFilename = `${newId}${ext}`;
     // Store under uploads/{type}/campaigns/{campaignId}/ to match the upload system
-    const newFilePath = path.join(UPLOADS_BASE, typeDir, 'campaigns', newCampaignId, newFilename);
+    const newFilePath = path.join(uploadsBase, typeDir, 'campaigns', newCampaignId, newFilename);
     const fullNewPath = path.resolve(newFilePath);
 
     // Ensure directory exists
@@ -256,7 +256,7 @@ export async function importCampaign(
     fs.writeFileSync(fullNewPath, assetBuffer);
 
     // Create Asset record — filePath matches the format used by the upload system
-    await prisma.asset.create({
+    await client.asset.create({
       data: {
         id: newId,
         type: assetInfo.type as any,
@@ -311,7 +311,7 @@ export async function importCampaign(
     totalTokenCount += tokens.length;
 
     const mapId = randomUUID();
-    await prisma.map.create({
+    await client.map.create({
       data: {
         id: mapId,
         campaignId: newCampaignId,
@@ -335,7 +335,7 @@ export async function importCampaign(
 
     // Set first map as current map
     if (i === 0) {
-      await prisma.campaign.update({
+      await client.campaign.update({
         where: { id: newCampaignId },
         data: { currentMapId: mapId },
       });
@@ -353,7 +353,7 @@ export async function importCampaign(
         if (!parsed.success) continue;
         const c = parsed.data;
 
-        await prisma.creatureTemplate.create({
+        await client.creatureTemplate.create({
           data: {
             id: randomUUID(),
             name: c.name,
@@ -387,7 +387,7 @@ export async function importCampaign(
         if (!parsed.success) continue;
         const t = parsed.data;
 
-        await prisma.tokenTemplate.create({
+        await client.tokenTemplate.create({
           data: {
             id: randomUUID(),
             name: t.name,

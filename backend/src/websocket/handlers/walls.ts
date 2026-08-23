@@ -6,7 +6,7 @@
 import { Server } from "socket.io";
 import { throttle } from "lodash";
 import { AuthenticatedSocket } from "../auth";
-import { prisma } from "../../config/database";
+import { productionRealtimeQueries } from "../../composition/productionRealtimeQueries";
 import {
   WallSegmentSchema,
   WallSegmentsArraySchema,
@@ -24,11 +24,11 @@ import {
   UPDATE_WALL_SEGMENT,
   UpdateWallSegmentCommand,
 } from "../../application/scene/SceneMutations";
-import { productionCommandBus } from "../../composition/productionApplicationHost";
+import { productionTransportCommands } from "../../composition/productionTransportCommands";
 import { SceneMutationError, SceneRole } from "../../domain/scene/Scene";
 import { MapRevisionConflictError } from "../../domain/maps/MapRevision";
 
-const wallCommands = productionCommandBus;
+const wallCommands = productionTransportCommands;
 
 function actorFor(socket: AuthenticatedSocket, campaignId: string) {
   return { campaignId, role: socket.role as SceneRole };
@@ -235,11 +235,11 @@ export function registerWallHandlers(
       if (!socket.campaignId) return;
       const { mapId } = data;
       if (!mapId) return;
-      const map = await prisma.map.findUnique({
-        where: { id: mapId },
-        select: { campaignId: true, wallSegments: true },
-      });
-      if (!map || map.campaignId !== socket.campaignId) return;
+      const map = await productionRealtimeQueries.mapForCampaign(
+        socket.campaignId,
+        mapId,
+      );
+      if (!map) return;
       const segments = (Array.isArray(map.wallSegments)
         ? map.wallSegments
         : []) as unknown as WallSegment[];
