@@ -304,7 +304,7 @@ export default function CharacterEditorPage() {
             <div className="flex min-w-0 items-center gap-2">
               <button
                 onClick={handleBack}
-                className="flex h-9 w-9 flex-none items-center justify-center rounded-cozy text-ink-secondary transition-colors hover:bg-surface hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="flex h-11 w-11 flex-none items-center justify-center rounded-cozy text-ink-secondary transition-colors hover:bg-surface hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 aria-label="Back to characters"
               >
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />

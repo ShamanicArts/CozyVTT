@@ -179,7 +179,7 @@ export default function CharactersPage() {
           <div className="flex min-w-0 items-center gap-3">
             <button
               onClick={() => navigate("/dashboard")}
-              className="flex h-9 w-9 flex-none items-center justify-center rounded-cozy transition-colors hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="flex h-11 w-11 flex-none items-center justify-center rounded-cozy transition-colors hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               aria-label="Back to dashboard"
             >
               <img src={mascotUrl} alt="" className="h-7 w-7 object-contain" />

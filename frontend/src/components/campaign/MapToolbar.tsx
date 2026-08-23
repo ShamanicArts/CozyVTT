@@ -57,7 +57,7 @@ export default function MapToolbar({
         onClick={controls.zoomOut}
         disabled={controls.zoom <= controls.minZoom}
         variant="secondary"
-        className="p-2"
+        className="min-h-11 min-w-11 p-2 sm:min-h-9 sm:min-w-9"
         title="Zoom Out"
         aria-label="Zoom out"
       >
@@ -70,7 +70,7 @@ export default function MapToolbar({
         onClick={controls.zoomIn}
         disabled={controls.zoom >= controls.maxZoom}
         variant="secondary"
-        className="p-2"
+        className="min-h-11 min-w-11 p-2 sm:min-h-9 sm:min-w-9"
         title="Zoom In"
         aria-label="Zoom in"
       >
@@ -82,7 +82,7 @@ export default function MapToolbar({
           controls.fitToScreen(canvasSize.width, canvasSize.height)
         }
         variant="secondary"
-        className="p-2"
+        className="min-h-11 min-w-11 p-2 sm:min-h-9 sm:min-w-9"
         title="Fit to Screen"
         aria-label="Fit map to screen"
       >
@@ -91,7 +91,7 @@ export default function MapToolbar({
       <Button
         onClick={onToggleGrid}
         variant="secondary"
-        className={`p-2 ${showGrid ? "bg-moss-green/20" : ""}`}
+        className={`min-h-11 min-w-11 p-2 sm:min-h-9 sm:min-w-9 ${showGrid ? "bg-moss-green/20" : ""}`}
         title="Toggle Grid"
         aria-label="Toggle grid"
       >
@@ -101,7 +101,7 @@ export default function MapToolbar({
         <Button
           onClick={onToggleGridColor}
           variant="secondary"
-          className="hidden p-2 sm:inline-flex"
+          className="hidden min-h-9 min-w-9 p-2 sm:inline-flex"
           title={`Grid Color: ${gridColor === "black" ? "Black" : "White"}`}
           aria-label={`Grid color: ${gridColor}`}
         >
@@ -114,7 +114,7 @@ export default function MapToolbar({
           <Button
             onClick={onToggleRuler}
             variant="secondary"
-            className={`hidden p-2 sm:inline-flex ${showRuler ? "bg-moss-green/20" : ""}`}
+            className={`hidden min-h-9 min-w-9 p-2 sm:inline-flex ${showRuler ? "bg-moss-green/20" : ""}`}
             title="Ruler — measure distance"
             aria-label="Toggle ruler"
           >
@@ -126,7 +126,7 @@ export default function MapToolbar({
             <Button
               onClick={onCycleRulerColor}
               variant="secondary"
-              className="hidden p-2 sm:inline-flex"
+              className="hidden min-h-9 min-w-9 p-2 sm:inline-flex"
               title={`Ruler color: ${rulerColor === "amber" ? "Amber" : rulerColor === "purple" ? "Purple" : "Black"}`}
               aria-label={`Ruler color: ${rulerColor}`}
             >
@@ -138,7 +138,7 @@ export default function MapToolbar({
           <Button
             onClick={onToggleAoE}
             variant="secondary"
-            className={`hidden p-2 sm:inline-flex ${showAoE ? "bg-moss-green/20" : ""}`}
+            className={`hidden min-h-9 min-w-9 p-2 sm:inline-flex ${showAoE ? "bg-moss-green/20" : ""}`}
             title="AoE Shape — area of effect overlay"
             aria-label="Toggle area of effect tool"
           >
@@ -152,7 +152,7 @@ export default function MapToolbar({
           <Button
             onClick={onToggleSpiritTokens}
             variant="secondary"
-            className={`hidden p-2 sm:inline-flex ${showSpiritTokens ? "bg-spirit-purple/15" : ""}`}
+            className={`hidden min-h-9 min-w-9 p-2 sm:inline-flex ${showSpiritTokens ? "bg-spirit-purple/15" : ""}`}
             title={
               showSpiritTokens
                 ? "Hiding spirit tokens (click to show)"

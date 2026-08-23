@@ -184,9 +184,9 @@ export default function AssetLibraryPage() {
     <div className="min-h-screen bg-canvas">
       {/* Header */}
       <div className="bg-moss-green/10 border-b border-moss-green/20">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 sm:py-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
               <Button
                 onClick={() => navigate("/dashboard")}
                 variant="secondary"
@@ -197,7 +197,7 @@ export default function AssetLibraryPage() {
                 <span className="hidden sm:inline">Dashboard</span>
               </Button>
               <div>
-                <h1 className="text-3xl font-bold text-moss-green mb-2">
+                <h1 className="text-2xl font-bold text-moss-green sm:mb-2 sm:text-3xl">
                   Asset Library
                 </h1>
                 <p className="text-stone-gray">
@@ -224,10 +224,10 @@ export default function AssetLibraryPage() {
         </div>
       </div>
 
-      <main id="main-content" className="max-w-7xl mx-auto px-6 py-8">
+      <main id="main-content" className="max-w-7xl mx-auto px-4 py-5 sm:px-6 sm:py-8">
         {/* Toolbar */}
-        <div className="bg-parchment/50 border border-moss-green/20 rounded-xl p-4 mb-4">
-          <div className="flex flex-col lg:flex-row gap-4">
+        <div className="mb-4 rounded-xl border border-moss-green/20 bg-parchment/50 p-3 sm:p-4">
+          <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row">
             {/* Search */}
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-gray/40" />
@@ -236,12 +236,12 @@ export default function AssetLibraryPage() {
                 placeholder="Search assets by name or tags..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-9 py-2 bg-paper-white border border-moss-green/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-moss-green text-stone-gray placeholder-stone-gray/50"
+                className="min-h-11 w-full rounded-lg border border-moss-green/20 bg-paper-white py-2 pl-10 pr-11 text-stone-gray placeholder-stone-gray/50 focus:outline-none focus:ring-2 focus:ring-moss-green"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-gray/40 hover:text-stone-gray transition-colors"
+                  className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-stone-gray/40 transition-colors hover:text-stone-gray"
                   aria-label="Clear search"
                 >
                   <X className="w-4 h-4" />
@@ -270,7 +270,7 @@ export default function AssetLibraryPage() {
               onChange={(e) =>
                 setSelectedType(e.target.value as AssetType | "all")
               }
-              className="px-4 py-2 bg-paper-white border border-moss-green/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-moss-green text-stone-gray"
+              className="min-h-11 rounded-lg border border-moss-green/20 bg-paper-white px-4 py-2 text-stone-gray focus:outline-none focus:ring-2 focus:ring-moss-green"
             >
               <option value="all">All Types</option>
               <option value={AssetType.MAP}>Maps</option>
@@ -285,7 +285,7 @@ export default function AssetLibraryPage() {
               onChange={(e) =>
                 setSortBy(e.target.value as "name" | "date" | "size")
               }
-              className="px-4 py-2 bg-paper-white border border-moss-green/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-moss-green text-stone-gray"
+              className="min-h-11 rounded-lg border border-moss-green/20 bg-paper-white px-4 py-2 text-stone-gray focus:outline-none focus:ring-2 focus:ring-moss-green"
             >
               <option value="date">Sort by Date</option>
               <option value="name">Sort by Name</option>
@@ -296,7 +296,7 @@ export default function AssetLibraryPage() {
             <div role="group" aria-label="View mode" className="flex gap-2">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`min-h-11 min-w-11 p-2 rounded-lg transition-colors ${
                   viewMode === "grid"
                     ? "bg-moss-green text-white"
                     : "bg-paper-white text-stone-gray hover:bg-moss-green/10 border border-moss-green/20"
@@ -308,7 +308,7 @@ export default function AssetLibraryPage() {
               </button>
               <button
                 onClick={() => setViewMode("list")}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`min-h-11 min-w-11 p-2 rounded-lg transition-colors ${
                   viewMode === "list"
                     ? "bg-moss-green text-white"
                     : "bg-paper-white text-stone-gray hover:bg-moss-green/10 border border-moss-green/20"
@@ -342,7 +342,7 @@ export default function AssetLibraryPage() {
                   <button
                     key={tag}
                     onClick={() => toggleTag(tag)}
-                    className={`px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
+                    className={`min-h-11 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                       selectedTags.includes(tag)
                         ? "bg-moss-green text-white border-moss-green"
                         : "bg-parchment/50 text-stone-gray border-moss-green/20 hover:border-moss-green/50"
@@ -354,7 +354,7 @@ export default function AssetLibraryPage() {
                 {selectedTags.length > 0 && (
                   <button
                     onClick={() => setSelectedTags([])}
-                    className="text-xs text-stone-gray/60 hover:text-stone-gray underline ml-1 transition-colors"
+                    className="ml-1 min-h-11 px-2 text-xs text-stone-gray/60 underline transition-colors hover:text-stone-gray"
                   >
                     Clear tags
                   </button>
@@ -369,7 +369,7 @@ export default function AssetLibraryPage() {
           <div
             className={
               viewMode === "grid"
-                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                ? "grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4"
                 : "space-y-4"
             }
           >
@@ -378,7 +378,7 @@ export default function AssetLibraryPage() {
             ))}
           </div>
         ) : toast?.type === "error" && filteredAssets.length === 0 ? (
-          <div className="bg-parchment/50 border border-danger/30 rounded-xl p-12 text-center">
+          <div className="rounded-xl border border-danger/30 bg-parchment/50 p-6 text-center sm:p-12">
             <AlertCircle className="w-12 h-12 mx-auto mb-4 text-danger-ink" />
             <h2 className="text-lg font-semibold text-moss-green mb-2">
               Failed to load assets
@@ -389,7 +389,7 @@ export default function AssetLibraryPage() {
             <Button onClick={() => assetsQuery.refetch()}>Try Again</Button>
           </div>
         ) : filteredAssets.length === 0 ? (
-          <div className="bg-parchment/50 border border-moss-green/20 rounded-xl p-12 text-center">
+          <div className="rounded-xl border border-moss-green/20 bg-parchment/50 p-6 text-center sm:p-12">
             <FolderOpen className="w-16 h-16 mx-auto mb-4 text-stone-gray/30" />
             <h2 className="text-xl font-semibold text-moss-green mb-2">
               No assets found
@@ -413,7 +413,7 @@ export default function AssetLibraryPage() {
               layout
               className={
                 viewMode === "grid"
-                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                  ? "grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4"
                   : "space-y-4"
               }
             >

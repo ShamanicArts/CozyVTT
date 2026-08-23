@@ -134,7 +134,7 @@ export default function DashboardPage() {
             <button
               onClick={() => navigate("/profile")}
               aria-label={`Open profile for ${user?.displayName ?? "your account"}`}
-              className="ml-1 flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-brand/25 bg-surface transition-colors hover:border-brand/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              className="ml-1 flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-brand/25 bg-surface transition-colors hover:border-brand/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
               {user?.avatarUrl ? (
                 <img
@@ -356,7 +356,7 @@ export default function DashboardPage() {
                   onClick={() => navigate("/assets")}
                   className="group flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand"
                 >
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-cozy bg-accent/15 text-accent-text">
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-cozy bg-accent/15 text-accent-ink">
                     <FolderOpen className="h-4 w-4" aria-hidden="true" />
                   </span>
                   <span className="min-w-0 flex-1">

@@ -74,7 +74,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       className={cn(
         VARIANT_CLASSES[variant],
         SIZE_CLASSES[size],
-        iconOnly && '!p-2',
+        'min-h-11',
+        iconOnly && '!min-h-11 !min-w-11 !p-2',
         'disabled:opacity-50 disabled:cursor-not-allowed',
         className
       )}

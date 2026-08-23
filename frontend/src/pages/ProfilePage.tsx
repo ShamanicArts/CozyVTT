@@ -663,7 +663,7 @@ export default function ProfilePage() {
         <div className="mx-auto flex min-h-14 max-w-4xl items-center gap-2 px-3 sm:px-6">
           <button
             onClick={() => navigate("/dashboard")}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-brand transition-colors hover:bg-brand/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-brand transition-colors hover:bg-brand/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             aria-label="Back to dashboard"
           >
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />

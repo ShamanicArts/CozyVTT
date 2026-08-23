@@ -207,6 +207,24 @@
   outline-offset: 2px;
 }
 
+/* Preserve compact desktop controls while giving touch users a consistent
+   target across legacy sheets and newer workspace surfaces. */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  [role="tab"] {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+  select,
+  textarea {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 /* ── Reduced motion ──────────────────────────────────────────────
    Honor the OS "reduce motion" preference for all CSS-driven animation
    and transitions (tailwind animate-* utilities, ambient atmosphere/spirit
