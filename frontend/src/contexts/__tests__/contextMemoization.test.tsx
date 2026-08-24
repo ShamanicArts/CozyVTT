@@ -52,6 +52,8 @@ vi.mock('@/services/auth.service', () => ({
 import { CampaignProvider, useCampaign } from '../CampaignContext';
 import { WebSocketProvider, useWebSocket } from '../WebSocketContext';
 import { AuthProvider, useAuth } from '../AuthContext';
+import { authService } from '@/services/auth.service';
+import { PlatformRole } from '@/types';
 
 describe('context value memoization', () => {
   beforeEach(() => {
@@ -154,6 +156,45 @@ describe('context value memoization', () => {
 
     expect(seen.length).toBeGreaterThan(before);
     expect(seen[seen.length - 1]).toBe(seen[before - 1]);
+  });
+
+  it('refreshes an unauthenticated context after setup creates a session', async () => {
+    function Probe() {
+      const { authenticated, user, refreshUser } = useAuth();
+      return (
+        <>
+          <span>{authenticated ? user?.displayName : 'signed out'}</span>
+          <button onClick={() => void refreshUser()}>refresh user</button>
+        </>
+      );
+    }
+
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <Probe />
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('signed out');
+    vi.mocked(authService.getCurrentUser).mockResolvedValueOnce({
+      id: 'admin-1',
+      email: 'admin@example.com',
+      displayName: 'Setup Admin',
+      platformRole: PlatformRole.ADMIN,
+      globalAssetManager: false,
+      mfaEnabled: false,
+      avatarUrl: null,
+      bio: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      lastLoginAt: null,
+    });
+
+    await userEvent.click(screen.getByText('refresh user'));
+
+    await screen.findByText('Setup Admin');
   });
 
   it('a memoized consumer skips re-rendering entirely when context state is unchanged', async () => {
