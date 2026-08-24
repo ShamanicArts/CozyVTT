@@ -10,6 +10,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   lazy,
   Suspense,
@@ -79,6 +80,12 @@ import {
   type WorkspaceLayoutRegion,
   type WorkspaceContributionProps,
 } from "@/layout";
+import {
+  CAMPAIGN_PRESENTATION_CONTRACT_VERSION,
+  CampaignStageHost,
+  PresentationRegistry,
+  type ReactCampaignPresentationContribution,
+} from "@/presentations";
 
 interface CampaignWorkspaceRuntime {
   readonly onEditToken: (token: Token) => void;
@@ -108,7 +115,9 @@ function CoreCampaignNavigator() {
   );
 }
 
-function CoreCampaignStage() {
+export const CORE_MAP_2D_PRESENTATION_ID = "cozyvtt.core.map-2d";
+
+function CoreMap2DPresentation() {
   const { onEditToken } = useCampaignWorkspaceRuntime();
   return (
     <Suspense
@@ -129,6 +138,32 @@ function CoreCampaignStage() {
         <MapCanvas onEditToken={onEditToken} />
       </MapRendererProvider>
     </Suspense>
+  );
+}
+
+const CORE_MAP_2D_PRESENTATION: ReactCampaignPresentationContribution = {
+  contractVersion: CAMPAIGN_PRESENTATION_CONTRACT_VERSION,
+  id: CORE_MAP_2D_PRESENTATION_ID,
+  ownerId: "cozyvtt.core",
+  title: "Map",
+  kind: "react",
+  render: () => <CoreMap2DPresentation />,
+};
+
+function CoreCampaignStage({ layoutContext }: WorkspaceContributionProps) {
+  const registryRef = useRef<PresentationRegistry | null>(null);
+  if (registryRef.current === null) {
+    registryRef.current = new PresentationRegistry();
+    registryRef.current.register(CORE_MAP_2D_PRESENTATION);
+  }
+
+  return (
+    <CampaignStageHost
+      registry={registryRef.current}
+      activePresentationId={CORE_MAP_2D_PRESENTATION_ID}
+      fallbackPresentationId={CORE_MAP_2D_PRESENTATION_ID}
+      context={{ layout: layoutContext }}
+    />
   );
 }
 
