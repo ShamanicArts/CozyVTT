@@ -26,7 +26,7 @@ export class PrismaCampaignQueryRepository
         currentVibe: true,
         spiritLayerEnabled: true,
       },
-    }) as any;
+    });
   }
   maps(c: string, l: number, o: number) {
     return this.prisma.map.findMany({
@@ -34,14 +34,14 @@ export class PrismaCampaignQueryRepository
       take: l,
       skip: o,
       orderBy: { createdAt: "desc" },
-    }) as any;
+    });
   }
   async currentMap(c: string) {
     const campaign = await this.prisma.campaign.findUnique({
       where: { id: c },
       include: { currentMap: true },
     });
-    return (campaign?.currentMap as any) ?? null;
+    return campaign?.currentMap ?? null;
   }
   roster(c: string, l: number, o: number) {
     return this.prisma.campaignMembership.findMany({
@@ -51,14 +51,14 @@ export class PrismaCampaignQueryRepository
       include: {
         user: { select: { id: true, displayName: true, avatarUrl: true } },
       },
-    }) as any;
+    });
   }
   characters(c: string, l: number, o: number) {
     return this.prisma.character.findMany({
       where: { campaignId: c },
       take: l,
       skip: o,
-    }) as any;
+    });
   }
   async initiative(c: string) {
     const campaign = await this.prisma.campaign.findUnique({
@@ -77,14 +77,14 @@ export class PrismaCampaignQueryRepository
       where: { campaignId: c },
       take: l,
       orderBy: { createdAt: "desc" },
-    }) as any;
+    });
   }
   dice(c: string, l: number) {
     return this.prisma.diceRoll.findMany({
       where: { campaignId: c },
       take: l,
       orderBy: { rolledAt: "desc" },
-    }) as any;
+    });
   }
   assets(c: string, l: number, o: number) {
     return this.prisma.asset.findMany({
@@ -92,21 +92,21 @@ export class PrismaCampaignQueryRepository
       take: l,
       skip: o,
       orderBy: { createdAt: "desc" },
-    }) as any;
+    });
   }
   templates(c: string, l: number, o: number) {
     return this.prisma.tokenTemplate.findMany({
       where: { campaignId: c },
       take: l,
       skip: o,
-    }) as any;
+    });
   }
   creatures(c: string, l: number, o: number) {
     return this.prisma.creatureTemplate.findMany({
       where: { OR: [{ campaignId: c }, { campaignId: null }] },
       take: l,
       skip: o,
-    }) as any;
+    });
   }
   membershipsForUser(userId: string) {
     return this.prisma.campaignMembership.findMany({
@@ -127,7 +127,7 @@ export class PrismaCampaignQueryRepository
           },
         },
       },
-    }) as any;
+    });
   }
   details(campaignId: string) {
     return this.prisma.campaign.findUnique({
@@ -176,7 +176,7 @@ export class PrismaCampaignQueryRepository
           select: { id: true, sessionNumber: true, startedAt: true },
         },
       },
-    }) as any;
+    });
   }
   async characterRoster(campaignId: string) {
     const memberships = await this.prisma.campaignMembership.findMany({
@@ -196,7 +196,7 @@ export class PrismaCampaignQueryRepository
         data: true,
       },
     });
-    return { memberships, characters } as any;
+    return { memberships, characters };
   }
   async invitableUsers(campaignId: string) {
     const [memberships, invitations] = await Promise.all([
@@ -227,7 +227,7 @@ export class PrismaCampaignQueryRepository
           select: { memberships: true, maps: true, characters: true },
         },
       },
-    }) as any;
+    });
   }
   async messages(campaignId: string, limit: number, offset: number) {
     const [messages, total] = await Promise.all([
@@ -240,6 +240,6 @@ export class PrismaCampaignQueryRepository
       }),
       this.prisma.message.count({ where: { campaignId } }),
     ]);
-    return { messages, total } as any;
+    return { messages, total };
   }
 }

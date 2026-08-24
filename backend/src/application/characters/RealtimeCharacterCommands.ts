@@ -49,7 +49,7 @@ export class UpdateCharacterHp implements CommandHandler<
       throw new RealtimeCharacterError(
         "You do not have permission to update this character's HP",
       );
-    const data = character.data as Record<string, any>;
+    const data = character.data as Record<string, unknown>;
     let current: number;
     let max: number;
     let temp: number;
@@ -57,7 +57,7 @@ export class UpdateCharacterHp implements CommandHandler<
       character.gameSystem === "DND_5E" ||
       character.gameSystem === "PATHFINDER_2E"
     ) {
-      if (!data.hp || typeof data.hp.maximum !== "number")
+      if (!isRecord(data.hp) || typeof data.hp.maximum !== "number")
         throw new RealtimeCharacterError("Character does not have HP tracking");
       max = data.hp.maximum;
       temp = typeof data.hp.temporary === "number" ? data.hp.temporary : 0;
@@ -72,7 +72,8 @@ export class UpdateCharacterHp implements CommandHandler<
       data.hp.current = current;
     } else if (character.gameSystem === "CALL_OF_CTHULHU_7E") {
       if (
-        !data.derivedStats?.hp ||
+        !isRecord(data.derivedStats) ||
+        !isRecord(data.derivedStats.hp) ||
         typeof data.derivedStats.hp.maximum !== "number"
       )
         throw new RealtimeCharacterError("Character does not have HP tracking");
@@ -95,4 +96,8 @@ export class UpdateCharacterHp implements CommandHandler<
     await this.repository.updateCharacterData(command.characterId, data);
     return { current, max, temp };
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

@@ -6,12 +6,15 @@
  */
 
 import { GameSystem } from '@prisma/client';
+import type { SR6CharacterData } from '../../game-systems/shadowrun6e';
 
 export interface CharacterTemplate {
   name: string;
   description: string;
   gameSystem: GameSystem;
-  data: any;
+  data: Partial<SR6CharacterData> & {
+    attributes: SR6CharacterData["attributes"];
+  } & Record<string, unknown>;
 }
 
 /**

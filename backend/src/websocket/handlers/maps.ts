@@ -71,8 +71,8 @@ export function registerMapHandlers(
         const filteredMap = filterMapData(
           {
             ...map,
-            tokens: map.tokens as any,
-            annotations: map.annotations as any,
+            tokens: map.tokens as unknown,
+            annotations: map.annotations as unknown,
           },
           authedSocket.role || "PLAYER",
           spiritVisible,

@@ -1,6 +1,7 @@
 import multer, { FileFilterCallback } from 'multer';
 import path from 'path';
-import { Request } from 'express';
+import { NextFunction, Request, Response } from 'express';
+import { asError } from '../utils/errors';
 import {
   AssetType,
   AssetScope,
@@ -52,8 +53,8 @@ const storage = multer.diskStorage({
       await ensureDirectory(uploadPath);
 
       cb(null, uploadPath);
-    } catch (error: any) {
-      cb(error, getTempDirectory()); // Fallback to temp directory
+    } catch (error) {
+      cb(asError(error), getTempDirectory()); // Fallback to temp directory
     }
   },
 
@@ -121,7 +122,7 @@ export function createUploadMiddleware(assetType: AssetType) {
  * @param scope Scope of asset (optional, defaults to GLOBAL)
  */
 export function setAssetMetadata(assetType: AssetType, scope: AssetScope = 'GLOBAL') {
-  return (req: UploadRequest, res: any, next: any) => {
+  return (req: UploadRequest, res: Response, next: NextFunction): void => {
     req.assetType = assetType;
     req.assetScope = scope;
 
@@ -130,10 +131,11 @@ export function setAssetMetadata(assetType: AssetType, scope: AssetScope = 'GLOB
       req.campaignId = req.params.campaignId || req.body.campaignId;
 
       if (!req.campaignId) {
-        return res.status(400).json({
+        res.status(400).json({
           error: 'Validation Error',
           message: 'Campaign ID is required for campaign-scoped assets',
         });
+        return;
       }
     }
 
@@ -170,44 +172,48 @@ export const uploadAvatar = createUploadMiddleware('AVATAR');
 /**
  * Error handler middleware for multer errors
  */
-export function handleUploadError(err: any, req: any, res: any, next: any) {
+export function handleUploadError(err: unknown, req: UploadRequest, res: Response, next: NextFunction): void {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
       // On the generic upload route multer aborts mid-stream, so req.assetType
       // is not set yet. The client sends `type` before the file part, so fall
       // back to the parsed body, then to a type-agnostic message.
       const bodyType = typeof req.body?.type === 'string' ? req.body.type.toUpperCase() : undefined;
-      const assetType = (req as UploadRequest).assetType || bodyType;
+      const assetType = req.assetType || bodyType;
       const isKnownType = !!assetType && assetType in FILE_SIZE_LIMITS;
       const limit = isKnownType ? getFileSizeLimit(assetType as AssetType) : MAX_UPLOAD_BYTES;
       const limitMB = (limit / (1024 * 1024)).toFixed(0);
 
-      return res.status(400).json({
+      res.status(400).json({
         error: 'File Too Large',
         message: isKnownType
           ? `${assetType} files must be smaller than ${limitMB}MB`
           : `File exceeds the maximum upload size of ${limitMB}MB`,
       });
+      return;
     }
 
     if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Validation Error',
         message: 'Unexpected file field. Only one file allowed per upload.',
       });
+      return;
     }
 
-    return res.status(400).json({
+    res.status(400).json({
       error: 'Upload Error',
       message: err.message,
     });
+    return;
   }
 
   if (err) {
-    return res.status(400).json({
+    res.status(400).json({
       error: 'Upload Error',
-      message: err.message || 'File upload failed',
+      message: err instanceof Error ? err.message : 'File upload failed',
     });
+    return;
   }
 
   next();

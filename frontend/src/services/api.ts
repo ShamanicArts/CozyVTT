@@ -733,8 +733,8 @@ class ApiClient {
     return response.data;
   }
 
-  async getCampaignCharacters(campaignId: string): Promise<{ roster: any[] }> {
-    const response = await this.client.get(
+  async getCampaignCharacters<T = unknown>(campaignId: string): Promise<{ roster: T[] }> {
+    const response = await this.client.get<{ roster: T[] }>(
       `/api/campaigns/${campaignId}/characters`,
     );
     return response.data;
@@ -752,7 +752,7 @@ class ApiClient {
   async acceptInvitation(
     invitationId: string,
     characterIds: string[],
-  ): Promise<{ message: string; membership: any }> {
+  ): Promise<{ message: string; membership: unknown }> {
     const response = await this.client.post(
       `/api/invitations/${invitationId}/accept`,
       { characterIds },
@@ -1001,6 +1001,7 @@ class ApiClient {
     map: Map;
     wallCount: number;
     portalCount: number;
+    lightCount: number;
     totalSegments: number;
   }> {
     const formData = new FormData();

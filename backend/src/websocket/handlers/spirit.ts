@@ -5,7 +5,7 @@
 
 import { Server } from "socket.io";
 import { AuthenticatedSocket } from "../auth";
-import { filterMapData } from "../../utils/spirit-layer";
+import { filterMapData, MapData } from "../../utils/spirit-layer";
 import { sendSystemMessage } from "../utils";
 import logger from "../../utils/logger";
 import { Token } from "../shared";
@@ -84,9 +84,9 @@ export function registerSpiritHandlers(
             const filteredMap = filterMapData(
               {
                 ...currentMap,
-                tokens: currentMap.tokens as any,
-                annotations: currentMap.annotations as any,
-              } as any,
+                tokens: currentMap.tokens as unknown,
+                annotations: currentMap.annotations as unknown,
+              } as unknown as MapData,
               authedSocket.role || "PLAYER",
               spiritVisible,
               authedSocket.userId,

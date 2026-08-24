@@ -28,9 +28,11 @@ import FeatsList from "./components/FeatsList";
 import StrikesList from "./components/StrikesList";
 import BulkTracker from "./components/BulkTracker";
 import { withAdvantage, withDisadvantage } from "../../../utils/characterRolls";
+import { Character } from "../../../types";
+import type { PF2eCharacterData, PF2eSkill } from "@/types/game-systems";
 
 interface Pathfinder2eCharacterViewProps {
-  character: any; // Full character object with data field
+  character: Character;
   onEdit?: () => void;
   /** Called when the user clicks a rollable stat. Omit outside campaign context. */
   onRoll?: (expression: string, purpose: string) => void;
@@ -132,7 +134,7 @@ const shouldUseWhiteText = (hexColor: string): boolean => {
 export const Pathfinder2eCharacterView: React.FC<
   Pathfinder2eCharacterViewProps
 > = ({ character, onEdit, onRoll }) => {
-  const data = character.data;
+  const data = requirePF2eData(character.data);
   const [selectedColor, setSelectedColor] = useState(COLOR_PRESETS[0]);
   const [isCustomColor, setIsCustomColor] = useState(false);
   const [customColorHex, setCustomColorHex] = useState("");
@@ -578,9 +580,9 @@ export const Pathfinder2eCharacterView: React.FC<
       </div>
 
       {/* Death and Dying */}
-      {(data.deathAndDying?.dying > 0 ||
-        data.deathAndDying?.wounded > 0 ||
-        data.deathAndDying?.doomed > 0) && (
+      {((data.deathAndDying?.dying ?? 0) > 0 ||
+        (data.deathAndDying?.wounded ?? 0) > 0 ||
+        (data.deathAndDying?.doomed ?? 0) > 0) && (
         <div className="mt-3 pt-3 border-t border-red-300">
           <div className="flex items-center space-x-4 text-sm">
             <div className="flex items-center space-x-1">
@@ -612,7 +614,7 @@ export const Pathfinder2eCharacterView: React.FC<
 
   // Render skills with proficiency ranks
   const renderSkills = () => {
-    const skills = data.skills || {};
+    const skills: Record<string, PF2eSkill> = data.skills || {};
     const loreSkills = data.loreSkills || [];
 
     return (
@@ -620,7 +622,7 @@ export const Pathfinder2eCharacterView: React.FC<
         <h3 className="text-lg font-bold text-stone-800 mb-3">Skills</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {Object.entries(skills).map(
-            ([skillName, skillData]: [string, any]) => {
+            ([skillName, skillData]) => {
               const displayName = skillName
                 .replace(/([A-Z])/g, " $1")
                 .replace(/^./, (str) => str.toUpperCase())
@@ -676,7 +678,7 @@ export const Pathfinder2eCharacterView: React.FC<
               Lore Skills
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {loreSkills.map((lore: any, index: number) => {
+              {loreSkills.map((lore, index: number) => {
                 const expr =
                   lore.bonus >= 0 ? `1d20+${lore.bonus}` : `1d20${lore.bonus}`;
                 const purpose = `${lore.name} Lore Check`;
@@ -902,7 +904,7 @@ export const Pathfinder2eCharacterView: React.FC<
               Cantrips ({formatSpellRank(spellcasting.cantrips[0]?.rank || 0)})
             </h4>
             <div className="flex flex-wrap gap-2">
-              {spellcasting.cantrips.map((cantrip: any, index: number) => (
+              {spellcasting.cantrips.map((cantrip, index: number) => (
                 <span
                   key={index}
                   className="px-3 py-1 bg-purple-200 text-purple-800 rounded-full text-sm font-medium"
@@ -958,7 +960,7 @@ export const Pathfinder2eCharacterView: React.FC<
             <h4 className="font-semibold text-purple-800 mb-2">Spells</h4>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rank) => {
               const rankSpells = spellcasting.spells.filter(
-                (s: any) => s.rank === rank,
+                (s) => s.rank === rank,
               );
               if (rankSpells.length === 0) return null;
 
@@ -968,7 +970,7 @@ export const Pathfinder2eCharacterView: React.FC<
                     {formatSpellRank(rank)}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    {rankSpells.map((spell: any, index: number) => (
+                    {rankSpells.map((spell, index: number) => (
                       <div
                         key={index}
                         className={`px-2 py-1 rounded text-sm ${
@@ -1008,7 +1010,7 @@ export const Pathfinder2eCharacterView: React.FC<
               </div>
               <div className="flex flex-wrap gap-2">
                 {spellcasting.focusSpells.spells.map(
-                  (spell: any, index: number) => (
+                  (spell, index: number) => (
                     <span
                       key={index}
                       className="px-3 py-1 bg-blue-200 text-blue-800 rounded-full text-sm font-medium"
@@ -1028,7 +1030,7 @@ export const Pathfinder2eCharacterView: React.FC<
               Innate Spells
             </h4>
             <div className="space-y-2">
-              {spellcasting.innateSpells.map((spell: any, index: number) => (
+              {spellcasting.innateSpells.map((spell, index: number) => (
                 <div
                   key={index}
                   className="bg-white border border-purple-200 rounded p-2 text-sm"
@@ -1256,5 +1258,12 @@ export const Pathfinder2eCharacterView: React.FC<
     </div>
   );
 };
+
+function requirePF2eData(data: Character["data"]): PF2eCharacterData {
+  if (!("attributes" in data) || !("ancestry" in data)) {
+    throw new Error("Expected Pathfinder 2e character data");
+  }
+  return data;
+}
 
 export default Pathfinder2eCharacterView;

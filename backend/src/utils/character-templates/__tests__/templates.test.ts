@@ -199,7 +199,7 @@ describe('Character Templates Validation', () => {
     it('inventory items should have invested field', () => {
       const fighter = templates.find(t => t.name === 'Level 1 Fighter');
       expect(fighter?.data.inventory.length).toBeGreaterThan(0);
-      fighter?.data.inventory.forEach((item: any) => {
+      fighter?.data.inventory.forEach((item: unknown) => {
         expect(item).toHaveProperty('invested');
       });
     });

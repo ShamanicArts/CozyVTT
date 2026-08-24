@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 /**
  * New Character Modal
  * Modal dialog for creating a new character with game system templates
@@ -122,7 +123,8 @@ export default function NewCharacterModal({
     try {
       const response = await api.listCampaigns();
       setAvailableCampaigns(response.campaigns);
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       console.error('Failed to fetch campaigns:', err);
     } finally {
       setLoadingCampaigns(false);
@@ -222,12 +224,13 @@ export default function NewCharacterModal({
 
       // Close modal
       onClose();
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       // Show detailed validation errors if available
       const errorData = err.response?.data;
       if (errorData?.validationErrors && Array.isArray(errorData.validationErrors)) {
         const errorList = errorData.validationErrors
-          .map((e: any) => `• ${e.path}: ${e.message}`)
+          .map((e) => `• ${e.path}: ${e.message}`)
           .join('\n');
         setError(`${errorData.message}\n\n${errorList}`);
         console.error('Validation errors:', errorData.validationErrors);

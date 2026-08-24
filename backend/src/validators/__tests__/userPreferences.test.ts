@@ -69,7 +69,7 @@ describe('UserPreferencesSchema', () => {
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect((result.data as any).maliciousField).toBeUndefined();
+      expect("maliciousField" in result.data).toBe(false);
     }
   });
 

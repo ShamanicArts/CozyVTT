@@ -21,6 +21,7 @@ import {
   Dices,
 } from "lucide-react";
 import { Character } from "../../../types";
+import type { DnD5eCharacterData } from "@/types/game-systems";
 import { StatBlock } from "./components/StatBlock";
 import { SkillsList } from "./components/SkillsList";
 import { AttacksList } from "./components/AttacksList";
@@ -156,7 +157,7 @@ export const DnD5eCharacterView: React.FC<DnD5eCharacterViewProps> = ({
   onRoll,
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>("stats");
-  const data = character.data as any; // Type will be DnD5eCharacterData
+  const data = requireDnD5eData(character.data);
   const [themeColor, setThemeColor] = useState(COLOR_PRESETS[0]);
   const [isCustomColor, setIsCustomColor] = useState(false);
   const [customColorHex, setCustomColorHex] = useState("");
@@ -370,7 +371,7 @@ export const DnD5eCharacterView: React.FC<DnD5eCharacterViewProps> = ({
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2 bg-stone-50 border border-stone-200 rounded-lg p-4">
             {Object.entries(data.savingThrows).map(
-              ([key, save]: [string, any]) => {
+              ([key, save]) => {
                 const expr =
                   save.bonus >= 0 ? `1d20+${save.bonus}` : `1d20${save.bonus}`;
                 const purpose = `${key.charAt(0).toUpperCase() + key.slice(1)} Save`;
@@ -510,7 +511,7 @@ export const DnD5eCharacterView: React.FC<DnD5eCharacterViewProps> = ({
             Hit Dice
           </h3>
           <div className="flex flex-wrap gap-3">
-            {data.hitDice.map((hd: any, idx: number) => (
+            {data.hitDice.map((hd, idx: number) => (
               <div
                 key={idx}
                 className="px-4 py-2 bg-white border border-stone-300 rounded-lg"
@@ -520,7 +521,7 @@ export const DnD5eCharacterView: React.FC<DnD5eCharacterViewProps> = ({
                 </div>
                 <div className="font-semibold text-stone-800">
                   {hd.remaining}/
-                  {hd.total.replace(/\d+/, hd.total.match(/\d+/)[0])}
+                  {hd.total}
                 </div>
               </div>
             ))}
@@ -544,7 +545,7 @@ export const DnD5eCharacterView: React.FC<DnD5eCharacterViewProps> = ({
                   <div
                     key={i}
                     className={`w-8 h-8 rounded-full border-2 ${
-                      i <= data.deathSaves.successes
+                      i <= (data.deathSaves?.successes ?? 0)
                         ? "bg-green-500 border-green-600"
                         : "bg-white border-stone-300"
                     }`}
@@ -561,7 +562,7 @@ export const DnD5eCharacterView: React.FC<DnD5eCharacterViewProps> = ({
                   <div
                     key={i}
                     className={`w-8 h-8 rounded-full border-2 ${
-                      i <= data.deathSaves.failures
+                      i <= (data.deathSaves?.failures ?? 0)
                         ? "bg-red-500 border-red-600"
                         : "bg-white border-stone-300"
                     }`}
@@ -988,3 +989,8 @@ export const DnD5eCharacterView: React.FC<DnD5eCharacterViewProps> = ({
     </div>
   );
 };
+
+function requireDnD5eData(data: Character["data"]): DnD5eCharacterData {
+  if (!("stats" in data)) throw new Error("Expected D&D 5e character data");
+  return data;
+}

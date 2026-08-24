@@ -23,7 +23,7 @@ export const RESET_USER_PASSWORD_AS_ADMIN =
 export const SEND_USER_PASSWORD_RESET_LINK =
   "user.send-password-reset-link" as const;
 
-export interface UpdateUserProfileCommand extends Command<unknown> {
+export interface UpdateUserProfileCommand extends Command<object> {
   readonly type: typeof UPDATE_USER_PROFILE;
   readonly actorId: string;
   readonly isAdmin: boolean;
@@ -56,10 +56,10 @@ export interface SendUserPasswordResetLinkCommand extends Command<string> {
 
 export class UpdateUserProfile implements CommandHandler<
   UpdateUserProfileCommand,
-  unknown
+  object
 > {
   constructor(private readonly users: UserMutationRepository) {}
-  async execute(command: UpdateUserProfileCommand): Promise<unknown> {
+  async execute(command: UpdateUserProfileCommand): Promise<object> {
     if (command.userId !== command.actorId && !command.isAdmin) {
       throw new UserMutationError(
         403,

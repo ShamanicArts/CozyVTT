@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 /**
  * CallOfCthulhu7eCharacterEditor Component
  *
@@ -24,11 +25,29 @@ import { SkillsList } from "./components/SkillsList";
 import { WeaponsList } from "./components/WeaponsList";
 import { BackstorySection } from "./components/BackstorySection";
 import { api } from "../../../services/api";
+import type { CoC7eCharacterData, CoC7ePossession, CoC7eSkills } from "@/types/game-systems";
+
+type CoC7eEditorData = Omit<
+  CoC7eCharacterData,
+  | "derivedStats"
+  | "skills"
+  | "wealth"
+  | "backstory"
+  | "appearance"
+  | "conditions"
+> & {
+  derivedStats: NonNullable<CoC7eCharacterData["derivedStats"]>;
+  skills?: NonNullable<CoC7eCharacterData["skills"]>;
+  wealth: NonNullable<CoC7eCharacterData["wealth"]>;
+  backstory: NonNullable<CoC7eCharacterData["backstory"]>;
+  appearance: NonNullable<CoC7eCharacterData["appearance"]>;
+  conditions: NonNullable<CoC7eCharacterData["conditions"]>;
+};
 
 interface CallOfCthulhu7eCharacterEditorProps {
   character: Character;
   onSave: (
-    data: any,
+    data: unknown,
     showToast?: boolean,
     tokenImageUrl?: string,
   ) => Promise<void>;
@@ -199,21 +218,48 @@ export const CallOfCthulhu7eCharacterEditor: React.FC<
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const data = character.data as any;
+  const data = requireCoC7eData(character.data);
 
   // Form state
-  const [formData, setFormData] = useState<any>(() => ({
+  const [formData, setFormData] = useState<CoC7eEditorData>(() => ({
     ...data,
     characteristics: data.characteristics || {},
-    derivedStats: data.derivedStats || {},
-    skills: data.skills || {},
+    derivedStats: data.derivedStats || {
+      hp: { maximum: 0, current: 0, formula: "", majorWoundThreshold: 0 },
+      sanity: { starting: 0, maximum: 99, current: 0, formula: "" },
+      magicPoints: { maximum: 0, current: 0, formula: "" },
+      luck: { score: 0, notes: "" },
+      damageBonus: "0",
+      build: 0,
+      moveRate: 0,
+      dodge: { value: 0, formula: "", improvementChecked: false },
+    },
+    skills: data.skills,
     combat: data.combat || { weapons: [] },
     possessions: data.possessions || [],
-    wealth: data.wealth || {},
-    backstory: data.backstory || {},
-    appearance: data.appearance || {},
+    wealth: data.wealth || { spendingLevel: "", cash: 0, assets: "", notes: "" },
+    backstory: data.backstory || {
+      description: "",
+      personalDescription: "",
+      ideology: "",
+      significantPeople: "",
+      meaningfulLocations: "",
+      treasuredPossessions: "",
+      traits: "",
+      injuriesAndScars: "",
+      phobiasAndManias: "",
+      arcaneTomesAndSpells: "",
+      encountersWithStrangeEntities: "",
+    },
+    appearance: data.appearance || { age: 0, height: "", weight: "", eyes: "", hair: "", skin: "" },
     contacts: data.contacts || [],
-    conditions: data.conditions || {},
+    conditions: data.conditions || {
+      unconscious: false,
+      dying: false,
+      majorWound: false,
+      temporaryInsanity: false,
+      indefiniteInsanity: false,
+    },
   }));
 
   // Token image state
@@ -231,7 +277,7 @@ export const CallOfCthulhu7eCharacterEditor: React.FC<
         updated[char].half = Math.floor(regular / 2);
         updated[char].fifth = Math.floor(regular / 5);
       });
-      setFormData((prev: any) => ({ ...prev, characteristics: updated }));
+      setFormData((prev) => ({ ...prev, characteristics: updated }));
     }
   }, [
     formData.characteristics?.STR?.regular,
@@ -276,7 +322,7 @@ export const CallOfCthulhu7eCharacterEditor: React.FC<
       const cthulhuMythos = formData.skills?.cthulhuMythos?.currentValue || 0;
       const maxSanity = 99 - cthulhuMythos;
 
-      setFormData((prev: any) => ({
+      setFormData((prev) => ({
         ...prev,
         derivedStats: {
           ...prev.derivedStats,
@@ -313,17 +359,20 @@ export const CallOfCthulhu7eCharacterEditor: React.FC<
 
       // Update dodge skill to match derived dodge
       if (formData.skills?.dodge) {
-        setFormData((prev: any) => ({
-          ...prev,
-          skills: {
-            ...prev.skills,
-            dodge: {
-              ...prev.skills.dodge,
-              baseValue: dodge,
-              currentValue: dodge,
+        setFormData((prev) => {
+          if (!prev.skills) return prev;
+          return {
+            ...prev,
+            skills: {
+              ...prev.skills,
+              dodge: {
+                ...prev.skills.dodge,
+                baseValue: dodge,
+                currentValue: dodge,
+              },
             },
-          },
-        }));
+          };
+        });
       }
     }
   }, [
@@ -374,7 +423,7 @@ export const CallOfCthulhu7eCharacterEditor: React.FC<
           }
           assetFormData.append(
             "name",
-            `${formData.personalDetails?.name || "Investigator"} Token`,
+            `${formData.investigatorName || "Investigator"} Token`,
           );
 
           const uploadResponse = await api.uploadAsset(assetFormData);
@@ -382,7 +431,8 @@ export const CallOfCthulhu7eCharacterEditor: React.FC<
 
           // Store the new token URL to pass separately to onSave
           newTokenImageUrl = `/api/assets/tokens/${assetId}`;
-        } catch (uploadError: any) {
+        } catch (_caught) {
+      const uploadError = asError(_caught);
           console.error("Error uploading token image:", uploadError);
           setErrors({
             ...errors,
@@ -397,7 +447,8 @@ export const CallOfCthulhu7eCharacterEditor: React.FC<
 
       // Pass the tokenImageUrl as a separate parameter if it was uploaded
       await onSave(updatedData, true, newTokenImageUrl);
-    } catch (error) {
+    } catch (_caught) {
+      const error = asError(_caught);
       console.error("Failed to save character:", error);
     } finally {
       setIsSaving(false);
@@ -923,15 +974,14 @@ export const CallOfCthulhu7eCharacterEditor: React.FC<
         themeColor={themeColor}
         editable
         onChange={(skillName, field, value) => {
+          const currentSkill = formData.skills?.[skillName];
+          if (!currentSkill || Array.isArray(currentSkill)) return;
           setFormData({
             ...formData,
             skills: {
               ...formData.skills,
-              [skillName]: {
-                ...formData.skills[skillName],
-                [field]: value,
-              },
-            },
+              [skillName]: { ...currentSkill, [field]: value },
+            } as CoC7eSkills,
           });
         }}
       />
@@ -1026,7 +1076,7 @@ export const CallOfCthulhu7eCharacterEditor: React.FC<
           value={
             Array.isArray(formData.possessions)
               ? formData.possessions
-                  .map((p: any) => `${p.name}${p.notes ? ` - ${p.notes}` : ""}`)
+                  .map((p: CoC7ePossession) => `${p.name}${p.notes ? ` - ${p.notes}` : ""}`)
                   .join("\n")
               : ""
           }
@@ -1079,5 +1129,12 @@ export const CallOfCthulhu7eCharacterEditor: React.FC<
     </div>
   );
 };
+
+function requireCoC7eData(data: Character["data"]): CoC7eCharacterData {
+  if (!("characteristics" in data)) {
+    throw new Error("Expected Call of Cthulhu 7e character data");
+  }
+  return data;
+}
 
 export default CallOfCthulhu7eCharacterEditor;

@@ -61,7 +61,10 @@ export class CreateMapToken extends MapTokenCommandBase implements CommandHandle
     const map = await this.findMapInCampaign(command.campaignId, command.mapId);
     // Deliberately retain the permissive legacy request shape; Express has
     // already parsed the body and malformed objects still take the old 500 path.
-    const data = command.data as any;
+    if (!isRecord(command.data)) {
+      throw new MapTokenError(400, 'Validation Error', 'Token data must be an object');
+    }
+    const data = command.data as Partial<MapToken>;
 
     if (!data.name || typeof data.name !== 'string') {
       throw new MapTokenError(400, 'Validation Error', 'Token name is required');
@@ -136,7 +139,10 @@ export class UpdateMapToken extends MapTokenCommandBase implements CommandHandle
       throw new MapTokenError(403, 'Forbidden', 'You can only update tokens you control');
     }
 
-    const updates = command.updates as any;
+    if (!isRecord(command.updates)) {
+      throw new MapTokenError(400, 'Validation Error', 'Token updates must be an object');
+    }
+    const updates = command.updates as Partial<MapToken>;
     if (updates.position) {
       if (typeof updates.position.x !== 'number' || typeof updates.position.y !== 'number') {
         throw new MapTokenError(400, 'Validation Error', 'Position must have numeric x and y values');
@@ -164,7 +170,7 @@ export class UpdateMapToken extends MapTokenCommandBase implements CommandHandle
       throw new MapTokenError(400, 'Validation Error', 'Character ID must be a string or null');
     }
     if (!isDM) {
-      const restrictedFields = ['hp', 'notes', 'showHpBar', 'type', 'disposition', 'initiative', 'visible', 'name', 'imageUrl', 'layer', 'controlledBy', 'displayMode', 'statBlock', 'creatureTemplateId', 'characterId'];
+      const restrictedFields: Array<keyof MapToken> = ['hp', 'notes', 'showHpBar', 'type', 'disposition', 'initiative', 'visible', 'name', 'imageUrl', 'layer', 'controlledBy', 'displayMode', 'statBlock', 'creatureTemplateId', 'characterId'];
       for (const field of restrictedFields) {
         if (updates[field] !== undefined) {
           throw new MapTokenError(403, 'Forbidden', `Only DM can update token field: ${field}`);
@@ -200,6 +206,10 @@ export class UpdateMapToken extends MapTokenCommandBase implements CommandHandle
     const updatedMap = await this.repository.updateTokens(map.id, map.revision, tokens);
     return { token, map: updatedMap };
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 export class DeleteMapToken extends MapTokenCommandBase implements CommandHandler<DeleteMapTokenCommand, void> {

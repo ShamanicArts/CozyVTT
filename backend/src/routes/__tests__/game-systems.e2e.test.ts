@@ -6,6 +6,7 @@
 import { PrismaClient, GameSystem as PrismaGameSystem } from '@prisma/client';
 import { GameSystem } from '../../game-systems';
 import { validateCharacterData } from '../../validators/game-systems';
+import type { DnD5eCharacterData } from '../../game-systems/dnd5e';
 
 const prisma = new PrismaClient();
 
@@ -109,8 +110,9 @@ describe('Game Systems - E2E Tests', () => {
         data: { data: updatedData },
       });
 
-      expect((character.data as any).level).toBe(6);
-      expect((character.data as any).stats.strength.score).toBe(17);
+      const data = character.data as unknown as DnD5eCharacterData;
+      expect(data.level).toBe(6);
+      expect(data.stats.strength.score).toBe(17);
     });
 
     it('should assign D&D 5e character to campaign', async () => {

@@ -1,6 +1,8 @@
 import { Server } from 'socket.io';
 import { Server as HTTPServer } from 'http';
+import type { IncomingMessage, ServerResponse } from 'http';
 import session from 'express-session';
+import type { NextFunction, Request, Response } from 'express';
 import { sessionConfig } from '../config/session';
 import { registerEventHandlers } from './events';
 import { setSocketInstance } from './utils';
@@ -38,8 +40,16 @@ export function initializeWebSocket(httpServer: HTTPServer): Server {
   // Share Express session with Socket.io
   // This allows Socket.io to access the same session store
   const sessionMiddleware = session(sessionConfig);
-  io.engine.use((req: any, res: any, next: any) => {
-    sessionMiddleware(req, res, next);
+  io.engine.use((
+    req: IncomingMessage,
+    res: ServerResponse,
+    next: (error?: Error) => void,
+  ) => {
+    sessionMiddleware(
+      req as unknown as Request,
+      res as unknown as Response,
+      next as NextFunction,
+    );
   });
 
   // Store the Socket.io instance for utility functions

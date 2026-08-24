@@ -31,19 +31,19 @@ interface MigrationReport {
 /**
  * Infer game system from character data structure
  */
-function inferGameSystem(data: any): {
+function inferGameSystem(data: unknown): {
   system: GameSystem | null;
   confidence: 'high' | 'medium' | 'low';
   reason: string;
 } {
-  if (!data || typeof data !== 'object') {
+  if (!isRecord(data)) {
     return { system: null, confidence: 'low', reason: 'Invalid or empty data' };
   }
 
   // D&D 5e Detection
   // Look for: stats.strength.score, stats.dexterity, proficiencyBonus
-  if (data.stats?.strength?.score !== undefined &&
-      data.stats?.dexterity?.score !== undefined &&
+  if (hasPath(data, 'stats', 'strength', 'score') &&
+      hasPath(data, 'stats', 'dexterity', 'score') &&
       data.proficiencyBonus !== undefined) {
     return {
       system: GameSystem.DND_5E,
@@ -54,10 +54,10 @@ function inferGameSystem(data: any): {
 
   // Pathfinder 2e Detection
   // Look for: attributes.strength.score + skills with proficiencyRank
-  if (data.attributes?.strength?.score !== undefined &&
-      data.attributes?.dexterity?.score !== undefined &&
-      (data.skills?.acrobatics?.proficiencyRank !== undefined ||
-       data.perception?.proficiencyRank !== undefined)) {
+  if (hasPath(data, 'attributes', 'strength', 'score') &&
+      hasPath(data, 'attributes', 'dexterity', 'score') &&
+      (hasPath(data, 'skills', 'acrobatics', 'proficiencyRank') ||
+       hasPath(data, 'perception', 'proficiencyRank'))) {
     return {
       system: GameSystem.PATHFINDER_2E,
       confidence: 'high',
@@ -67,9 +67,9 @@ function inferGameSystem(data: any): {
 
   // Call of Cthulhu 7e Detection
   // Look for: characteristics.STR.regular, characteristics.STR.half, characteristics.STR.fifth
-  if (data.characteristics?.STR?.regular !== undefined &&
-      data.characteristics?.STR?.half !== undefined &&
-      data.characteristics?.STR?.fifth !== undefined) {
+  if (hasPath(data, 'characteristics', 'STR', 'regular') &&
+      hasPath(data, 'characteristics', 'STR', 'half') &&
+      hasPath(data, 'characteristics', 'STR', 'fifth')) {
     return {
       system: GameSystem.CALL_OF_CTHULHU_7E,
       confidence: 'high',
@@ -112,6 +112,19 @@ function inferGameSystem(data: any): {
     confidence: 'low',
     reason: 'Insufficient data to infer game system'
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function hasPath(value: unknown, ...path: string[]): boolean {
+  let current = value;
+  for (const key of path) {
+    if (!isRecord(current) || current[key] === undefined) return false;
+    current = current[key];
+  }
+  return true;
 }
 
 /**

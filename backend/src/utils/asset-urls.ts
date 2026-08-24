@@ -51,18 +51,25 @@ export function normalizeAssetUrl(url: string | null | undefined, assetType: 'ma
 /**
  * Normalize a map's asset URLs
  */
-export function normalizeMapUrls(mapData: any): any {
+export function normalizeMapUrls<T extends object>(mapData: T): T & {
+  imageUrl?: string | null;
+  baseLayerUrl?: string | null;
+  spiritLayerUrl?: string | null;
+};
+export function normalizeMapUrls(mapData: unknown): unknown;
+export function normalizeMapUrls(mapData: unknown): unknown {
+  if (!isRecord(mapData)) return mapData;
   const normalized = { ...mapData };
 
-  if (normalized.imageUrl) {
+  if (typeof normalized.imageUrl === 'string') {
     normalized.imageUrl = normalizeAssetUrl(normalized.imageUrl, 'maps');
   }
 
-  if (normalized.baseLayerUrl) {
+  if (typeof normalized.baseLayerUrl === 'string') {
     normalized.baseLayerUrl = normalizeAssetUrl(normalized.baseLayerUrl, 'maps');
   }
 
-  if (normalized.spiritLayerUrl) {
+  if (typeof normalized.spiritLayerUrl === 'string') {
     normalized.spiritLayerUrl = normalizeAssetUrl(normalized.spiritLayerUrl, 'maps');
   }
 
@@ -72,10 +79,15 @@ export function normalizeMapUrls(mapData: any): any {
 /**
  * Normalize a token's asset URLs
  */
-export function normalizeTokenUrls(tokenData: any): any {
+export function normalizeTokenUrls<T extends object>(tokenData: T): T & {
+  imageUrl?: string | null;
+};
+export function normalizeTokenUrls(tokenData: unknown): unknown;
+export function normalizeTokenUrls(tokenData: unknown): unknown {
+  if (!isRecord(tokenData)) return tokenData;
   const normalized = { ...tokenData };
 
-  if (normalized.imageUrl) {
+  if (typeof normalized.imageUrl === 'string') {
     normalized.imageUrl = normalizeAssetUrl(normalized.imageUrl, 'tokens');
   }
 
@@ -85,12 +97,21 @@ export function normalizeTokenUrls(tokenData: any): any {
 /**
  * Normalize a character's asset URLs
  */
-export function normalizeCharacterUrls(characterData: any): any {
+export function normalizeCharacterUrls<T extends object>(characterData: T): T & {
+  tokenImageUrl?: string | null;
+};
+export function normalizeCharacterUrls(characterData: unknown): unknown;
+export function normalizeCharacterUrls(characterData: unknown): unknown {
+  if (!isRecord(characterData)) return characterData;
   const normalized = { ...characterData };
 
-  if (normalized.tokenImageUrl) {
+  if (typeof normalized.tokenImageUrl === 'string') {
     normalized.tokenImageUrl = normalizeAssetUrl(normalized.tokenImageUrl, 'tokens');
   }
 
   return normalized;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // Profile Page
 // Protected route - requires authentication
@@ -440,7 +441,8 @@ export default function ProfilePage() {
         setProfileSuccess("");
         setEditingProfile(false);
       }, 1500);
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       setProfileError(
         err.response?.data?.message || "Failed to update profile",
       );
@@ -498,7 +500,8 @@ export default function ProfilePage() {
       await refreshUser();
       setAvatarSuccess("Avatar updated!");
       setTimeout(() => setAvatarSuccess(""), 3000);
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       setAvatarError(err.response?.data?.message || "Failed to upload avatar");
       setAvatarPreview(null);
     } finally {
@@ -540,7 +543,8 @@ export default function ProfilePage() {
       setPwNew("");
       setPwConfirm("");
       setTimeout(() => setPwSuccess(""), 4000);
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       setPwError(err.response?.data?.message || "Failed to change password");
     } finally {
       setPwSaving(false);
@@ -560,7 +564,8 @@ export default function ProfilePage() {
         if (cancelled) return;
         clearLegacyPrefs();
         setPrefs(fetched ?? {});
-      } catch (err: any) {
+      } catch (_caught) {
+      const err = asError(_caught);
         if (!cancelled)
           setPrefsError(
             err?.response?.data?.message || "Failed to load preferences",
@@ -603,7 +608,8 @@ export default function ProfilePage() {
         setPrefsSaved(true);
         if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
         savedTimerRef.current = setTimeout(() => setPrefsSaved(false), 2000);
-      } catch (err: any) {
+      } catch (_caught) {
+      const err = asError(_caught);
         setPrefsError(
           err?.response?.data?.message || "Failed to save preferences",
         );
@@ -640,7 +646,8 @@ export default function ProfilePage() {
       await profileService.deleteAccount(deletePassword);
       await logout();
       navigate("/auth/login");
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       setDeleteError(err.response?.data?.message || "Failed to delete account");
     } finally {
       setDeleting(false);

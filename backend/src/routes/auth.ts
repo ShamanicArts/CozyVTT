@@ -15,6 +15,7 @@ import {
   RegisterAccountCommand,
 } from "../application/identity/AuthenticationCommands";
 import { IdentityError, IdentityUser } from "../domain/identity/Identity";
+import type { AuthSecurityUser } from "../ports/AuthSecurityRepository";
 import {
   FORGOT_PASSWORD,
   RESET_PASSWORD,
@@ -25,6 +26,14 @@ import {
   MFA_VERIFY_LOGIN,
   MFA_DISABLE,
   MFA_BACKUP_CODES,
+  ForgotPasswordCommand,
+  ResetPasswordCommand,
+  ChangePasswordCommand,
+  DeleteAccountCommand,
+  MfaUserCommand,
+  MfaVerifyCommand,
+  MfaDisableCommand,
+  MfaBackupCodesCommand,
 } from "../application/identity/AuthSecurityCommands";
 
 // ============================================
@@ -90,7 +99,7 @@ router.post("/register", authLimiter, async (req: Request, res: Response) => {
       .status(201)
       .json({
         message: "User registered successfully",
-        user: publicUser(user as any),
+        user: publicUser(user),
       });
   } catch (error) {
     if (error instanceof IdentityError)
@@ -146,7 +155,7 @@ router.post("/login", authLimiter, async (req: Request, res: Response) => {
       .status(200)
       .json({
         message: "Login successful",
-        user: publicUser(user as any),
+        user: publicUser(user),
         mustChangePassword: user.mustChangePassword,
       });
   } catch (error) {
@@ -288,7 +297,7 @@ function securityError(res: Response, error: unknown): boolean {
 }
 router.post("/forgot-password", authLimiter, async (req, res) => {
   try {
-    const x = await authSecurityCommands.dispatch<any, { smtp: boolean }>({
+    const x = await authSecurityCommands.dispatch<ForgotPasswordCommand, { smtp: boolean }>({
       type: FORGOT_PASSWORD,
       email: req.body.email,
     });
@@ -312,7 +321,7 @@ router.post("/forgot-password", authLimiter, async (req, res) => {
 });
 router.post("/reset-password", authLimiter, async (req, res) => {
   try {
-    await authSecurityCommands.dispatch<any, void>({
+    await authSecurityCommands.dispatch<ResetPasswordCommand, void>({
       type: RESET_PASSWORD,
       token: req.body.token,
       newPassword: req.body.newPassword,
@@ -333,9 +342,9 @@ router.post("/reset-password", authLimiter, async (req, res) => {
 });
 router.post("/change-password", requireAuth, async (req, res) => {
   try {
-    await authSecurityCommands.dispatch<any, void>({
+    await authSecurityCommands.dispatch<ChangePasswordCommand, void>({
       type: CHANGE_PASSWORD,
-      userId: req.session.userId,
+      userId: req.session.userId!,
       currentPassword: req.body.currentPassword,
       newPassword: req.body.newPassword,
     });
@@ -354,9 +363,9 @@ router.post("/change-password", requireAuth, async (req, res) => {
 });
 router.delete("/account", requireAuth, async (req, res) => {
   try {
-    await authSecurityCommands.dispatch<any, void>({
+    await authSecurityCommands.dispatch<DeleteAccountCommand, void>({
       type: DELETE_ACCOUNT,
-      userId: req.session.userId,
+      userId: req.session.userId!,
       password: req.body.password,
     });
     req.session.destroy(() => {});
@@ -375,9 +384,9 @@ router.delete("/account", requireAuth, async (req, res) => {
 });
 router.post("/mfa/setup", requireAuth, async (req, res) => {
   try {
-    const x = await authSecurityCommands.dispatch<any, { qrCodeUrl: string }>({
+    const x = await authSecurityCommands.dispatch<MfaUserCommand, { qrCodeUrl: string }>({
       type: MFA_SETUP,
-      userId: req.session.userId,
+      userId: req.session.userId!,
     });
     return res
       .status(200)
@@ -394,9 +403,9 @@ router.post("/mfa/setup", requireAuth, async (req, res) => {
 });
 router.post("/mfa/verify", requireAuth, mfaSetupLimiter, async (req, res) => {
   try {
-    const x = await authSecurityCommands.dispatch<any, string[]>({
+    const x = await authSecurityCommands.dispatch<MfaVerifyCommand, string[]>({
       type: MFA_VERIFY,
-      userId: req.session.userId,
+      userId: req.session.userId!,
       token: req.body.token,
     });
     return res
@@ -425,7 +434,10 @@ router.post("/mfa/verify-login", authLimiter, async (req, res) => {
           error: "Unauthorized",
           message: "No MFA verification pending. Please log in first.",
         });
-    const x = await authSecurityCommands.dispatch<any, any>({
+    const x = await authSecurityCommands.dispatch<
+      { type: typeof MFA_VERIFY_LOGIN; userId: string; token?: unknown; backupCode?: unknown },
+      { user: AuthSecurityUser; backupCodeUsed: boolean; remainingBackupCodes?: number }
+    >({
       type: MFA_VERIFY_LOGIN,
       userId: req.session.mfaPendingUserId,
       token: req.body.token,
@@ -443,15 +455,15 @@ router.post("/mfa/verify-login", authLimiter, async (req, res) => {
     req.session.mfaRememberMe = undefined;
     if (remember && req.session.cookie)
       req.session.cookie.maxAge = rememberMeMaxAge;
-    const body: any = {
+    const body: Record<string, unknown> = {
       message: "Login successful",
-      user: publicUser(u as any),
+      user: publicUser(u),
       mustChangePassword: u.mustChangePassword,
     };
     if (x.backupCodeUsed) {
       body.backupCodeUsed = true;
       body.remainingBackupCodes = x.remainingBackupCodes;
-      if (x.remainingBackupCodes <= 3)
+      if ((x.remainingBackupCodes ?? 0) <= 3)
         body.warning = `You have ${x.remainingBackupCodes} backup code${x.remainingBackupCodes !== 1 ? "s" : ""} remaining. Regenerate them in your profile settings.`;
     }
     return res.status(200).json(body);
@@ -467,9 +479,9 @@ router.post("/mfa/verify-login", authLimiter, async (req, res) => {
 });
 router.post("/mfa/disable", requireAuth, async (req, res) => {
   try {
-    await authSecurityCommands.dispatch<any, void>({
+    await authSecurityCommands.dispatch<MfaDisableCommand, void>({
       type: MFA_DISABLE,
-      userId: req.session.userId,
+      userId: req.session.userId!,
       password: req.body.password,
       token: req.body.token,
     });
@@ -486,9 +498,9 @@ router.post("/mfa/disable", requireAuth, async (req, res) => {
 });
 router.post("/mfa/backup-codes", requireAuth, async (req, res) => {
   try {
-    const x = await authSecurityCommands.dispatch<any, string[]>({
+    const x = await authSecurityCommands.dispatch<MfaBackupCodesCommand, string[]>({
       type: MFA_BACKUP_CODES,
-      userId: req.session.userId,
+      userId: req.session.userId!,
       password: req.body.password,
     });
     return res

@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Upload, FileImage, FileAudio, User, MapPin, Loader, Tag as TagIcon, Globe, Users } from 'lucide-react';
@@ -84,7 +85,7 @@ export default function AssetUploadModal({ isOpen, onClose, onSuccess, defaultTy
   }, [isOpen, defaultCampaignId]);
 
   // Campaigns shown in dropdown:
-  // TOKEN uploads: any campaign membership (players can upload tokens)
+  // TOKEN uploads: unknown campaign membership (players can upload tokens)
   // All other types: DM-only campaigns
   const dropdownCampaigns = assetType === AssetType.TOKEN
     ? allCampaigns
@@ -251,7 +252,8 @@ export default function AssetUploadModal({ isOpen, onClose, onSuccess, defaultTy
         resetForm();
         onClose();
       }, 500);
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       setError(err.response?.data?.message || 'Failed to upload asset');
       setUploadProgress(0);
     } finally {

@@ -23,7 +23,7 @@ interface Token {
   controlledBy?: string | null;
   rotation: number;
   conditions: string[];
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   type?: string;
   disposition?: string | null;
   hp?: { current: number; max: number; temp: number } | null;
@@ -32,12 +32,12 @@ interface Token {
   initiative?: number | null;
   sightRadius?: number;
   displayMode?: 'pog' | 'top-down' | 'full-art';
-  statBlock?: Record<string, any> | null;
+  statBlock?: Record<string, unknown> | null;
   creatureTemplateId?: string | null;
 }
 
 // Map data as returned from Prisma
-interface MapData {
+export interface MapData {
   id: string;
   campaignId: string;
   name: string;

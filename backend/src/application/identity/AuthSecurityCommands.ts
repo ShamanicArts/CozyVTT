@@ -10,33 +10,33 @@ import { PasswordResetNotifier } from "../../ports/PasswordResetNotifier";
 import { IdentityError } from "../../domain/identity/Identity";
 import type { PasswordHasher } from "../../ports/PasswordHasher";
 import { validatePasswordStrength } from "../../utils/validation";
-type ForgotPasswordCommand = Command<{ smtp: boolean }> & { email?: unknown };
-type ResetPasswordCommand = Command<void> & {
+export type ForgotPasswordCommand = Command<{ smtp: boolean }> & { email?: unknown };
+export type ResetPasswordCommand = Command<void> & {
   token?: string;
   newPassword?: string;
 };
-type ChangePasswordCommand = Command<void> & {
+export type ChangePasswordCommand = Command<void> & {
   userId: string;
   currentPassword?: string;
   newPassword?: string;
 };
-type DeleteAccountCommand = Command<void> & {
+export type DeleteAccountCommand = Command<void> & {
   userId: string;
   password?: string;
 };
-type MfaUserCommand = Command<{ qrCodeUrl: string }> & { userId: string };
-type MfaVerifyCommand = Command<string[]> & { userId: string; token?: unknown };
-type MfaLoginCommand = Command<{
+export type MfaUserCommand = Command<{ qrCodeUrl: string }> & { userId: string };
+export type MfaVerifyCommand = Command<string[]> & { userId: string; token?: unknown };
+export type MfaLoginCommand = Command<{
   user: AuthSecurityUser;
   backupCodeUsed: boolean;
   remainingBackupCodes?: number;
 }> & { userId: string; token?: unknown; backupCode?: unknown };
-type MfaDisableCommand = Command<void> & {
+export type MfaDisableCommand = Command<void> & {
   userId: string;
   password?: string;
   token?: unknown;
 };
-type MfaBackupCodesCommand = Command<string[]> & {
+export type MfaBackupCodesCommand = Command<string[]> & {
   userId: string;
   password?: string;
 };

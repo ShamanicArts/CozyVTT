@@ -5,12 +5,20 @@
  */
 
 import { GameSystem } from '@prisma/client';
+import type { PF2eCharacterData } from '../../game-systems/pathfinder2e';
 
 export interface CharacterTemplate {
   name: string;
   description: string;
   gameSystem: GameSystem;
-  data: any;
+  data: Partial<PF2eCharacterData> &
+    {
+      spellcasting: NonNullable<PF2eCharacterData["spellcasting"]>;
+      attributes: PF2eCharacterData["attributes"];
+      skills: NonNullable<PF2eCharacterData["skills"]>;
+      inventory: NonNullable<PF2eCharacterData["inventory"]>;
+    } &
+    Record<string, unknown>;
 }
 
 /**

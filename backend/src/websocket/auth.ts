@@ -22,7 +22,9 @@ export interface AuthenticatedSocket extends Socket {
  */
 export async function authenticateSocket(socket: AuthenticatedSocket): Promise<boolean> {
   try {
-    const session = (socket.request as any).session;
+    const session = (socket.request as unknown as {
+      session?: { userId?: string };
+    }).session;
 
     if (!session || !session.userId) {
       return false;

@@ -14,7 +14,7 @@ export interface UserProfileUpdate {
 export interface UserMutationRepository {
   findUser(id: string): Promise<ManagedUser | null>;
   findUserByEmail(email: string): Promise<ManagedUser | null>;
-  updateUser(id: string, input: UserProfileUpdate): Promise<unknown>;
+  updateUser(id: string, input: UserProfileUpdate): Promise<object>;
   findPreferences(
     id: string,
   ): Promise<{ exists: boolean; preferences: unknown }>;

@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // MFA Setup Page
 //
@@ -57,7 +58,8 @@ export default function MFASetupPage() {
         setQrCodeUrl(data.qrCodeUrl);
         setSecret(data.secret);
         setStep("scan");
-      } catch (err: any) {
+      } catch (_caught) {
+      const err = asError(_caught);
         setInitError(
           err.response?.data?.message || "Failed to initiate MFA setup",
         );
@@ -86,7 +88,8 @@ export default function MFASetupPage() {
       const result = await completeMFASetup(token);
       setBackupCodes(result.backupCodes);
       setStep("backup-codes");
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       setTokenError(
         err.response?.data?.message || "Invalid code. Please try again.",
       );

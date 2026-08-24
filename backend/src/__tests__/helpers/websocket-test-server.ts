@@ -18,6 +18,8 @@
 import express from 'express';
 import session from 'express-session';
 import { createServer, Server as HTTPServer } from 'http';
+import type { IncomingMessage, ServerResponse } from 'http';
+import type { NextFunction, Request, Response } from 'express';
 import { Server as IOServer } from 'socket.io';
 import { AddressInfo } from 'net';
 import request from 'supertest';
@@ -52,7 +54,7 @@ export async function createWsTestServer(): Promise<WsTestServer> {
 
   // Test-only session bootstrap — see file header.
   app.post('/test/login-as', (req, res) => {
-    (req.session as any).userId = req.body.userId;
+    req.session.userId = req.body.userId;
     res.json({ ok: true });
   });
 
@@ -62,8 +64,16 @@ export async function createWsTestServer(): Promise<WsTestServer> {
   });
 
   // Same session-sharing wiring as production (websocket/index.ts)
-  io.engine.use((req: any, res: any, next: any) => {
-    sessionMiddleware(req, res, next);
+  io.engine.use((
+    req: IncomingMessage,
+    res: ServerResponse,
+    next: (error?: Error) => void,
+  ) => {
+    sessionMiddleware(
+      req as unknown as Request,
+      res as unknown as Response,
+      next as NextFunction,
+    );
   });
 
   setSocketInstance(io);
@@ -135,7 +145,7 @@ export async function createWsTestServer(): Promise<WsTestServer> {
 }
 
 /** Wait for a single occurrence of an event, with timeout. */
-export function waitForEvent<T = any>(client: ClientSocket, event: string, timeoutMs = 3000): Promise<T> {
+export function waitForEvent<T = unknown>(client: ClientSocket, event: string, timeoutMs = 3000): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error(`waitForEvent: "${event}" not received within ${timeoutMs}ms`)),
@@ -155,7 +165,7 @@ export function waitForEvent<T = any>(client: ClientSocket, event: string, timeo
  */
 export function expectNoEvent(client: ClientSocket, event: string, windowMs = 300): Promise<void> {
   return new Promise((resolve, reject) => {
-    const handler = (data: any) => {
+    const handler = (data: unknown) => {
       clearTimeout(timer);
       reject(new Error(`expectNoEvent: unexpectedly received "${event}": ${JSON.stringify(data)}`));
     };

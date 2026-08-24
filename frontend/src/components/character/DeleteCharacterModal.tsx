@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // Delete Character Modal
 // Approval dialog with campaign assignment validation
@@ -60,7 +61,8 @@ export default function DeleteCharacterModal({
     try {
       await onConfirm(character.id);
       onClose();
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       setError(err.response?.data?.message || 'Failed to delete character');
     } finally {
       setLoading(false);

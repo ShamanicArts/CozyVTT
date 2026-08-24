@@ -14,7 +14,7 @@ export interface PF2eAbilityScore {
 /**
  * All ability scores for Pathfinder 2e
  */
-export interface PF2eAttributes {
+export interface PF2eAttributes extends Record<string, PF2eAbilityScore> {
   strength: PF2eAbilityScore;
   dexterity: PF2eAbilityScore;
   constitution: PF2eAbilityScore;
@@ -40,7 +40,7 @@ export interface PF2eSavingThrow {
 /**
  * All saving throws
  */
-export interface PF2eSavingThrows {
+export interface PF2eSavingThrows extends Record<string, PF2eSavingThrow> {
   fortitude: PF2eSavingThrow;
   reflex: PF2eSavingThrow;
   will: PF2eSavingThrow;
@@ -70,7 +70,7 @@ export interface PF2eSkill {
 /**
  * All Pathfinder 2e skills
  */
-export interface PF2eSkills {
+export interface PF2eSkills extends Record<string, PF2eSkill> {
   acrobatics: PF2eSkill;
   arcana: PF2eSkill;
   athletics: PF2eSkill;
@@ -162,7 +162,7 @@ export interface PF2eDeathAndDying {
 /**
  * Weapon proficiencies
  */
-export interface PF2eWeaponProficiencies {
+export interface PF2eWeaponProficiencies extends Record<string, PF2eProficiencyRank> {
   simple: PF2eProficiencyRank;
   martial: PF2eProficiencyRank;
   advanced: PF2eProficiencyRank;
@@ -172,7 +172,7 @@ export interface PF2eWeaponProficiencies {
 /**
  * Armor proficiencies
  */
-export interface PF2eArmorProficiencies {
+export interface PF2eArmorProficiencies extends Record<string, PF2eProficiencyRank> {
   unarmored: PF2eProficiencyRank;
   light: PF2eProficiencyRank;
   medium: PF2eProficiencyRank;
@@ -208,7 +208,7 @@ export interface PF2eStrike {
 /**
  * Currency
  */
-export interface PF2eCurrency {
+export interface PF2eCurrency extends Record<string, number> {
   cp: number;
   sp: number;
   gp: number;
@@ -252,7 +252,7 @@ export interface PF2eFeat {
 /**
  * All feat categories
  */
-export interface PF2eFeats {
+export interface PF2eFeats extends Record<string, PF2eFeat[]> {
   ancestryAndHeritage: PF2eFeat[];
   class: PF2eFeat[];
   skill: PF2eFeat[];
@@ -271,7 +271,7 @@ export interface PF2eSpellSlot {
 /**
  * Spell slots for all ranks (1-10)
  */
-export interface PF2eSpellSlots {
+export interface PF2eSpellSlots extends Record<string, PF2eSpellSlot> {
   '1': PF2eSpellSlot;
   '2': PF2eSpellSlot;
   '3': PF2eSpellSlot;
@@ -364,7 +364,7 @@ export interface PF2eSpellcasting {
 /**
  * Character appearance
  */
-export interface PF2eAppearance {
+export interface PF2eAppearance extends Record<string, string | number> {
   age: number;
   height: string;
   weight: string;
@@ -376,7 +376,7 @@ export interface PF2eAppearance {
 /**
  * Character personality
  */
-export interface PF2ePersonality {
+export interface PF2ePersonality extends Record<string, string> {
   traits: string;
   ideals: string;
   bonds: string;
@@ -445,4 +445,5 @@ export interface PF2eCharacterData {
   alliesAndOrganizations?: PF2eAlliesAndOrganizations;
   notes?: string;
   treasure?: string;
+  themeColor?: string;
 }

@@ -14,7 +14,7 @@ export interface DnD5eAbilityScore {
 /**
  * All ability scores for D&D 5e
  */
-export interface DnD5eStats {
+export interface DnD5eStats extends Record<string, DnD5eAbilityScore> {
   strength: DnD5eAbilityScore;
   dexterity: DnD5eAbilityScore;
   constitution: DnD5eAbilityScore;
@@ -34,7 +34,7 @@ export interface DnD5eSavingThrow {
 /**
  * All saving throws
  */
-export interface DnD5eSavingThrows {
+export interface DnD5eSavingThrows extends Record<string, DnD5eSavingThrow> {
   strength: DnD5eSavingThrow;
   dexterity: DnD5eSavingThrow;
   constitution: DnD5eSavingThrow;
@@ -55,7 +55,7 @@ export interface DnD5eSkill {
 /**
  * All D&D 5e skills
  */
-export interface DnD5eSkills {
+export interface DnD5eSkills extends Record<string, DnD5eSkill> {
   acrobatics: DnD5eSkill;
   animalHandling: DnD5eSkill;
   arcana: DnD5eSkill;
@@ -118,7 +118,7 @@ export interface DnD5eAttack {
 /**
  * Currency tracking
  */
-export interface DnD5eCurrency {
+export interface DnD5eCurrency extends Record<string, number> {
   cp: number;
   sp: number;
   ep: number;
@@ -152,7 +152,7 @@ export interface DnD5eSpellSlot {
 /**
  * Spell slots for all levels (1-9)
  */
-export interface DnD5eSpellSlots {
+export interface DnD5eSpellSlots extends Record<string, DnD5eSpellSlot> {
   '1': DnD5eSpellSlot;
   '2': DnD5eSpellSlot;
   '3': DnD5eSpellSlot;
@@ -264,4 +264,11 @@ export interface DnD5eCharacterData {
   alliesAndOrganizations?: DnD5eAlliesAndOrganizations;
   treasure?: string;
   additionalFeaturesAndTraits?: string;
+  themeColor?: string;
+  proficiencies?: {
+    armor?: string | string[];
+    weapons?: string | string[];
+    tools?: string | string[];
+    languages?: string | string[];
+  };
 }

@@ -8,6 +8,8 @@
   "types": "dist/index.d.ts",
   "files": ["dist", "README.md"],
   "scripts": {
+    "check:no-explicit-any": "node scripts/check-no-explicit-any.mjs",
+    "prebuild": "npm run check:no-explicit-any",
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && tsc -p tsconfig.conformance.json",
     "prepare": "npm run build"

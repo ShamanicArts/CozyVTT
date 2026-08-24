@@ -6,9 +6,11 @@
   "private": true,
   "scripts": {
     "dev": "vite",
+    "prebuild": "npm run check:no-explicit-any",
     "build": "vite build",
     "build:analyze": "ANALYZE=true vite build",
     "typecheck": "tsc --noEmit",
+    "check:no-explicit-any": "node scripts/check-no-explicit-any.mjs",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest",

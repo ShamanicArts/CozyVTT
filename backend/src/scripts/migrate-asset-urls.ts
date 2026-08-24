@@ -12,7 +12,7 @@
  * Run with: npx ts-node src/scripts/migrate-asset-urls.ts
  */
 
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { normalizeAssetUrl } from "../utils/asset-urls";
 
 const prisma = new PrismaClient();
@@ -78,11 +78,15 @@ async function migrateAssetUrls() {
 
     let tokensUpdated = 0;
     for (const map of mapsWithTokens) {
-      const tokens = (Array.isArray(map.tokens) ? map.tokens : []) as any[];
+      const tokens = Array.isArray(map.tokens) ? map.tokens : [];
       let mapHasUpdates = false;
 
-      const updatedTokens = tokens.map((token: any) => {
-        if (token.imageUrl && !token.imageUrl.startsWith("/api/")) {
+      const updatedTokens = tokens.map((token) => {
+        if (
+          isRecord(token) &&
+          typeof token.imageUrl === "string" &&
+          !token.imageUrl.startsWith("/api/")
+        ) {
           const normalizedUrl = normalizeAssetUrl(token.imageUrl, "tokens");
           console.log(
             `  ✅ Updated token "${token.name}" on map "${map.name}"`,
@@ -99,7 +103,7 @@ async function migrateAssetUrls() {
         await prisma.map.update({
           where: { id: map.id },
           data: {
-            tokens: updatedTokens as any,
+            tokens: updatedTokens as Prisma.InputJsonValue,
             revision: { increment: 1 },
           },
         });
@@ -162,6 +166,10 @@ async function migrateAssetUrls() {
   } finally {
     await prisma.$disconnect();
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 // Run migration

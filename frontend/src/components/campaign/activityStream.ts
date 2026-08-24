@@ -75,7 +75,7 @@ const SESSION_ACTIONS = new Set([
 
 function activityKind(message: Message): string | null {
   const activity = message.metadata?.activity;
-  return activity && typeof activity === "object" && typeof activity.kind === "string"
+  return isRecord(activity) && typeof activity.kind === "string"
     ? activity.kind
     : null;
 }
@@ -106,11 +106,16 @@ export function activityCategories(message: Message): Set<ActivityCategory> {
     categories.add("system");
   }
 
-  const source = message.metadata?.activity?.source;
-  if (source === "extension" || typeof message.metadata?.activity?.extensionId === "string") {
+  const activity = message.metadata?.activity;
+  const source = isRecord(activity) ? activity.source : undefined;
+  if (source === "extension" || (isRecord(activity) && typeof activity.extensionId === "string")) {
     categories.add("extensions");
   }
   return categories;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export function messageMatchesActivityFilters(

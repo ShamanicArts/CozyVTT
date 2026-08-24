@@ -15,11 +15,15 @@ import {
   shadowrun6eCharacterDataSchema,
   callOfCthulhu7eCharacterDataSchema,
 } from '../index';
+import type { DnD5eCharacterData } from '../../../game-systems/dnd5e';
+import type { PF2eCharacterData } from '../../../game-systems/pathfinder2e';
+import type { SR6CharacterData } from '../../../game-systems/shadowrun6e';
+import type { CoC7eCharacterData } from '../../../game-systems/callOfCthulhu7e';
 
 // Helper to load example JSON files. The Examples/ files use the campaign
 // export envelope: { cozyVttVersion, exportedAt, character: { name, gameSystem, data } }
 // — the character sheet payload the schemas validate lives at character.data.
-function loadExampleJSON(filename: string): any {
+function loadExampleJSON(filename: string): { data: unknown } {
   const examplesPath = path.join(__dirname, '../../../../..', 'Examples', filename);
   const content = fs.readFileSync(examplesPath, 'utf-8');
   const parsed = JSON.parse(content);
@@ -34,7 +38,7 @@ describe('Game Systems Validation', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const data = result.data as any;
+        const data = result.data as DnD5eCharacterData;
         expect(data.characterName).toBe('Elara Voss');
         expect(data.class).toBe('Wizard');
         expect(data.level).toBe(5);
@@ -68,7 +72,7 @@ describe('Game Systems Validation', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const data = result.data as any;
+        const data = result.data as DnD5eCharacterData;
         expect(data.characterName).toBe('Grunk the Fighter');
         expect(data.class).toBe('Fighter');
         expect(data.level).toBe(1);
@@ -82,10 +86,11 @@ describe('Game Systems Validation', () => {
 
     it('should fail validation for invalid ability scores', () => {
       const example = loadExampleJSON('DnD_5e_character.json');
+      const data = example.data as DnD5eCharacterData;
       const invalidData = {
-        ...example.data,
+        ...data,
         stats: {
-          ...example.data.stats,
+          ...data.stats,
           strength: { score: 50, modifier: 20 }, // Invalid: score too high
         },
       };
@@ -103,7 +108,7 @@ describe('Game Systems Validation', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const data = result.data as any;
+        const data = result.data as PF2eCharacterData;
         expect(data.characterName).toBe('Seraphina Ashveil');
         expect(data.class).toBe('Wizard');
         expect(data.level).toBe(5);
@@ -138,7 +143,7 @@ describe('Game Systems Validation', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const data = result.data as any;
+        const data = result.data as PF2eCharacterData;
         expect(data.characterName).toBe('Aria the Ranger');
         expect(data.class).toBe('Ranger');
         expect(data.level).toBe(1);
@@ -152,12 +157,13 @@ describe('Game Systems Validation', () => {
 
     it('should fail validation for invalid proficiency rank', () => {
       const example = loadExampleJSON('Pathfinder_2e_character.json');
+      const data = example.data as PF2eCharacterData;
       const invalidData = {
-        ...example.data,
+        ...data,
         savingThrows: {
-          ...example.data.savingThrows,
+          ...data.savingThrows,
           fortitude: {
-            ...example.data.savingThrows.fortitude,
+            ...data.savingThrows.fortitude,
             proficiencyRank: 'invalid_rank', // Invalid proficiency rank
           },
         },
@@ -179,7 +185,7 @@ describe('Game Systems Validation', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const data = result.data as any;
+        const data = result.data as SR6CharacterData;
         expect(data.characterName).toBe('Ghost');
         expect(data.metatype).toBe('Human');
         expect(data.archetype).toBe('Street Samurai');
@@ -213,7 +219,7 @@ describe('Game Systems Validation', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const data = result.data as any;
+        const data = result.data as SR6CharacterData;
         expect(data.characterName).toBe('Razor');
         expect(data.metatype).toBe('Human');
         expect(data.archetype).toBe('Street Samurai');
@@ -225,12 +231,13 @@ describe('Game Systems Validation', () => {
 
     it.skip('should fail validation for invalid essence value', () => {
       const example = loadExampleJSON('Shadowrun_character.json');
+      const data = example.data as SR6CharacterData;
       const invalidData = {
-        ...example.data,
+        ...data,
         attributes: {
-          ...example.data.attributes,
+          ...data.attributes,
           special: {
-            ...example.data.attributes.special,
+            ...data.attributes.special,
             essence: { current: 7.0, maximum: 6.0 }, // Invalid: essence > 6
           },
         },
@@ -249,7 +256,7 @@ describe('Game Systems Validation', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const data = result.data as any;
+        const data = result.data as CoC7eCharacterData;
         expect(data.investigatorName).toBe('Dr. Eleanor Voss');
         expect(data.occupation).toBe('Professor');
         expect(data.era).toBe('1920s');
@@ -283,7 +290,7 @@ describe('Game Systems Validation', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const data = result.data as any;
+        const data = result.data as CoC7eCharacterData;
         expect(data.investigatorName).toBe('Dr. Sarah Chen');
         expect(data.occupation).toBe('Professor of Archaeology');
         expect(data.era).toBe('1920s');
@@ -295,10 +302,11 @@ describe('Game Systems Validation', () => {
 
     it('should fail validation for invalid characteristic value', () => {
       const example = loadExampleJSON('Call_of_Cthulhu_7th_Edition_character.json');
+      const data = example.data as CoC7eCharacterData;
       const invalidData = {
-        ...example.data,
+        ...data,
         characteristics: {
-          ...example.data.characteristics,
+          ...data.characteristics,
           STR: { regular: 150, half: 75, fifth: 30 }, // Invalid: regular > 100
         },
       };
@@ -310,12 +318,13 @@ describe('Game Systems Validation', () => {
 
     it('should fail validation for sanity greater than 99', () => {
       const example = loadExampleJSON('Call_of_Cthulhu_7th_Edition_character.json');
+      const data = example.data as CoC7eCharacterData;
       const invalidData = {
-        ...example.data,
+        ...data,
         derivedStats: {
-          ...example.data.derivedStats,
+          ...data.derivedStats,
           sanity: {
-            ...example.data.derivedStats.sanity,
+            ...data.derivedStats.sanity,
             current: 120, // Invalid: sanity > 99
           },
         },

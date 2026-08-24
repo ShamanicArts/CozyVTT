@@ -73,14 +73,14 @@ describe("auth security HTTP command adapter", () => {
   });
 
   it("rate limits MFA setup verification attempts", () => {
-    const route = (authRoutes as any).stack.find(
-      (layer: any) => layer.route?.path === "/mfa/verify",
+    const route = (authRoutes as unknown as RouterInternals).stack.find(
+      (layer) => layer.route?.path === "/mfa/verify",
     );
-    const limiter = route.route.stack.find(
-      (layer: any) => layer.handle.rateLimitOptions,
+    const limiter = route!.route.stack.find(
+      (layer) => layer.handle.rateLimitOptions,
     );
 
-    expect(limiter.handle.rateLimitOptions).toEqual(
+    expect(limiter!.handle.rateLimitOptions).toEqual(
       expect.objectContaining({ windowMs: 15 * 60 * 1000, max: 5 }),
     );
   });
@@ -161,3 +161,12 @@ describe("auth security HTTP command adapter", () => {
     });
   });
 });
+
+interface RouterInternals {
+  stack: Array<{
+    route: {
+      path?: string;
+      stack: Array<{ handle: { rateLimitOptions?: unknown } }>;
+    };
+  }>;
+}

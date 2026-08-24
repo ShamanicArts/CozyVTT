@@ -1,7 +1,4 @@
-import type {
-  UserQueryRecord,
-  UserQueryRepository,
-} from "../../ports/UserQueryRepository";
+import type { UserQueryRepository } from "../../ports/UserQueryRepository";
 
 export class UserQueryError extends Error {
   constructor(
@@ -61,7 +58,10 @@ export class UserQueries {
   }
 }
 
-export function publicUser(user: UserQueryRecord): Record<string, unknown> {
-  const { passwordHash, mfaSecret, mfaBackupCodes, ...publicFields } = user;
+export function publicUser(user: object): Record<string, unknown> {
+  const publicFields = { ...user } as Record<string, unknown>;
+  delete publicFields.passwordHash;
+  delete publicFields.mfaSecret;
+  delete publicFields.mfaBackupCodes;
   return publicFields;
 }

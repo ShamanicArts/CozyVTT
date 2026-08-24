@@ -11,12 +11,14 @@ jest.mock('../../composition/productionRealtimeQueries', () => ({
 }));
 
 import { registerMapHandlers } from './maps';
+import type { Server } from 'socket.io';
+import type { AuthenticatedSocket } from '../auth';
 
 function socketFor(overrides: Record<string, unknown> = {}) {
-  const handlers = new Map<string, (data: any) => Promise<void>>();
+  const handlers = new Map<string, (data: unknown) => Promise<void>>();
   return {
     id: 'socket-1', campaignId: 'campaign-1', role: 'DM', userId: 'user-1',
-    on: jest.fn((event: string, handler: (data: any) => Promise<void>) => handlers.set(event, handler)),
+    on: jest.fn((event: string, handler: (data: unknown) => Promise<void>) => handlers.set(event, handler)),
     emit: jest.fn(),
     handlers,
     ...overrides,
@@ -35,7 +37,10 @@ describe('map.change Socket.IO adapter', () => {
   it('keeps foreign-map failures indistinguishable from missing maps', async () => {
     mockFindUnique.mockResolvedValue({ id: 'map-1', campaignId: 'other-campaign' });
     const socket = socketFor();
-    registerMapHandlers(ioFor([]) as any, socket as any);
+    registerMapHandlers(
+      ioFor([]) as unknown as Server,
+      socket as unknown as AuthenticatedSocket,
+    );
 
     await socket.handlers.get('map.change')!({ mapId: 'map-1' });
 
@@ -50,7 +55,10 @@ describe('map.change Socket.IO adapter', () => {
     const dmRecipient = { role: 'DM', userId: 'dm-1', emit: jest.fn() };
     const playerRecipient = { role: 'PLAYER', userId: 'player-1', emit: jest.fn() };
     const socket = socketFor();
-    registerMapHandlers(ioFor([dmRecipient, playerRecipient]) as any, socket as any);
+    registerMapHandlers(
+      ioFor([dmRecipient, playerRecipient]) as unknown as Server,
+      socket as unknown as AuthenticatedSocket,
+    );
 
     await socket.handlers.get('map.change')!({ mapId: 'map-1' });
 

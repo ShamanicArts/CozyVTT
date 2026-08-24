@@ -5,12 +5,18 @@
  */
 
 import { GameSystem } from '@prisma/client';
+import type { DnD5eCharacterData } from '../../game-systems/dnd5e';
 
 export interface CharacterTemplate {
   name: string;
   description: string;
   gameSystem: GameSystem;
-  data: any;
+  data: Partial<DnD5eCharacterData> &
+    {
+      spellcasting: NonNullable<DnD5eCharacterData["spellcasting"]>;
+      inventory: NonNullable<DnD5eCharacterData["inventory"]>;
+    } &
+    Record<string, unknown>;
 }
 
 /**

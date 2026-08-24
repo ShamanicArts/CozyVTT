@@ -11,6 +11,7 @@
  */
 
 import { prisma } from "../config/database";
+import { Prisma } from "@prisma/client";
 import logger from "../utils/logger";
 
 /**
@@ -21,10 +22,10 @@ export interface GameState {
   sessionId?: string;
   savedAt: string;
   mapId: string | null;
-  tokens: any[];
+  tokens: unknown[];
   spiritLayerVisible: boolean;
   currentVibe: string | null;
-  annotations: any[];
+  annotations: unknown[];
 }
 
 /**
@@ -130,8 +131,8 @@ export async function restoreGameState(
         await prisma.map.update({
           where: { id: state.mapId },
           data: {
-            tokens: state.tokens as any,
-            annotations: state.annotations as any,
+            tokens: state.tokens as Prisma.InputJsonValue,
+            annotations: state.annotations as Prisma.InputJsonValue,
             revision: { increment: 1 },
           },
         });

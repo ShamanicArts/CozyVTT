@@ -4,6 +4,7 @@ import { publicUser } from '../application/users/UserQueries';
 import { INITIALIZE_SETUP, InitializeSetupCommand, SetupError } from '../application/identity/Setup';
 import { productionSetupQueries } from '../composition/productionSetupQueries';
 import { productionTransportCommands } from '../composition/productionTransportCommands';
+import type { IdentityUser } from '../domain/identity/Identity';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -39,7 +40,7 @@ router.get('/status', async (_req: Request, res: Response) => {
  */
 router.post('/init', async (req: Request, res: Response) => {
   try {
-    const user = await productionTransportCommands.dispatch<InitializeSetupCommand, any>({
+    const user = await productionTransportCommands.dispatch<InitializeSetupCommand, IdentityUser>({
       type: INITIALIZE_SETUP,
       input: req.body,
     });
@@ -52,7 +53,7 @@ router.post('/init', async (req: Request, res: Response) => {
 
     return res.status(201).json({
       message: 'Setup completed successfully',
-      user: publicUser(user as any),
+      user: publicUser(user),
     });
   } catch (error) {
     logger.error('Error during setup', { err: error });

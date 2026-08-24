@@ -26,10 +26,10 @@ import { useWebSocket } from '@/contexts/WebSocketContext';
  * });
  * ```
  */
-export function useWebSocketEvent<T = any>(
+export function useWebSocketEvent<T = unknown>(
   eventName: string,
   callback: (data: T) => void,
-  deps: any[] = []
+  deps: unknown[] = []
 ) {
   const { socket, status } = useWebSocket();
   const callbackRef = useRef(callback);
@@ -82,7 +82,7 @@ export function useWebSocketEvent<T = any>(
  * ```
  */
 export function useWebSocketEvents(
-  events: Record<string, (data: any) => void>
+  events: Record<string, (data: unknown) => void>
 ) {
   const { socket, status } = useWebSocket();
   const eventsRef = useRef(events);
@@ -98,11 +98,11 @@ export function useWebSocketEvents(
       return;
     }
 
-    const handlers: Record<string, (data: any) => void> = {};
+    const handlers: Record<string, (data: unknown) => void> = {};
 
     // Create handlers for each event
     Object.keys(events).forEach((eventName) => {
-      const eventHandler = (data: any) => {
+      const eventHandler = (data: unknown) => {
         eventsRef.current[eventName]?.(data);
       };
       handlers[eventName] = eventHandler;

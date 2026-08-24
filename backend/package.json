@@ -5,7 +5,9 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon --exec ts-node src/server.ts",
+    "prebuild": "npm run check:no-explicit-any",
     "build": "tsc",
+    "check:no-explicit-any": "node scripts/check-no-explicit-any.mjs",
     "start": "node dist/server.js",
     "test": "jest",
     "test:watch": "jest --watch",

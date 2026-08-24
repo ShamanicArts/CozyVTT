@@ -21,9 +21,9 @@ export interface Token {
   controlledBy?: string | null;
   rotation: number;
   conditions: string[];
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   displayMode?: 'pog' | 'top-down' | 'full-art';
-  statBlock?: Record<string, any> | null;
+  statBlock?: Record<string, unknown> | null;
   creatureTemplateId?: string | null;
 }
 

@@ -13,7 +13,7 @@ export interface ExportMetadata {
   character: {
     name: string;
     gameSystem: string | null;
-    data: any;
+    data: unknown;
     createdAt?: string;
     updatedAt?: string;
   };
@@ -64,22 +64,22 @@ export function downloadCharacterJSON(character: Character): void {
 /**
  * Validate imported character JSON structure
  */
-export function validateImportedCharacter(data: any): {
+export function validateImportedCharacter(data: unknown): {
   valid: boolean;
   error?: string;
   character?: {
     name: string;
     gameSystem: string | null;
-    data: any;
+    data: unknown;
   };
 } {
   // Check basic structure
-  if (!data || typeof data !== 'object') {
+  if (!isRecord(data)) {
     return { valid: false, error: 'Invalid JSON format' };
   }
 
   // Check for cozyVttVersion
-  if (!data.cozyVttVersion) {
+  if (typeof data.cozyVttVersion !== "string") {
     return { valid: false, error: 'Missing cozyVttVersion field' };
   }
 
@@ -93,7 +93,7 @@ export function validateImportedCharacter(data: any): {
   }
 
   // Check for character object
-  if (!data.character || typeof data.character !== 'object') {
+  if (!isRecord(data.character)) {
     return { valid: false, error: 'Missing or invalid character data' };
   }
 
@@ -111,16 +111,23 @@ export function validateImportedCharacter(data: any): {
     valid: true,
     character: {
       name: data.character.name,
-      gameSystem: data.character.gameSystem || null,
+      gameSystem:
+        typeof data.character.gameSystem === "string"
+          ? data.character.gameSystem
+          : null,
       data: data.character.data,
     },
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 /**
  * Read and parse a JSON file
  */
-export function readJSONFile(file: File): Promise<any> {
+export function readJSONFile(file: File): Promise<unknown> {
   return new Promise((resolve, reject) => {
     // Check file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {

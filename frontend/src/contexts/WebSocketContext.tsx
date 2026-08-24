@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // WebSocket Context
 // Manages WebSocket connection state and lifecycle
@@ -169,7 +170,8 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
       const cleanup = socketClient.startHeartbeat(30000); // 30 second interval
       heartbeatCleanupRef.current = cleanup || null;
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       console.error('[WebSocket] Connection failed:', err);
       if (isMountedRef.current) {
         setStatus('error');

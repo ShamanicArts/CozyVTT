@@ -8,7 +8,7 @@ import { IMPORT_REMOTE_MAP, ImportRemoteMap } from "./RemoteMapImportCommands";
 const campaignId = "campaign-1";
 const actorId = "dm-1";
 
-function mockFn<T extends (...args: any[]) => any>(): jest.Mock<
+function mockFn<T extends (...args: never[]) => unknown>(): jest.Mock<
   ReturnType<T>,
   Parameters<T>
 > {

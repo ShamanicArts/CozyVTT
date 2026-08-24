@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { sanitizeInput, validateEmail } from "../../utils/validation";
+import { errorMessage } from "../../utils/errors";
 import {
   AdminActor,
   AdminCommandError,
@@ -354,11 +355,11 @@ export class SendAdminSmtpTest
     if (!user) throw adminError(404, "Not Found", "Admin user not found");
     try {
       await this.mailer.sendTestEmail(user.email, user.displayName);
-    } catch (error: any) {
+    } catch (error) {
       throw adminError(
         500,
         "SMTP Error",
-        error.message || "Failed to send test email",
+        errorMessage(error, "Failed to send test email"),
       );
     }
     await this.log(command.actor, `Sent SMTP test email to ${user.email}`);

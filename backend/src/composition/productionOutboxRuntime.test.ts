@@ -3,6 +3,12 @@ import {
   createProductionOutboxDispatcher,
   outboxHealth,
 } from "./productionOutboxRuntime";
+import type { PrismaClient } from "@prisma/client";
+
+interface DispatcherInternals {
+  timer?: unknown;
+  consumers: Map<string, { consume: (event: unknown) => Promise<void> }>;
+}
 
 describe("production outbox runtime", () => {
   const prisma = {
@@ -11,15 +17,15 @@ describe("production outbox runtime", () => {
       findUnique: jest.fn(),
       create: jest.fn(),
     },
-  } as any;
+  };
 
   beforeEach(() => jest.clearAllMocks());
 
   it("does not poll merely by constructing the runtime and reports backlog health", async () => {
     prisma.outboxEvent.count.mockResolvedValueOnce(3).mockResolvedValueOnce(1);
-    const dispatcher = createProductionOutboxDispatcher(prisma);
-    expect((dispatcher as any).timer).toBeUndefined();
-    await expect(outboxHealth(prisma)).resolves.toEqual({
+    const dispatcher = createProductionOutboxDispatcher(prisma as unknown as PrismaClient);
+    expect((dispatcher as unknown as DispatcherInternals).timer).toBeUndefined();
+    await expect(outboxHealth(prisma as unknown as PrismaClient)).resolves.toEqual({
       pending: 3,
       deadLetter: 1,
     });
@@ -29,11 +35,8 @@ describe("production outbox runtime", () => {
   });
 
   it("has exactly the versioned command activity consumer and keeps its payload value-free", async () => {
-    const dispatcher = createProductionOutboxDispatcher(prisma);
-    const consumers = (dispatcher as any).consumers as Map<
-      string,
-      { consume: (event: any) => Promise<void> }
-    >;
+    const dispatcher = createProductionOutboxDispatcher(prisma as unknown as PrismaClient);
+    const consumers = (dispatcher as unknown as DispatcherInternals).consumers;
     expect([...consumers.keys()]).toEqual([APPLICATION_COMMAND_EXECUTED_V1]);
     await expect(
       consumers.get(APPLICATION_COMMAND_EXECUTED_V1)!.consume({
@@ -54,11 +57,8 @@ describe("production outbox runtime", () => {
       id: "event",
       createdAt: new Date("2026-08-23T09:00:00.000Z"),
     });
-    const dispatcher = createProductionOutboxDispatcher(prisma);
-    const consumers = (dispatcher as any).consumers as Map<
-      string,
-      { consume: (event: any) => Promise<void> }
-    >;
+    const dispatcher = createProductionOutboxDispatcher(prisma as unknown as PrismaClient);
+    const consumers = (dispatcher as unknown as DispatcherInternals).consumers;
     await consumers.get(APPLICATION_COMMAND_EXECUTED_V1)!.consume({
       id: "event",
       topic: APPLICATION_COMMAND_EXECUTED_V1,

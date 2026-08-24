@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // Register Page
 // Handles new user registration
@@ -114,11 +115,12 @@ export default function RegisterPage() {
         return;
       }
       // On success, user is logged in and will be redirected by auth check above
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       // Handle specific error messages
       if (err.response?.status === 403) {
         setError(
-          err.response.data.message || "Registration is currently disabled.",
+          err.response?.data?.message || "Registration is currently disabled.",
         );
       } else if (err.response?.data?.error) {
         setError(err.response.data.error);

@@ -11,6 +11,7 @@
  */
 
 import { randomUUID } from "crypto";
+import { Prisma } from "@prisma/client";
 import { io as ioc } from "socket.io-client";
 import { prisma } from "../../config/database";
 import {
@@ -45,6 +46,37 @@ let dmCookie: string;
 let player1Cookie: string;
 let player2Cookie: string;
 let outsiderCookie: string;
+
+interface TestToken {
+  id: string;
+  position: { x: number; y: number };
+  initiative?: number | null;
+}
+
+interface TestWall {
+  id: string;
+  type: string;
+}
+
+interface TestFogState {
+  revealed: boolean[];
+}
+
+interface TestLight {
+  id: string;
+}
+
+interface TestCombatant {
+  tokenId: string;
+  initiative?: number | null;
+}
+
+interface InitiativeStatePayload {
+  combatants: TestCombatant[];
+  active: boolean;
+  round: number;
+  currentTokenId: string | null;
+}
 
 function seedTokens() {
   const base = {
@@ -96,10 +128,10 @@ async function resetGameState() {
   await prisma.map.update({
     where: { id: mapId },
     data: {
-      tokens: seedTokens() as any,
-      wallSegments: seedWalls() as any,
-      fogData: null as any,
-      lights: [] as any,
+      tokens: seedTokens() as Prisma.InputJsonValue,
+      wallSegments: seedWalls() as Prisma.InputJsonValue,
+      fogData: Prisma.JsonNull,
+      lights: [] as Prisma.InputJsonValue,
     },
   });
   await prisma.campaign.update({
@@ -157,9 +189,9 @@ beforeAll(async () => {
       width: 30,
       height: 30,
       gridSize: 50,
-      tokens: seedTokens() as any,
-      annotations: [] as any,
-      wallSegments: seedWalls() as any,
+      tokens: seedTokens() as Prisma.InputJsonValue,
+      annotations: [] as Prisma.InputJsonValue,
+      wallSegments: seedWalls() as Prisma.InputJsonValue,
     },
   });
   mapId = map.id;
@@ -346,8 +378,8 @@ describe("token movement", () => {
       where: { id: mapId },
       select: { tokens: true },
     });
-    const token = (map.tokens as any[]).find((t) => t.id === PLAYER_TOKEN_ID);
-    expect(token.position).toEqual({ x: 8, y: 9 });
+    const token = (map.tokens as unknown as TestToken[]).find((t) => t.id === PLAYER_TOKEN_ID);
+    expect(token?.position).toEqual({ x: 8, y: 9 });
 
     player.disconnect();
     dm.disconnect();
@@ -375,8 +407,8 @@ describe("token movement", () => {
       where: { id: mapId },
       select: { tokens: true },
     });
-    const token = (map.tokens as any[]).find((t) => t.id === DM_TOKEN_ID);
-    expect(token.position).toEqual({ x: 10, y: 10 });
+    const token = (map.tokens as unknown as TestToken[]).find((t) => t.id === DM_TOKEN_ID);
+    expect(token?.position).toEqual({ x: 10, y: 10 });
 
     player.disconnect();
     dm.disconnect();
@@ -411,7 +443,7 @@ describe("walls & doors", () => {
       y2: 2,
       type: "wall",
     };
-    const playerSees = waitForEvent<{ mapId: string; segment: any }>(
+    const playerSees = waitForEvent<{ mapId: string; segment: unknown }>(
       player,
       "wall:added",
     );
@@ -423,7 +455,7 @@ describe("walls & doors", () => {
       where: { id: mapId },
       select: { wallSegments: true },
     });
-    expect((map.wallSegments as any[]).some((s) => s.id === segment.id)).toBe(
+    expect((map.wallSegments as unknown as TestWall[]).some((s) => s.id === segment.id)).toBe(
       true,
     );
 
@@ -451,7 +483,7 @@ describe("walls & doors", () => {
       where: { id: mapId },
       select: { wallSegments: true },
     });
-    expect(map.wallSegments as any[]).toHaveLength(seedWalls().length);
+    expect(map.wallSegments as unknown[]).toHaveLength(seedWalls().length);
     dm.disconnect();
   });
 
@@ -471,7 +503,7 @@ describe("walls & doors", () => {
     const dm = await server.connectAndAuth(dmCookie, campaignId);
 
     const opened = { ...seedWalls()[1], type: "door-open" };
-    const dmSees = waitForEvent<{ segment: any }>(dm, "wall:updated");
+    const dmSees = waitForEvent<{ segment: TestWall }>(dm, "wall:updated");
     player.emit("wall:update", { mapId, segment: opened });
 
     expect((await dmSees).segment.type).toBe("door-open");
@@ -509,7 +541,7 @@ describe("fog of war", () => {
     const dm = await server.connectAndAuth(dmCookie, campaignId);
     const player = await server.connectAndAuth(player1Cookie, campaignId);
 
-    const dmSees = waitForEvent<{ mapId: string; fogState: any }>(
+    const dmSees = waitForEvent<{ mapId: string; fogState: TestFogState }>(
       dm,
       "fog:updated",
     );
@@ -536,7 +568,7 @@ describe("fog of war", () => {
       where: { id: mapId },
       select: { fogData: true },
     });
-    expect((map.fogData as any).revealed[1]).toBe(true);
+    expect((map.fogData as unknown as TestFogState).revealed[1]).toBe(true);
 
     dm.disconnect();
     player.disconnect();
@@ -569,7 +601,7 @@ describe("lights", () => {
     const player = await server.connectAndAuth(player1Cookie, campaignId);
 
     const light = validLight();
-    const playerSees = waitForEvent<{ light: any }>(player, "light:added");
+    const playerSees = waitForEvent<{ light: unknown }>(player, "light:added");
     dm.emit("light:add", { mapId, light });
     expect((await playerSees).light).toEqual(light);
 
@@ -577,7 +609,7 @@ describe("lights", () => {
       where: { id: mapId },
       select: { lights: true },
     });
-    expect((map.lights as any[]).some((l) => l.id === light.id)).toBe(true);
+    expect((map.lights as unknown as TestLight[]).some((l) => l.id === light.id)).toBe(true);
 
     dm.disconnect();
     player.disconnect();
@@ -618,7 +650,7 @@ describe("initiative", () => {
     const dm = await server.connectAndAuth(dmCookie, campaignId);
     const player = await server.connectAndAuth(player1Cookie, campaignId);
 
-    const playerSeesAdd = waitForEvent<{ combatants: any[] }>(
+    const playerSeesAdd = waitForEvent<InitiativeStatePayload>(
       player,
       "initiative.state",
     );
@@ -627,7 +659,7 @@ describe("initiative", () => {
     expect(stateAfterAdd.combatants).toHaveLength(1);
     expect(stateAfterAdd.combatants[0].tokenId).toBe(PLAYER_TOKEN_ID);
 
-    const playerSeesSet = waitForEvent<{ combatants: any[] }>(
+    const playerSeesSet = waitForEvent<InitiativeStatePayload>(
       player,
       "initiative.state",
     );
@@ -639,8 +671,8 @@ describe("initiative", () => {
       where: { id: mapId },
       select: { tokens: true },
     });
-    const token = (map.tokens as any[]).find((t) => t.id === PLAYER_TOKEN_ID);
-    expect(token.initiative).toBe(17);
+    const token = (map.tokens as unknown as TestToken[]).find((t) => t.id === PLAYER_TOKEN_ID);
+    expect(token?.initiative).toBe(17);
 
     dm.disconnect();
     player.disconnect();
@@ -650,13 +682,13 @@ describe("initiative", () => {
     const dm = await server.connectAndAuth(dmCookie, campaignId);
     const player = await server.connectAndAuth(player1Cookie, campaignId);
 
-    let stateEvent: Promise<any> = waitForEvent<{ combatants: any[] }>(
+    let stateEvent = waitForEvent<InitiativeStatePayload>(
       player,
       "initiative.state",
     );
     dm.emit("initiative.add", { tokenId: PLAYER_TOKEN_ID, mapId });
     await stateEvent;
-    stateEvent = waitForEvent<{ combatants: any[] }>(
+    stateEvent = waitForEvent<InitiativeStatePayload>(
       player,
       "initiative.state",
     );
@@ -668,7 +700,7 @@ describe("initiative", () => {
       secret: boolean;
       result: number;
     }>(player, "dice.rolled");
-    stateEvent = waitForEvent<{ combatants: any[] }>(
+    stateEvent = waitForEvent<InitiativeStatePayload>(
       player,
       "initiative.state",
     );
@@ -688,7 +720,7 @@ describe("initiative", () => {
       ]),
     );
 
-    stateEvent = waitForEvent<{ combatants: any[] }>(
+    stateEvent = waitForEvent<InitiativeStatePayload>(
       player,
       "initiative.state",
     );
@@ -701,30 +733,21 @@ describe("initiative", () => {
       ),
     ).toEqual([DM_TOKEN_ID, PLAYER_TOKEN_ID]);
 
-    stateEvent = waitForEvent<{
-      active: boolean;
-      round: number;
-      currentTokenId: string;
-    }>(player, "initiative.state");
+    stateEvent = waitForEvent<InitiativeStatePayload>(player, "initiative.state");
     dm.emit("initiative.start");
     expect(await stateEvent).toMatchObject({
       active: true,
       round: 1,
       currentTokenId: DM_TOKEN_ID,
     });
-    stateEvent = waitForEvent<{ currentTokenId: string }>(
+    stateEvent = waitForEvent<InitiativeStatePayload>(
       player,
       "initiative.state",
     );
     dm.emit("initiative.next");
     expect((await stateEvent).currentTokenId).toBe(PLAYER_TOKEN_ID);
 
-    stateEvent = waitForEvent<{
-      combatants: any[];
-      active: boolean;
-      round: number;
-      currentTokenId: string | null;
-    }>(player, "initiative.state");
+    stateEvent = waitForEvent<InitiativeStatePayload>(player, "initiative.state");
     dm.emit("initiative.end");
     expect(await stateEvent).toEqual({
       active: false,
@@ -940,7 +963,7 @@ describe("spirit layer filtering", () => {
     tokens[2].controlledBy = player1Id;
     await prisma.map.update({
       where: { id: mapId },
-      data: { tokens: tokens as any },
+      data: { tokens: tokens as Prisma.InputJsonValue },
     });
 
     const player = await server.connectAndAuth(player1Cookie, campaignId);
@@ -965,8 +988,8 @@ describe("spirit layer filtering", () => {
       where: { id: mapId },
       select: { tokens: true },
     });
-    const token = (map.tokens as any[]).find((t) => t.id === SPIRIT_TOKEN_ID);
-    expect(token.position).toEqual({ x: 18, y: 18 });
+    const token = (map.tokens as unknown as TestToken[]).find((t) => t.id === SPIRIT_TOKEN_ID);
+    expect(token?.position).toEqual({ x: 18, y: 18 });
 
     player.disconnect();
     dm.disconnect();

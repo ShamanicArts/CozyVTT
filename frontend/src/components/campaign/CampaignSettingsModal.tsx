@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // CampaignSettingsModal
 // DM-only slide-over panel for campaign settings
@@ -110,7 +111,8 @@ export default function CampaignSettingsModal({
       });
       await refreshCampaign();
       showToast('Campaign settings saved', 'success');
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       showToast(err.response?.data?.message ?? 'Failed to save settings', 'error');
     } finally {
       setSavingGeneral(false);
@@ -126,7 +128,8 @@ export default function CampaignSettingsModal({
       });
       await refreshCampaign();
       showToast('Chat settings saved', 'success');
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       showToast(err.response?.data?.message ?? 'Failed to save chat settings', 'error');
     } finally {
       setSavingChat(false);
@@ -145,7 +148,8 @@ export default function CampaignSettingsModal({
       await api.removeCampaignMember(campaign.id, memberToRemove.userId);
       await refreshCampaign();
       showToast('Player removed from campaign', 'success');
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       showToast(err.response?.data?.message ?? 'Failed to remove member', 'error');
     } finally {
       setRemovingMemberId(null);
@@ -159,7 +163,8 @@ export default function CampaignSettingsModal({
       await campaignService.deleteCampaign(campaign.id);
       showToast(`Campaign "${campaign.name}" deleted`, 'success');
       navigate('/dashboard');
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       showToast(err.response?.data?.message ?? 'Failed to delete campaign', 'error');
       setDeletingCampaign(false);
     }
@@ -179,7 +184,8 @@ export default function CampaignSettingsModal({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       showToast('Campaign exported successfully', 'success');
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       showToast(err.response?.data?.message ?? 'Failed to export campaign', 'error');
     } finally {
       setExporting(false);

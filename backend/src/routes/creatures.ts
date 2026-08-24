@@ -17,7 +17,9 @@ import {
   TOGGLE_CREATURE_FAVORITE,
   SEED_SRD_CREATURES,
   CreatureError,
+  SeedSrdCreaturesCommand,
 } from "../application/creatures/CreatureMutations";
+import type { SrdSeedResult } from "../domain/creatures/Creature";
 import { productionCreatureQueries } from "../composition/productionCreatureQueries";
 
 const router = Router({ mergeParams: true });
@@ -78,7 +80,7 @@ router.post(
 
     seedInProgress = true;
     try {
-      const result: any = await creatureCommands.dispatch({
+      const result = await creatureCommands.dispatch<SeedSrdCreaturesCommand, SrdSeedResult>({
         type: SEED_SRD_CREATURES,
       });
       return res.json({

@@ -15,7 +15,7 @@ export class CampaignHttpQueries {
   constructor(private readonly campaigns: CampaignHttpQueryRepository) {}
 
   async forUser(userId: string) {
-    return (await this.campaigns.membershipsForUser(userId)).map((item: any) => ({
+    return (await this.campaigns.membershipsForUser(userId)).map((item) => ({
       ...item.campaign,
       userRole: item.role,
       characterIds: item.characterIds,
@@ -23,7 +23,7 @@ export class CampaignHttpQueries {
   }
 
   async details(campaignId: string, role: string) {
-    const campaign: any = await this.campaigns.details(campaignId);
+    const campaign = await this.campaigns.details(campaignId);
     if (!campaign)
       throw new CampaignHttpQueryError(404, "Not Found", "Campaign not found");
     const { sessions, ...rest } = campaign;
@@ -37,15 +37,15 @@ export class CampaignHttpQueries {
   async characterRoster(campaignId: string) {
     const { memberships, characters } =
       await this.campaigns.characterRoster(campaignId);
-    return memberships.map((membership: any) => ({
+    return memberships.map((membership) => ({
       userId: membership.userId,
       userName: membership.user.displayName,
       userAvatar: membership.user.avatarUrl,
       role: membership.role,
       joinedAt: membership.joinedAt,
       characters: characters
-        .filter((character: any) => membership.characterIds.includes(character.id))
-        .map(({ data, ...character }: any) => ({
+        .filter((character) => membership.characterIds.includes(character.id))
+        .map(({ data, ...character }) => ({
           ...character,
           hp: extractCharacterHp(character.gameSystem, data),
         })),
@@ -64,8 +64,8 @@ export class CampaignHttpQueries {
     const result = await this.campaigns.messages(campaignId, limit, offset);
     return {
       messages: result.messages
-        .filter((message: any) => message.type !== "DICE_ROLL")
-        .map((message: any) => ({
+        .filter((message) => message.type !== "DICE_ROLL")
+        .map((message) => ({
           id: message.id,
           userId: message.userId,
           userName: message.user?.displayName || null,
@@ -87,10 +87,10 @@ export class CampaignHttpQueries {
   }
 }
 
-function extractCharacterHp(gameSystem: string | null, data: any) {
-  if (!data || !gameSystem) return null;
+function extractCharacterHp(gameSystem: string | null, data: unknown) {
+  if (!isRecord(data) || !gameSystem) return null;
   if (["DND_5E", "PATHFINDER_2E", "FLEXIBLE"].includes(gameSystem)) {
-    if (typeof data.hp?.maximum !== "number" || data.hp.maximum <= 0) return null;
+    if (!isRecord(data.hp) || typeof data.hp.maximum !== "number" || data.hp.maximum <= 0) return null;
     return {
       current:
         typeof data.hp.current === "number" ? data.hp.current : data.hp.maximum,
@@ -99,8 +99,9 @@ function extractCharacterHp(gameSystem: string | null, data: any) {
     };
   }
   if (gameSystem === "CALL_OF_CTHULHU_7E") {
-    const hp = data.derivedStats?.hp;
-    if (typeof hp?.maximum !== "number" || hp.maximum <= 0) return null;
+    if (!isRecord(data.derivedStats) || !isRecord(data.derivedStats.hp)) return null;
+    const hp = data.derivedStats.hp;
+    if (typeof hp.maximum !== "number" || hp.maximum <= 0) return null;
     return {
       current: typeof hp.current === "number" ? hp.current : hp.maximum,
       max: hp.maximum,
@@ -108,4 +109,8 @@ function extractCharacterHp(gameSystem: string | null, data: any) {
     };
   }
   return null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

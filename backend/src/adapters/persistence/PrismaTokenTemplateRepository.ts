@@ -1,4 +1,8 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import {
+  Prisma,
+  PrismaClient,
+  TokenTemplate as PrismaTokenTemplate,
+} from "@prisma/client";
 import {
   NewTokenTemplate,
   TokenTemplate,
@@ -43,7 +47,10 @@ export class PrismaTokenTemplateRepository implements TokenTemplateRepository {
       where: { id },
       data: {
         ...data,
-        size: data.size as any,
+        size:
+          data.size === undefined
+            ? undefined
+            : (data.size as unknown as Prisma.InputJsonValue),
         hp: data.hp === undefined ? undefined : toPrismaJson(data.hp),
         statBlock:
           data.statBlock === undefined
@@ -72,13 +79,13 @@ export class PrismaTokenTemplateRepository implements TokenTemplateRepository {
     }));
   }
 }
-function map(saved: any): TokenTemplate {
+function map(saved: PrismaTokenTemplate): TokenTemplate {
   return {
     ...saved,
     type: saved.type as TokenTemplate["type"],
     disposition: saved.disposition as TokenTemplate["disposition"],
     displayMode: saved.displayMode as TokenTemplate["displayMode"],
-    size: saved.size as TokenTemplate["size"],
+    size: saved.size as unknown as TokenTemplate["size"],
     hp: fromPrismaJson(saved.hp) as TokenTemplate["hp"],
     statBlock: fromPrismaJson(saved.statBlock) as TokenTemplate["statBlock"],
   };

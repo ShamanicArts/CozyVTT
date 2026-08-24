@@ -9,7 +9,7 @@ export interface FlexibleCharacterTemplate {
   name: string;
   description: string;
   gameSystem: null;
-  data: any;
+  data: { sections: Array<Record<string, unknown>> };
 }
 
 /**

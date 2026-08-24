@@ -1,4 +1,4 @@
-import { Router, Response } from "express";
+import { NextFunction, Router, Response } from "express";
 import rateLimit from "express-rate-limit";
 import { AuthenticatedRequest } from "../middleware/rbac";
 import { authenticated } from "../middleware/compose";
@@ -184,18 +184,19 @@ router.post(
   authenticated,
   uploadLimiter,
   // First, use a generic upload to parse the multipart data
-  (req: UploadRequest, res: Response, next: any) => {
+  (req: UploadRequest, res: Response, next: NextFunction) => {
     // Use generic uploader - no asset-type-specific filtering yet
-    uploadGeneric.single("file")(req, res, (err: any) => {
+    uploadGeneric.single("file")(req, res, (err: unknown): void => {
       if (err) {
-        return handleUploadError(err, req, res, next);
+        handleUploadError(err, req, res, next);
+        return;
       }
       next();
     });
   },
   // Multipart metadata is now available. The command supplies normalized
   // type/scope for the byte-validation middleware that follows.
-  async (req: UploadRequest, res: Response, next: any) => {
+  async (req: UploadRequest, res: Response, next: NextFunction) => {
     try {
       const prepared = await assetCommands.dispatch<
         PrepareAssetUploadCommand,

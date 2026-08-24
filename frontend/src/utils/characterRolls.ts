@@ -7,6 +7,13 @@
  *  - CharacterRollPicker modal (right-click context menus on roster/tokens)
  */
 
+import type { CharacterData } from "@/types";
+import type {
+  CoC7eCharacterData,
+  DnD5eCharacterData,
+  PF2eCharacterData,
+} from "@/types/game-systems";
+
 export interface RollOption {
   /** Short label shown in menus / tooltips */
   label: string;
@@ -92,7 +99,7 @@ const DND5E_SKILL_NAMES: Record<string, string> = {
   survival:       'Survival',
 };
 
-function extractDnd5eRolls(data: any): CharacterRolls {
+function extractDnd5eRolls(data: DnD5eCharacterData): CharacterRolls {
   const abilities: RollOption[] = [];
   const skills:    RollOption[] = [];
   const saves:     RollOption[] = [];
@@ -210,7 +217,7 @@ const PF2E_SKILL_NAMES: Record<string, string> = {
   thievery:       'Thievery',
 };
 
-function extractPf2eRolls(data: any): CharacterRolls {
+function extractPf2eRolls(data: PF2eCharacterData): CharacterRolls {
   const abilities: RollOption[] = [];
   const skills:    RollOption[] = [];
   const saves:     RollOption[] = [];
@@ -262,7 +269,7 @@ function extractPf2eRolls(data: any): CharacterRolls {
     for (const [key, name] of Object.entries(PF2E_SKILL_NAMES)) {
       const skill = data.skills[key];
       if (!skill) continue;
-      const total = skill.total ?? 0;
+      const total = skill.bonus ?? 0;
       const expr = `1d20${fmt(total)}`;
       skills.push({
         label:             `${name} ${fmt(total)}`,
@@ -272,10 +279,10 @@ function extractPf2eRolls(data: any): CharacterRolls {
       });
     }
     // Lore skills (dynamic)
-    if (Array.isArray(data.skills.loreSkills)) {
-      for (const lore of data.skills.loreSkills) {
+    if (Array.isArray(data.loreSkills)) {
+      for (const lore of data.loreSkills) {
         if (!lore.name) continue;
-        const total = lore.total ?? 0;
+        const total = lore.bonus ?? 0;
         skills.push({
           label:             `${lore.name} Lore ${fmt(total)}`,
           expression:        `1d20${fmt(total)}`,
@@ -377,7 +384,7 @@ const COC_SKILL_DISPLAY: Record<string, string> = {
   track:                 'Track',
 };
 
-function extractCocRolls(data: any): CharacterRolls {
+function extractCocRolls(data: CoC7eCharacterData): CharacterRolls {
   const abilities: RollOption[] = [];   // characteristics
   const skills:    RollOption[] = [];
   const saves:     RollOption[] = [];   // (empty for CoC)
@@ -386,7 +393,7 @@ function extractCocRolls(data: any): CharacterRolls {
   // Characteristics
   if (data.characteristics) {
     for (const [key, label] of Object.entries(COC_CHARACTERISTIC_NAMES)) {
-      const val = data.characteristics[key]?.value;
+      const val = data.characteristics[key]?.regular;
       if (typeof val !== 'number') continue;
       abilities.push({
         label:             `${label} (target: ${val}%)`,
@@ -399,11 +406,11 @@ function extractCocRolls(data: any): CharacterRolls {
 
   // Skills
   if (data.skills && typeof data.skills === 'object') {
-    for (const [key, skill] of Object.entries(data.skills as Record<string, any>)) {
+    for (const [key, skill] of Object.entries(data.skills as Record<string, unknown>)) {
       if (key === 'customSkills') continue;
 
       // Handle specializations (fighting, firearms, languageOther, science)
-      if (key === 'fighting' && skill?.brawl) {
+      if (key === 'fighting' && isRecord(skill) && isRecord(skill.brawl)) {
         const val = skill.brawl.currentValue;
         if (typeof val === 'number') {
           skills.push({
@@ -416,10 +423,10 @@ function extractCocRolls(data: any): CharacterRolls {
         continue;
       }
 
-      if (key === 'firearms' && typeof skill === 'object' && !('currentValue' in skill)) {
-        for (const [sub, subSkill] of Object.entries(skill as Record<string, any>)) {
-          if (!subSkill?.currentValue) continue;
-          const val = subSkill.currentValue as number;
+      if (key === 'firearms' && isRecord(skill) && !("currentValue" in skill)) {
+        for (const [sub, subSkill] of Object.entries(skill)) {
+          if (!isRecord(subSkill) || typeof subSkill.currentValue !== "number") continue;
+          const val = subSkill.currentValue;
           const subName = sub.charAt(0).toUpperCase() + sub.slice(1);
           skills.push({
             label:             `Firearms (${subName}) — target: ${val}%`,
@@ -487,8 +494,8 @@ function extractCocRolls(data: any): CharacterRolls {
   }
 
   // Weapons
-  if (Array.isArray(data.weapons)) {
-    for (const w of data.weapons) {
+  if (Array.isArray(data.combat?.weapons)) {
+    for (const w of data.combat.weapons) {
       if (!w.name) continue;
       // Skill check to hit
       if (typeof w.skillValue === 'number') {
@@ -514,6 +521,10 @@ function extractCocRolls(data: any): CharacterRolls {
   return { abilities, skills, savingThrows: saves, combat };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -531,23 +542,26 @@ function extractCocRolls(data: any): CharacterRolls {
  * CoC 7e   → 1d10 + floor(DEX / 5)
  * Others   → null (caller should prompt for manual entry)
  */
-export function getInitiativeExpression(gameSystem: string | null, data: any): string | null {
+export function getInitiativeExpression(gameSystem: string | null, data: CharacterData): string | null {
   if (!data) return null;
 
   switch (gameSystem) {
     case 'DND_5E': {
-      const mod = data?.combatStats?.initiative ?? 0;
+      if (!("stats" in data)) return null;
+      const mod = data.initiative ?? 0;
       return `1d20${fmt(mod)}`;
     }
     case 'PATHFINDER_2E': {
+      if (!("attributes" in data) || !("ancestry" in data)) return null;
       // PF2e defaults to Perception for initiative, fall back to initiative.bonus
       const perceptionBonus = data?.perception?.bonus ?? 0;
-      const initiativeBonus = data?.combatStats?.initiative?.bonus ?? 0;
+      const initiativeBonus = data.initiative?.bonus ?? 0;
       const bonus = perceptionBonus !== 0 ? perceptionBonus : initiativeBonus;
       return `1d20${fmt(bonus)}`;
     }
     case 'CALL_OF_CTHULHU_7E': {
-      const dex = data?.characteristics?.dex?.regular ?? data?.characteristics?.DEX?.regular ?? 0;
+      if (!("characteristics" in data)) return null;
+      const dex = data.characteristics.DEX?.regular ?? 0;
       const dexMod = Math.floor(dex / 5);
       return `1d10${fmt(dexMod)}`;
     }
@@ -563,17 +577,23 @@ export function getInitiativeExpression(gameSystem: string | null, data: any): s
  * @param data        The raw `character.data` JSON object
  * @returns           Structured roll options grouped by category
  */
-export function getCharacterRolls(gameSystem: string | null, data: any): CharacterRolls {
+export function getCharacterRolls(gameSystem: string | null, data: CharacterData): CharacterRolls {
   if (!data) return { abilities: [], skills: [], savingThrows: [], combat: [] };
 
   switch (gameSystem) {
     case 'DND_5E':
-      return extractDnd5eRolls(data);
+      return "stats" in data ? extractDnd5eRolls(data) : emptyRolls();
     case 'PATHFINDER_2E':
-      return extractPf2eRolls(data);
+      return "attributes" in data && "ancestry" in data
+        ? extractPf2eRolls(data)
+        : emptyRolls();
     case 'CALL_OF_CTHULHU_7E':
-      return extractCocRolls(data);
+      return "characteristics" in data ? extractCocRolls(data) : emptyRolls();
     default:
       return { abilities: [], skills: [], savingThrows: [], combat: [] };
   }
+}
+
+function emptyRolls(): CharacterRolls {
+  return { abilities: [], skills: [], savingThrows: [], combat: [] };
 }

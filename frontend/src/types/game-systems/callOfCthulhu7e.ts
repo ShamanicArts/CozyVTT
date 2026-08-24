@@ -15,7 +15,7 @@ export interface CoC7eCharacteristic {
 /**
  * All characteristics
  */
-export interface CoC7eCharacteristics {
+export interface CoC7eCharacteristics extends Record<string, CoC7eCharacteristic> {
   STR: CoC7eCharacteristic;
   CON: CoC7eCharacteristic;
   SIZ: CoC7eCharacteristic;
@@ -95,6 +95,7 @@ export interface CoC7eSkill {
   improvementChecked: boolean;
   specialization?: string | null;
   notes?: string;
+  name?: string;
 }
 
 /**
@@ -156,7 +157,15 @@ export interface CoC7eScienceSkill {
 /**
  * All skills
  */
-export interface CoC7eSkills {
+export type CoC7eSkillEntry =
+  | CoC7eSkill
+  | CoC7eFightingSkills
+  | CoC7eFirearmsSkills
+  | CoC7eLanguageSkill[]
+  | CoC7eScienceSkill[]
+  | CoC7eSkill[];
+
+export interface CoC7eSkills extends Record<string, CoC7eSkillEntry> {
   accounting: CoC7eSkill;
   anthropology: CoC7eSkill;
   appraise: CoC7eSkill;
@@ -217,7 +226,7 @@ export interface CoC7eWeapon {
   attacks: number;
   ammo: number | null;
   malfunction: number | null;
-  notes: string;
+  notes?: string;
 }
 
 /**
@@ -339,4 +348,5 @@ export interface CoC7eCharacterData {
   contacts?: CoC7eContact[];
   appearance?: CoC7eAppearance;
   notes?: string;
+  themeColor?: string;
 }

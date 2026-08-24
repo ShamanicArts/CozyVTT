@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // Characters Page
 // Character library management for players
@@ -50,7 +51,7 @@ export default function CharactersPage() {
   const loading = charactersQuery.isPending || campaignsQuery.isPending;
   const queryError = charactersQuery.error || campaignsQuery.error;
   const error = queryError
-    ? (queryError as any).response?.data?.message || "Failed to load characters"
+    ? asError(queryError).response?.data?.message || "Failed to load characters"
     : "";
 
   const loadData = () => {
@@ -82,7 +83,8 @@ export default function CharactersPage() {
       );
       setCharactersData((prev) => [copiedCharacter, ...prev]);
       showSuccess(`${character.name} copied successfully`);
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       showToast(
         err.response?.data?.message || "Failed to copy character",
         "error",
@@ -145,7 +147,7 @@ export default function CharactersPage() {
   const handleImport = async (data: {
     name: string;
     gameSystem: string | null;
-    data: any;
+    data: unknown;
   }) => {
     // Errors propagate to the modal, which handles the display
     const importedCharacter = await characterService.createCharacter({

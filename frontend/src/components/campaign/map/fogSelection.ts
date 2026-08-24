@@ -28,7 +28,7 @@ function clamp(value: number, lo: number, hi: number): number {
  * Snap two drag corners (map pixels) to the whole fog cells they cover.
  *
  * Corners are normalised, so dragging right-to-left or bottom-to-top gives the
- * same rectangle as the forward drag. The bounds snap *outward*: any cell the
+ * same rectangle as the forward drag. The bounds snap *outward*: unknown cell the
  * drag touches at all is included, which is what makes a zero-movement click
  * resolve to a single square rather than nothing.
  *

@@ -24,6 +24,7 @@ import { SanityTracker } from "./components/SanityTracker";
 import { SkillsList } from "./components/SkillsList";
 import { WeaponsList } from "./components/WeaponsList";
 import { BackstorySection } from "./components/BackstorySection";
+import type { CoC7eCharacterData } from "@/types/game-systems";
 
 interface CallOfCthulhu7eCharacterViewProps {
   character: Character;
@@ -139,7 +140,7 @@ export const CallOfCthulhu7eCharacterView: React.FC<
   CallOfCthulhu7eCharacterViewProps
 > = ({ character, onEdit, onRoll }) => {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
-  const data = character.data as any; // Type will be CallOfCthulhu7eCharacterData
+  const data = requireCoC7eData(character.data);
   const [themeColor, setThemeColor] = useState(COLOR_PRESETS[0]);
   const [isCustomColor, setIsCustomColor] = useState(false);
   const [customColorHex, setCustomColorHex] = useState("");
@@ -600,7 +601,7 @@ export const CallOfCthulhu7eCharacterView: React.FC<
           </h4>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
             {Object.entries(data.conditions).map(
-              ([key, value]: [string, any]) => (
+              ([key, value]) => (
                 <div
                   key={key}
                   className={`flex items-center space-x-2 px-3 py-2 rounded ${
@@ -701,7 +702,7 @@ export const CallOfCthulhu7eCharacterView: React.FC<
         <div>
           <h3 className="text-lg font-bold text-sepia-900 mb-4">Possessions</h3>
           <div className="space-y-2">
-            {data.possessions.map((item: any, index: number) => (
+            {data.possessions.map((item, index: number) => (
               <div
                 key={index}
                 className="bg-parchment border border-sepia-400 rounded-md p-3"
@@ -725,7 +726,7 @@ export const CallOfCthulhu7eCharacterView: React.FC<
         <div>
           <h3 className="text-lg font-bold text-sepia-900 mb-4">Contacts</h3>
           <div className="space-y-2">
-            {data.contacts.map((contact: any, index: number) => (
+            {data.contacts.map((contact, index: number) => (
               <div
                 key={index}
                 className="bg-blue-50 border border-blue-300 rounded-md p-3"
@@ -840,5 +841,12 @@ export const CallOfCthulhu7eCharacterView: React.FC<
     </div>
   );
 };
+
+function requireCoC7eData(data: Character["data"]): CoC7eCharacterData {
+  if (!("characteristics" in data)) {
+    throw new Error("Expected Call of Cthulhu 7e character data");
+  }
+  return data;
+}
 
 export default CallOfCthulhu7eCharacterView;

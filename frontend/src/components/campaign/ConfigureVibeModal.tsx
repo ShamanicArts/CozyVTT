@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 /**
  * Configure Vibe Modal
  * Vibe Tracker Details
@@ -342,7 +343,8 @@ export default function ConfigureVibeModal({ onClose }: ConfigureVibeModalProps)
       updateVibeSettings(result.vibeSettings);
       showToast('Vibe periods saved!', 'success');
       setTimeout(onClose, 900);
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       console.error('Failed to save vibe settings:', err);
       showToast(err.response?.data?.message || 'Failed to save vibe settings', 'error');
     } finally {

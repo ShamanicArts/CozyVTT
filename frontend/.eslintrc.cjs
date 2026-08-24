@@ -24,10 +24,7 @@ module.exports = {
     // review — planned alongside the state-layer migration (Phase 5).
     'react-hooks/exhaustive-deps': 'off',
 
-    // TODO(ratchet): the codebase predates linting and uses `any` liberally
-    // (err: any in catch blocks, JSON blob plumbing). Re-enable once the
-    // zustand/react-query migration (Phase 5) tightens the data layer.
-    '@typescript-eslint/no-explicit-any': 'off',
+    '@typescript-eslint/no-explicit-any': 'error',
 
     // Unused vars are caught by tsc (noUnusedLocals); allow _-prefixed
     // intentional ignores to match existing style.

@@ -313,7 +313,7 @@ export function ThemeProvider({
         prefs.themeId === "custom"
           ? (prefs.customThemeColors ?? null)
           : appearance?.themeId === "custom"
-            ? ((appearance?.customThemeColors as any) ?? null)
+            ? (appearance?.customThemeColors ?? null)
             : null;
       applyThemeColors(
         resolveColors(themeHost, themeId, customColors),

@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 /**
  * Pathfinder2eCharacterEditor Component
  *
@@ -25,14 +26,112 @@ import {
   calculateProficiencyBonus,
 } from "./components/ProficiencyIndicator";
 import { api } from "../../../services/api";
-import { AssetType } from "../../../types";
+import { AssetType, Character } from "../../../types";
+import type {
+  PF2eCharacterData,
+  PF2eAbilityScore,
+  PF2eSavingThrow,
+  PF2eSkill,
+  PF2eProficiencyRank,
+  PF2eFeat,
+  PF2eAppearance,
+  PF2ePersonality,
+  PF2eInventoryItem,
+  PF2ePerception,
+  PF2eArmorClass,
+  PF2eClassDC,
+  PF2eHitPoints,
+  PF2eLoreSkill,
+  PF2eStrike,
+} from "@/types/game-systems";
+
+interface PF2eEditorSpell {
+  name: string;
+  rank: number;
+  tradition?: string;
+  prepared?: boolean;
+}
+
+interface PF2eEditorSpellcasting {
+  tradition: string;
+  type: string;
+  keyAttribute: string;
+  spellAttackBonus: {
+    proficiencyRank: PF2eProficiencyRank;
+    itemBonus: number;
+    bonus: number;
+  };
+  spellDC: {
+    proficiencyRank: PF2eProficiencyRank;
+    itemBonus: number;
+    dc: number;
+  };
+  cantrips: Array<{ name: string; tradition?: string }>;
+  slots: Record<number, { total: number; used: number }>;
+  spells: PF2eEditorSpell[];
+  focusSpells: {
+    focusPoints: { total: number; current: number };
+    spells: Array<{ name: string; tradition?: string }>;
+  };
+  innateSpells: Array<{
+    name: string;
+    tradition?: string;
+    frequency: string;
+  }>;
+  rituals: Array<{ name: string; rank: number }>;
+}
+
+type PF2eEditorFeat = PF2eFeat & { description?: string };
+
+type PF2eEditorData = Omit<
+  PF2eCharacterData,
+  | "attributes"
+  | "savingThrows"
+  | "skills"
+  | "proficiencies"
+  | "currency"
+  | "feats"
+  | "spellcasting"
+  | "appearance"
+  | "personality"
+  | "perception"
+  | "armorClass"
+  | "classDC"
+  | "hp"
+  | "loreSkills"
+  | "strikes"
+  | "inventory"
+  | "classFeatures"
+> & {
+  attributes: PF2eCharacterData["attributes"] & Record<string, PF2eAbilityScore>;
+  savingThrows: NonNullable<PF2eCharacterData["savingThrows"]> & Record<string, PF2eSavingThrow>;
+  skills: NonNullable<PF2eCharacterData["skills"]> & Record<string, PF2eSkill>;
+  proficiencies: NonNullable<PF2eCharacterData["proficiencies"]> & {
+    weapons: Record<string, PF2eProficiencyRank>;
+    armor: Record<string, PF2eProficiencyRank>;
+  };
+  currency: NonNullable<PF2eCharacterData["currency"]> & Record<string, number>;
+  feats: Record<string, PF2eEditorFeat[]>;
+  spellcasting: PF2eEditorSpellcasting | null;
+  appearance: Partial<PF2eAppearance> & Record<string, string | number | undefined>;
+  personality: Partial<PF2ePersonality> & Record<string, string | undefined>;
+  perception: PF2ePerception;
+  armorClass: PF2eArmorClass;
+  classDC: PF2eClassDC;
+  hp: PF2eHitPoints;
+  loreSkills: PF2eLoreSkill[];
+  strikes: PF2eStrike[];
+  inventory: PF2eInventoryItem[];
+  classFeatures: string[];
+  themeColor?: string;
+};
 import { useServerConfigQuery } from "@/hooks/queries";
 import { getUploadLimit, formatUploadLimit } from "@/utils/uploadLimits";
 
 interface Pathfinder2eCharacterEditorProps {
-  character: any;
+  character: Character;
   onSave: (
-    data: any,
+    data: PF2eEditorData,
     showToast?: boolean,
     tokenImageUrl?: string,
   ) => Promise<void>;
@@ -137,7 +236,7 @@ const shouldUseWhiteText = (hexColor: string): boolean => {
   return luminance < 0.5;
 };
 
-const calculateTotalBulk = (inventory: any[]): number => {
+const calculateTotalBulk = (inventory: PF2eInventoryItem[]): number => {
   return inventory.reduce((total, item) => {
     let itemBulk = 0;
     if (typeof item.bulk === "number") itemBulk = item.bulk;
@@ -156,9 +255,9 @@ export const Pathfinder2eCharacterEditor: React.FC<
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { data: serverConfig } = useServerConfigQuery();
 
-  const data = character.data as any;
+  const data = requirePF2eData(character.data);
 
-  const [formData, setFormData] = useState<any>(() => ({
+  const [formData, setFormData] = useState<PF2eEditorData>(() => ({
     ...data,
     attributes: data.attributes || {
       strength: { score: 10, modifier: 0 },
@@ -350,15 +449,25 @@ export const Pathfinder2eCharacterEditor: React.FC<
     spellcasting: data.spellcasting
       ? {
           ...data.spellcasting,
-          cantrips: data.spellcasting.cantrips || [],
-          slots: data.spellcasting.slots || {},
+          cantrips: (data.spellcasting.cantrips || []).map((cantrip) => ({
+            name: cantrip.name,
+          })),
+          slots: Object.fromEntries(
+            Object.entries(data.spellcasting.slots || {}).map(([rank, slot]) => [
+              Number(rank),
+              { total: slot.total, used: slot.expended },
+            ]),
+          ),
           spells: data.spellcasting.spells || [],
           focusSpells: data.spellcasting.focusSpells || {
             focusPoints: { total: 0, current: 0 },
             spells: [],
           },
           innateSpells: data.spellcasting.innateSpells || [],
-          rituals: data.spellcasting.rituals || [],
+          rituals: (data.spellcasting.rituals || []).map((name) => ({
+            name,
+            rank: 1,
+          })),
         }
       : null,
     appearance: data.appearance || {},
@@ -427,7 +536,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
       }
     });
     if (changed) {
-      setFormData((prev: any) => ({ ...prev, attributes: updatedAttributes }));
+      setFormData((prev) => ({ ...prev, attributes: updatedAttributes }));
     }
   }, [
     formData.attributes?.strength?.score,
@@ -466,7 +575,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
       }
     });
     if (hasChanges) {
-      setFormData((prev: any) => ({
+      setFormData((prev) => ({
         ...prev,
         savingThrows: updatedSavingThrows,
       }));
@@ -493,7 +602,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
       formData.perception.proficiencyRank || "untrained",
     );
     const itemBonus = formData.perception.itemBonus || 0;
-    setFormData((prev: any) => ({
+    setFormData((prev) => ({
       ...prev,
       perception: {
         ...prev.perception,
@@ -529,7 +638,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
       }
     });
     if (hasChanges) {
-      setFormData((prev: any) => ({ ...prev, skills: updatedSkills }));
+      setFormData((prev) => ({ ...prev, skills: updatedSkills }));
     }
   }, [
     formData.level,
@@ -593,7 +702,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
   useEffect(() => {
     if (!formData.attributes || !formData.loreSkills || !formData.level) return;
     let hasChanges = false;
-    const updatedLoreSkills = formData.loreSkills.map((lore: any) => {
+    const updatedLoreSkills = formData.loreSkills.map((lore) => {
       const abilityMod = formData.attributes[lore.attribute]?.modifier || 0;
       const profBonus = calculateProficiencyBonus(
         formData.level,
@@ -607,7 +716,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
       return { ...lore, bonus: newBonus };
     });
     if (hasChanges) {
-      setFormData((prev: any) => ({ ...prev, loreSkills: updatedLoreSkills }));
+      setFormData((prev) => ({ ...prev, loreSkills: updatedLoreSkills }));
     }
   }, [
     formData.level,
@@ -621,7 +730,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
     // but the hasChanges check prevents infinite loops
     formData.loreSkills?.length,
     JSON.stringify(
-      formData.loreSkills?.map((l: any) => ({
+      formData.loreSkills?.map((l) => ({
         proficiencyRank: l.proficiencyRank,
         itemBonus: l.itemBonus,
         attribute: l.attribute,
@@ -644,7 +753,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
     );
     const itemBonus = formData.armorClass.itemBonus || 0;
     const total = 10 + effectiveDexMod + profBonus + itemBonus;
-    setFormData((prev: any) => ({
+    setFormData((prev) => ({
       ...prev,
       armorClass: { ...prev.armorClass, total },
     }));
@@ -667,7 +776,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
     );
     const total = 10 + attrMod + profBonus;
     if (formData.classDC.total !== total) {
-      setFormData((prev: any) => ({
+      setFormData((prev) => ({
         ...prev,
         classDC: { ...prev.classDC, total },
       }));
@@ -689,7 +798,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
     if (!formData.inventory) return;
     const currentBulk = calculateTotalBulk(formData.inventory);
     const strMod = formData.attributes?.strength?.modifier || 0;
-    setFormData((prev: any) => ({
+    setFormData((prev) => ({
       ...prev,
       bulk: {
         current: currentBulk,
@@ -707,7 +816,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
     const conMod = formData.attributes?.constitution?.modifier || 0;
     const maximum =
       ancestryHp + classHpPerLevel * formData.level + conMod * formData.level;
-    setFormData((prev: any) => ({ ...prev, hp: { ...prev.hp, maximum } }));
+    setFormData((prev) => ({ ...prev, hp: { ...prev.hp, maximum } }));
   }, [
     formData.level,
     formData.hp?.ancestryHp,
@@ -732,16 +841,20 @@ export const Pathfinder2eCharacterEditor: React.FC<
       formData.spellcasting.spellAttackBonus?.bonus !== newBonus ||
       formData.spellcasting.spellDC?.dc !== newDC
     ) {
-      setFormData((prev: any) => ({
+      setFormData((prev) => ({
         ...prev,
-        spellcasting: {
-          ...prev.spellcasting,
-          spellAttackBonus: {
-            ...prev.spellcasting.spellAttackBonus,
-            bonus: newBonus,
-          },
-          spellDC: { ...prev.spellcasting.spellDC, dc: newDC },
-        },
+        ...(prev.spellcasting
+          ? {
+              spellcasting: {
+                ...prev.spellcasting,
+                spellAttackBonus: {
+                  ...prev.spellcasting.spellAttackBonus,
+                  bonus: newBonus,
+                },
+                spellDC: { ...prev.spellcasting.spellDC, dc: newDC },
+              },
+            }
+          : {}),
       }));
     }
   }, [
@@ -780,25 +893,27 @@ export const Pathfinder2eCharacterEditor: React.FC<
     }
   };
 
-  const updateField = (path: string, value: any) => {
-    setFormData((prev: any) => {
+  const updateField = (path: string, value: unknown) => {
+    setFormData((prev) => {
       const newData = { ...prev };
       const keys = path.split(".");
-      let current = newData;
+      let current: object = newData;
       for (let i = 0; i < keys.length - 1; i++) {
-        if (Array.isArray(current[keys[i]])) {
-          current[keys[i]] = [...current[keys[i]]];
+        const record = current as Record<string, unknown>;
+        const child = record[keys[i]];
+        if (Array.isArray(child)) {
+          record[keys[i]] = [...child];
         } else if (
-          typeof current[keys[i]] === "object" &&
-          current[keys[i]] !== null
+          typeof child === "object" &&
+          child !== null
         ) {
-          current[keys[i]] = { ...current[keys[i]] };
+          record[keys[i]] = { ...child };
         } else {
-          current[keys[i]] = {};
+          record[keys[i]] = {};
         }
-        current = current[keys[i]];
+        current = record[keys[i]] as object;
       }
-      current[keys[keys.length - 1]] = value;
+      (current as Record<string, unknown>)[keys[keys.length - 1]] = value;
       return newData;
     });
   };
@@ -848,7 +963,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
 
           // Store the new token URL to pass separately to onSave
           newTokenImageUrl = `/api/assets/tokens/${assetId}`;
-        } catch (uploadError: any) {
+        } catch (_caught) {
+      const uploadError = asError(_caught);
           console.error("Error uploading token image:", uploadError);
           setErrors({
             ...errors,
@@ -863,7 +979,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
 
       // Pass the tokenImageUrl as a separate parameter if it was uploaded
       await onSave(updatedData, true, newTokenImageUrl);
-    } catch (error) {
+    } catch (_caught) {
+      const error = asError(_caught);
       console.error("Error saving character:", error);
       setErrors({
         ...errors,
@@ -1369,7 +1486,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
           </button>
         </div>
         <div className="space-y-2">
-          {(formData.loreSkills || []).map((lore: any, index: number) => (
+          {(formData.loreSkills || []).map((lore, index: number) => (
             <div
               key={index}
               className="bg-white border border-stone-200 rounded-lg p-2"
@@ -1387,7 +1504,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
                 <button
                   onClick={() => {
                     const newLoreSkills = formData.loreSkills.filter(
-                      (_: any, i: number) => i !== index,
+                      (_, i: number) => i !== index,
                     );
                     updateField("loreSkills", newLoreSkills);
                   }}
@@ -1883,7 +2000,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
           </button>
         </div>
         <div className="space-y-3">
-          {(formData.strikes || []).map((strike: any, index: number) => (
+          {(formData.strikes || []).map((strike, index: number) => (
             <div
               key={index}
               className="bg-white border border-stone-200 rounded-lg p-3"
@@ -1901,7 +2018,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
                 <button
                   onClick={() => {
                     const newStrikes = formData.strikes.filter(
-                      (_: any, i: number) => i !== index,
+                      (_, i: number) => i !== index,
                     );
                     updateField("strikes", newStrikes);
                   }}
@@ -1927,7 +2044,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
                 )}
                 <input
                   type="number"
-                  value={strike.attackBonus}
+                  value={strike.attackBonus ?? ""}
                   onChange={(e) =>
                     updateField(
                       `strikes.${index}.attackBonus`,
@@ -2041,6 +2158,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
       );
     }
 
+    const spellcasting = formData.spellcasting;
+
     return (
       <div className="space-y-6">
         {/* Spellcasting Config */}
@@ -2054,7 +2173,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
                 Tradition
               </label>
               <select
-                value={formData.spellcasting.tradition}
+                value={spellcasting.tradition}
                 onChange={(e) =>
                   updateField("spellcasting.tradition", e.target.value)
                 }
@@ -2072,7 +2191,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
                 Type
               </label>
               <select
-                value={formData.spellcasting.type}
+                value={spellcasting.type}
                 onChange={(e) =>
                   updateField("spellcasting.type", e.target.value)
                 }
@@ -2087,7 +2206,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
                 Key Attribute
               </label>
               <select
-                value={formData.spellcasting.keyAttribute}
+                value={spellcasting.keyAttribute}
                 onChange={(e) =>
                   updateField("spellcasting.keyAttribute", e.target.value)
                 }
@@ -2112,14 +2231,14 @@ export const Pathfinder2eCharacterEditor: React.FC<
             <div className="space-y-2">
               {renderProficiencySelector(
                 "spellcasting.spellAttackBonus.proficiencyRank",
-                (formData.spellcasting.spellAttackBonus
+                (spellcasting.spellAttackBonus
                   ?.proficiencyRank as ProficiencyRank) || "untrained",
               )}
               <div className="flex items-center space-x-2">
                 <label className="text-sm text-stone-700">Item Bonus:</label>
                 <input
                   type="number"
-                  value={formData.spellcasting.spellAttackBonus?.itemBonus || 0}
+                  value={spellcasting.spellAttackBonus?.itemBonus || 0}
                   onChange={(e) =>
                     updateField(
                       "spellcasting.spellAttackBonus.itemBonus",
@@ -2133,7 +2252,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
                 <div className="text-xs text-stone-600 mb-1">Total Attack</div>
                 <div className="text-4xl font-bold text-purple-800">
                   {formatModifier(
-                    formData.spellcasting.spellAttackBonus?.bonus || 0,
+                    spellcasting.spellAttackBonus?.bonus || 0,
                   )}
                 </div>
               </div>
@@ -2145,14 +2264,14 @@ export const Pathfinder2eCharacterEditor: React.FC<
             <div className="space-y-2">
               {renderProficiencySelector(
                 "spellcasting.spellDC.proficiencyRank",
-                (formData.spellcasting.spellDC
+                (spellcasting.spellDC
                   ?.proficiencyRank as ProficiencyRank) || "untrained",
               )}
               <div className="flex items-center space-x-2">
                 <label className="text-sm text-stone-700">Item Bonus:</label>
                 <input
                   type="number"
-                  value={formData.spellcasting.spellDC?.itemBonus || 0}
+                  value={spellcasting.spellDC?.itemBonus || 0}
                   onChange={(e) =>
                     updateField(
                       "spellcasting.spellDC.itemBonus",
@@ -2165,7 +2284,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
               <div className="text-center pt-2 border-t border-stone-300">
                 <div className="text-xs text-stone-600 mb-1">Total DC</div>
                 <div className="text-4xl font-bold text-purple-800">
-                  {formData.spellcasting.spellDC?.dc || 10}
+                  {spellcasting.spellDC?.dc || 10}
                 </div>
               </div>
             </div>
@@ -2179,10 +2298,10 @@ export const Pathfinder2eCharacterEditor: React.FC<
             <button
               onClick={() => {
                 const newCantrips = [
-                  ...(formData.spellcasting.cantrips || []),
+                  ...(spellcasting.cantrips || []),
                   {
                     name: "New Cantrip",
-                    tradition: formData.spellcasting.tradition,
+                    tradition: spellcasting.tradition,
                   },
                 ];
                 updateField("spellcasting.cantrips", newCantrips);
@@ -2194,15 +2313,15 @@ export const Pathfinder2eCharacterEditor: React.FC<
             </button>
           </div>
           <div className="space-y-2">
-            {(formData.spellcasting.cantrips || []).map(
-              (cantrip: any, index: number) => (
+            {(spellcasting.cantrips || []).map(
+              (cantrip, index: number) => (
                 <div
                   key={index}
                   className="flex items-center justify-between bg-white border border-stone-200 rounded-lg p-2"
                 >
                   <input
                     type="text"
-                    value={cantrip.name || cantrip}
+                    value={cantrip.name}
                     onChange={(e) =>
                       updateField(
                         `spellcasting.cantrips.${index}.name`,
@@ -2214,8 +2333,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
                   />
                   <button
                     onClick={() => {
-                      const newCantrips = formData.spellcasting.cantrips.filter(
-                        (_: any, i: number) => i !== index,
+                      const newCantrips = spellcasting.cantrips.filter(
+                        (_, i: number) => i !== index,
                       );
                       updateField("spellcasting.cantrips", newCantrips);
                     }}
@@ -2226,8 +2345,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
                 </div>
               ),
             )}
-            {(!formData.spellcasting.cantrips ||
-              formData.spellcasting.cantrips.length === 0) && (
+            {(!spellcasting.cantrips ||
+              spellcasting.cantrips.length === 0) && (
               <div className="text-sm text-stone-500 italic text-center py-4">
                 No cantrips added yet
               </div>
@@ -2242,7 +2361,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
           </h3>
           <div className="grid grid-cols-5 md:grid-cols-10 gap-2">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rank) => {
-              const slots = formData.spellcasting.slots?.[rank] || {
+              const slots = spellcasting.slots?.[rank] || {
                 total: 0,
                 used: 0,
               };
@@ -2297,17 +2416,17 @@ export const Pathfinder2eCharacterEditor: React.FC<
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-bold text-stone-800">
               Spells{" "}
-              {formData.spellcasting.type === "prepared" ? "Prepared" : "Known"}
+              {spellcasting.type === "prepared" ? "Prepared" : "Known"}
             </h3>
             <button
               onClick={() => {
                 const newSpells = [
-                  ...(formData.spellcasting.spells || []),
+                  ...(spellcasting.spells || []),
                   {
                     name: "New Spell",
                     rank: 1,
-                    tradition: formData.spellcasting.tradition,
-                    prepared: formData.spellcasting.type === "prepared",
+                    tradition: spellcasting.tradition,
+                    prepared: spellcasting.type === "prepared",
                   },
                 ];
                 updateField("spellcasting.spells", newSpells);
@@ -2319,8 +2438,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
             </button>
           </div>
           <div className="space-y-2">
-            {(formData.spellcasting.spells || []).map(
-              (spell: any, index: number) => (
+            {(spellcasting.spells || []).map(
+              (spell, index: number) => (
                 <div
                   key={index}
                   className="bg-white border border-stone-200 rounded-lg p-2"
@@ -2340,8 +2459,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
                     />
                     <button
                       onClick={() => {
-                        const newSpells = formData.spellcasting.spells.filter(
-                          (_: any, i: number) => i !== index,
+                        const newSpells = spellcasting.spells.filter(
+                          (_, i: number) => i !== index,
                         );
                         updateField("spellcasting.spells", newSpells);
                       }}
@@ -2367,7 +2486,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
                         </option>
                       ))}
                     </select>
-                    {formData.spellcasting.type === "prepared" && (
+                    {spellcasting.type === "prepared" && (
                       <label className="flex items-center text-sm">
                         <input
                           type="checkbox"
@@ -2387,8 +2506,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
                 </div>
               ),
             )}
-            {(!formData.spellcasting.spells ||
-              formData.spellcasting.spells.length === 0) && (
+            {(!spellcasting.spells ||
+              spellcasting.spells.length === 0) && (
               <div className="text-sm text-stone-500 italic text-center py-4">
                 No spells added yet
               </div>
@@ -2410,7 +2529,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
                   min="0"
                   max="3"
                   value={
-                    formData.spellcasting.focusSpells?.focusPoints?.current || 0
+                    spellcasting.focusSpells?.focusPoints?.current || 0
                   }
                   onChange={(e) =>
                     updateField(
@@ -2425,10 +2544,10 @@ export const Pathfinder2eCharacterEditor: React.FC<
               <button
                 onClick={() => {
                   const newFocusSpells = [
-                    ...(formData.spellcasting.focusSpells?.spells || []),
+                    ...(spellcasting.focusSpells?.spells || []),
                     {
                       name: "New Focus Spell",
-                      tradition: formData.spellcasting.tradition,
+                      tradition: spellcasting.tradition,
                     },
                   ];
                   updateField(
@@ -2445,8 +2564,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
             </div>
           </div>
           <div className="space-y-2">
-            {(formData.spellcasting.focusSpells?.spells || []).map(
-              (spell: any, index: number) => (
+            {(spellcasting.focusSpells?.spells || []).map(
+              (spell, index: number) => (
                 <div
                   key={index}
                   className="flex items-center justify-between bg-white border border-stone-200 rounded-lg p-2"
@@ -2466,8 +2585,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
                   <button
                     onClick={() => {
                       const newFocusSpells =
-                        formData.spellcasting.focusSpells.spells.filter(
-                          (_: any, i: number) => i !== index,
+                        spellcasting.focusSpells.spells.filter(
+                          (_, i: number) => i !== index,
                         );
                       updateField(
                         "spellcasting.focusSpells.spells",
@@ -2481,8 +2600,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
                 </div>
               ),
             )}
-            {(!formData.spellcasting.focusSpells?.spells ||
-              formData.spellcasting.focusSpells.spells.length === 0) && (
+            {(!spellcasting.focusSpells?.spells ||
+              spellcasting.focusSpells.spells.length === 0) && (
               <div className="text-sm text-stone-500 italic text-center py-4">
                 No focus spells added yet
               </div>
@@ -2497,10 +2616,10 @@ export const Pathfinder2eCharacterEditor: React.FC<
             <button
               onClick={() => {
                 const newInnateSpells = [
-                  ...(formData.spellcasting.innateSpells || []),
+                  ...(spellcasting.innateSpells || []),
                   {
                     name: "New Innate Spell",
-                    tradition: formData.spellcasting.tradition,
+                    tradition: spellcasting.tradition,
                     frequency: "at will",
                   },
                 ];
@@ -2513,8 +2632,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
             </button>
           </div>
           <div className="space-y-2">
-            {(formData.spellcasting.innateSpells || []).map(
-              (spell: any, index: number) => (
+            {(spellcasting.innateSpells || []).map(
+              (spell, index: number) => (
                 <div
                   key={index}
                   className="bg-white border border-stone-200 rounded-lg p-2"
@@ -2535,8 +2654,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
                     <button
                       onClick={() => {
                         const newInnateSpells =
-                          formData.spellcasting.innateSpells.filter(
-                            (_: any, i: number) => i !== index,
+                          spellcasting.innateSpells.filter(
+                            (_, i: number) => i !== index,
                           );
                         updateField(
                           "spellcasting.innateSpells",
@@ -2563,8 +2682,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
                 </div>
               ),
             )}
-            {(!formData.spellcasting.innateSpells ||
-              formData.spellcasting.innateSpells.length === 0) && (
+            {(!spellcasting.innateSpells ||
+              spellcasting.innateSpells.length === 0) && (
               <div className="text-sm text-stone-500 italic text-center py-4">
                 No innate spells added yet
               </div>
@@ -2579,7 +2698,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
             <button
               onClick={() => {
                 const newRituals = [
-                  ...(formData.spellcasting.rituals || []),
+                  ...(spellcasting.rituals || []),
                   { name: "New Ritual", rank: 1 },
                 ];
                 updateField("spellcasting.rituals", newRituals);
@@ -2591,8 +2710,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
             </button>
           </div>
           <div className="space-y-2">
-            {(formData.spellcasting.rituals || []).map(
-              (ritual: any, index: number) => (
+            {(spellcasting.rituals || []).map(
+              (ritual, index: number) => (
                 <div
                   key={index}
                   className="flex items-center justify-between bg-white border border-stone-200 rounded-lg p-2"
@@ -2627,8 +2746,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
                   </select>
                   <button
                     onClick={() => {
-                      const newRituals = formData.spellcasting.rituals.filter(
-                        (_: any, i: number) => i !== index,
+                      const newRituals = spellcasting.rituals.filter(
+                        (_, i: number) => i !== index,
                       );
                       updateField("spellcasting.rituals", newRituals);
                     }}
@@ -2639,8 +2758,8 @@ export const Pathfinder2eCharacterEditor: React.FC<
                 </div>
               ),
             )}
-            {(!formData.spellcasting.rituals ||
-              formData.spellcasting.rituals.length === 0) && (
+            {(!spellcasting.rituals ||
+              spellcasting.rituals.length === 0) && (
               <div className="text-sm text-stone-500 italic text-center py-4">
                 No rituals added yet
               </div>
@@ -2726,7 +2845,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
           </button>
         </div>
         <div className="space-y-3">
-          {(formData.inventory || []).map((item: any, index: number) => (
+          {(formData.inventory || []).map((item, index: number) => (
             <div
               key={index}
               className="bg-white border border-stone-200 rounded-lg p-3"
@@ -2744,7 +2863,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
                 <button
                   onClick={() => {
                     const newInventory = formData.inventory.filter(
-                      (_: any, i: number) => i !== index,
+                      (_, i: number) => i !== index,
                     );
                     updateField("inventory", newInventory);
                   }}
@@ -2941,7 +3060,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
               </button>
             </div>
             <div className="space-y-3">
-              {(formData.feats?.[key] || []).map((feat: any, index: number) => (
+              {(formData.feats?.[key] || []).map((feat, index: number) => (
                 <div
                   key={index}
                   className="bg-white border border-stone-200 rounded-lg p-3"
@@ -2978,7 +3097,7 @@ export const Pathfinder2eCharacterEditor: React.FC<
                     <button
                       onClick={() => {
                         const newFeats = formData.feats[key].filter(
-                          (_: any, i: number) => i !== index,
+                          (_, i: number) => i !== index,
                         );
                         updateField(`feats.${key}`, newFeats);
                       }}
@@ -3173,5 +3292,12 @@ export const Pathfinder2eCharacterEditor: React.FC<
     </div>
   );
 };
+
+function requirePF2eData(data: Character["data"]): PF2eCharacterData {
+  if (!("attributes" in data) || !("ancestry" in data)) {
+    throw new Error("Expected Pathfinder 2e character data");
+  }
+  return data;
+}
 
 export default Pathfinder2eCharacterEditor;

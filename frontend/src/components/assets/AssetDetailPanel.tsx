@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
@@ -184,7 +185,8 @@ export default function AssetDetailPanel({ asset, onClose, onDelete, onUpdate }:
       setMoveScope(null);
       setMoveCampaignId('');
       onUpdate?.(updated);
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       setMoveError(err?.response?.data?.error ?? 'Failed to move asset. Please try again.');
     } finally {
       setMoving(false);

@@ -21,7 +21,7 @@ import {
   CreateTokenTemplateCommand,
   CreateTokenTemplateData,
 } from "../application/tokenTemplates/CreateTokenTemplate";
-import { JsonValue } from "../domain/tokenTemplates/TokenTemplate";
+import { JsonValue, TokenTemplate } from "../domain/tokenTemplates/TokenTemplate";
 import {
   COPY_TOKEN_TEMPLATE,
   CopyTokenTemplateCommand,
@@ -202,12 +202,12 @@ router.put(
 
       const updated = await tokenTemplateCommands.dispatch<
         UpdateTokenTemplateCommand,
-        any
+        TokenTemplate
       >({
         type: UPDATE_TOKEN_TEMPLATE,
         campaignId,
         templateId: id,
-        data: parsed.data as any,
+        data: parsed.data as UpdateTokenTemplateCommand["data"],
       });
 
       return res.json(updated);
@@ -275,7 +275,7 @@ router.post(
       const data = parsed.data;
       const template = await tokenTemplateCommands.dispatch<
         SaveTokenTemplateCommand,
-        any
+        TokenTemplate
       >({
         type: SAVE_TOKEN_TEMPLATE,
         campaignId,
@@ -288,7 +288,7 @@ router.post(
           hp: data.hp ?? null,
           statBlock: data.statBlock ?? null,
           sightRadius: data.sightRadius ?? null,
-        } as any,
+        } as SaveTokenTemplateCommand["data"],
       });
 
       return res.status(201).json(template);

@@ -5,12 +5,16 @@
  */
 
 import { GameSystem } from '@prisma/client';
+import type { CoC7eCharacterData } from '../../game-systems/callOfCthulhu7e';
 
 export interface CharacterTemplate {
   name: string;
   description: string;
   gameSystem: GameSystem;
-  data: any;
+  data: Partial<CoC7eCharacterData> & {
+    derivedStats: CoC7eCharacterData["derivedStats"];
+    skills: CoC7eCharacterData["skills"];
+  } & Record<string, unknown>;
 }
 
 /**

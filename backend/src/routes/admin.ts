@@ -134,7 +134,7 @@ router.post("/users", async (req, res) => {
 
     return res.status(201).json({
       message: "User created successfully",
-      user: publicUser(result.user as any),
+      user: publicUser(result.user),
       temporaryPassword: result.temporaryPassword,
     });
   } catch (error) {
@@ -157,7 +157,7 @@ router.post("/users/invite", async (req, res) => {
     >({ type: INVITE_ADMIN_USER, actor: adminActor(req), input: req.body });
     return res.status(201).json({
       message: `Invitation sent to ${result.user.email}`,
-      user: publicUser(result.user as any),
+      user: publicUser(result.user),
       expiresInDays: result.expiresInDays,
     });
   } catch (error) {

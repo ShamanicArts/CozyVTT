@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 /**
  * Character Sheet Editor Modal
  */
@@ -35,7 +36,7 @@ export default function CharacterSheetEditorModal({
   // third argument — forward it so the character's token actually updates.
   // (Omit it when undefined so an edit that didn't touch the token keeps the
   // existing image.)
-  const handleSave = async (data: any, _showToast?: boolean, tokenImageUrl?: string) => {
+  const handleSave = async (data: unknown, _showToast?: boolean, tokenImageUrl?: string) => {
     try {
       setSaving(true);
       await api.updateCharacter(character.id, {
@@ -50,7 +51,8 @@ export default function CharacterSheetEditorModal({
 
       // Close modal
       onClose();
-    } catch (error: any) {
+    } catch (_caught) {
+      const error = asError(_caught);
       console.error('Error saving character:', error);
 
       // Show detailed error message

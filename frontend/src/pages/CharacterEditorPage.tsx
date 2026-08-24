@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // Character Editor Page
 // Allows editing characters for any game system
@@ -35,7 +36,7 @@ export default function CharacterEditorPage() {
 
   // Auto-save timer ref
   const autoSaveTimerRef = useRef<number | null>(null);
-  const pendingDataRef = useRef<any>(null);
+  const pendingDataRef = useRef<unknown>(null);
 
   // ============================================
   // Fetch Character & Check Permissions
@@ -70,12 +71,14 @@ export default function CharacterEditorPage() {
               fetchedCharacter.campaignId,
             );
             setCampaign(fetchedCampaign);
-          } catch (err) {
+          } catch (_caught) {
+      const err = asError(_caught);
             console.warn("Failed to fetch campaign:", err);
             // Not critical - continue without campaign data
           }
         }
-      } catch (err: any) {
+      } catch (_caught) {
+      const err = asError(_caught);
         console.error("Failed to fetch character:", err);
         setError(err.message || "Failed to load character");
       } finally {
@@ -105,7 +108,8 @@ export default function CharacterEditorPage() {
         if (camp.ownerId === user.id) {
           return true;
         }
-      } catch (err) {
+      } catch (_caught) {
+      const err = asError(_caught);
         console.error("Failed to check campaign permission:", err);
       }
     }
@@ -118,7 +122,7 @@ export default function CharacterEditorPage() {
   // ============================================
 
   const handleSave = useCallback(
-    async (data: any, doShowToast = true, tokenImageUrl?: string) => {
+    async (data: unknown, doShowToast = true, tokenImageUrl?: string) => {
       if (!character) return;
 
       try {
@@ -144,7 +148,8 @@ export default function CharacterEditorPage() {
         if (doShowToast) {
           showToast("Character saved!", "success");
         }
-      } catch (err: any) {
+      } catch (_caught) {
+      const err = asError(_caught);
         console.error("Failed to save character:", err);
         console.error("Error response:", err.response?.data);
 
@@ -152,7 +157,7 @@ export default function CharacterEditorPage() {
         if (err.response?.data?.validationErrors) {
           const validationErrors = err.response.data.validationErrors;
           const errorMessages = validationErrors
-            .map((e: any) => `${e.path}: ${e.message}`)
+            .map((e) => `${e.path}: ${e.message}`)
             .join("\n");
           setError(`Validation errors:\n${errorMessages}`);
           console.error("Validation errors:", validationErrors);
@@ -175,7 +180,7 @@ export default function CharacterEditorPage() {
   // ============================================
 
   const handleSheetSave = useCallback(
-    async (data: any, showToast?: boolean, tokenImageUrl?: string) => {
+    async (data: unknown, showToast?: boolean, tokenImageUrl?: string) => {
       // Log the data being saved for debugging
       console.log("Saving character data:", data);
 

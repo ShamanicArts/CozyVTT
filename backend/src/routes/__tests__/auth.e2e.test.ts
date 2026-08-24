@@ -10,7 +10,11 @@
 
 // Mock rate limiter before any imports that load the auth router
 jest.mock('express-rate-limit', () => {
-  return () => (_req: any, _res: any, next: any) => next();
+  return () => (
+    _req: import('express').Request,
+    _res: import('express').Response,
+    next: import('express').NextFunction,
+  ) => next();
 });
 
 // Keep registration policy deterministic while exercising real database adapters.
@@ -230,7 +234,7 @@ describe('POST /api/auth/login', () => {
 
 describe('POST /api/auth/logout', () => {
   it('returns 200 and destroys the session', async () => {
-    const capability = (request as any)["a" + "gent"](app);
+    const capability = request.agent(app);
 
     // Create & log in a user via Supertest capability (shares cookies)
     const user = await createTestUser({ displayName: 'Logout Test' });
@@ -262,7 +266,7 @@ describe('GET /api/auth/me', () => {
   });
 
   it('returns the current user when authenticated', async () => {
-    const capability = (request as any)["a" + "gent"](app);
+    const capability = request.agent(app);
     const user = await createTestUser({ displayName: 'Me Test' });
 
     await capability.post('/api/auth/login').send({
@@ -291,7 +295,7 @@ describe('GET /api/auth/ping', () => {
   });
 
   it('returns 200 when authenticated', async () => {
-    const capability = (request as any)["a" + "gent"](app);
+    const capability = request.agent(app);
     const user = await createTestUser({ displayName: 'Ping Test' });
 
     await capability.post('/api/auth/login').send({
@@ -340,7 +344,7 @@ describe('POST /api/auth/change-password', () => {
   });
 
   it('changes the password for an authenticated user', async () => {
-    const capability = (request as any)["a" + "gent"](app);
+    const capability = request.agent(app);
     const newPassword = 'NewTestPass99!';
     const user = await createTestUser({ displayName: 'PwChange Test' });
 
@@ -371,7 +375,7 @@ describe('POST /api/auth/change-password', () => {
   });
 
   it('returns 401 for incorrect current password', async () => {
-    const capability = (request as any)["a" + "gent"](app);
+    const capability = request.agent(app);
     const user = await createTestUser({ displayName: 'BadPw Test' });
 
     await capability.post('/api/auth/login').send({

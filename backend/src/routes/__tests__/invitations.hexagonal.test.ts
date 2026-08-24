@@ -15,7 +15,7 @@ jest.mock('../../config/database', () => ({
 
 jest.mock('../../middleware/compose', () => ({
   authenticated: (req: express.Request, _res: express.Response, next: express.NextFunction) => {
-    (req as any).session = { userId: 'player-1' };
+    req.session = { userId: 'player-1' } as express.Request["session"];
     next();
   },
 }));

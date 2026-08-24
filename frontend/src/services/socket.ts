@@ -42,7 +42,7 @@ import type {
 // Vite dev server proxies in development)
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || '';
 
-type EventCallback<T = any> = (data: T) => void;
+type EventCallback<T = unknown> = (data: T) => void;
 
 class SocketClient {
   private socket: Socket | null = null;
@@ -225,7 +225,7 @@ class SocketClient {
     });
   }
 
-  onSyncState(callback: EventCallback) {
+  onSyncState<T>(callback: EventCallback<T>) {
     this.socket?.on('sync.state', callback);
   }
 
@@ -285,7 +285,7 @@ class SocketClient {
     this.socket?.on('chat.message', callback);
   }
 
-  onChatSystem(callback: EventCallback<{ id?: string; content: string; metadata?: any; timestamp: string }>) {
+  onChatSystem(callback: EventCallback<{ id?: string; content: string; metadata?: import("../types").MessageMetadata; timestamp: string }>) {
     this.socket?.on('chat.system', callback);
   }
 
@@ -297,7 +297,7 @@ class SocketClient {
     this.socket?.emit('map.change', { mapId });
   }
 
-  onMapChanged(callback: EventCallback<{ mapId: string; mapData: any }>) {
+  onMapChanged(callback: EventCallback<{ mapId: string; mapData: unknown }>) {
     this.socket?.on('map.changed', callback);
   }
 
@@ -321,7 +321,7 @@ class SocketClient {
     this.socket?.on('session.started', callback);
   }
 
-  onSessionPaused(callback: EventCallback) {
+  onSessionPaused<T>(callback: EventCallback<T>) {
     this.socket?.on('session.paused', callback);
   }
 
@@ -329,7 +329,7 @@ class SocketClient {
     this.socket?.on('session.ended', callback);
   }
 
-  onSessionResumed(callback: EventCallback) {
+  onSessionResumed<T>(callback: EventCallback<T>) {
     this.socket?.on('session.resumed', callback);
   }
 
@@ -487,11 +487,11 @@ class SocketClient {
   // Event Cleanup
   // ============================================
 
-  on(event: string, callback: EventCallback) {
+  on<T>(event: string, callback: EventCallback<T>) {
     this.socket?.on(event, callback);
   }
 
-  off(event: string, callback?: EventCallback) {
+  off<T>(event: string, callback?: EventCallback<T>) {
     if (callback) {
       this.socket?.off(event, callback);
     } else {

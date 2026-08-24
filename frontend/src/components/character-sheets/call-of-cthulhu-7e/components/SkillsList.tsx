@@ -15,7 +15,18 @@ interface Skill {
   specialization?: string | null;
   language?: string;
   notes?: string;
+  name?: string;
 }
+
+interface SpecializedSkills {
+  custom?: boolean | Skill[];
+  brawl?: Skill;
+  handgun?: Skill;
+  rifle?: Skill;
+  shotgun?: Skill;
+}
+
+type SkillEntry = Skill | Skill[] | SpecializedSkills;
 
 interface ThemeColor {
   name: string;
@@ -28,7 +39,7 @@ interface ThemeColor {
 
 interface SkillsListProps {
   /** Skills object from character data */
-  skills: Record<string, any>;
+  skills: Record<string, SkillEntry | undefined>;
 
   /** Theme color for styling checkboxes */
   themeColor?: ThemeColor;
@@ -37,7 +48,11 @@ interface SkillsListProps {
   editable?: boolean;
 
   /** onChange handler for edit mode */
-  onChange?: (skillName: string, field: keyof Skill, value: any) => void;
+  onChange?: (
+    skillName: string,
+    field: keyof Skill,
+    value: Skill[keyof Skill],
+  ) => void;
 
   /** Click to roll 1d100. Omit outside campaign context. */
   onRoll?: (expression: string, purpose: string) => void;
@@ -129,7 +144,7 @@ const SkillRow: React.FC<{
   skill: Skill;
   editable: boolean;
   themeColor?: ThemeColor;
-  onChange?: (field: keyof Skill, value: any) => void;
+  onChange?: (field: keyof Skill, value: Skill[keyof Skill]) => void;
   onRoll?: (expression: string, purpose: string) => void;
 }> = ({ name, displayName, skill, editable, themeColor, onChange, onRoll }) => {
   if (!skill) return null;
@@ -218,7 +233,11 @@ const SkillRow: React.FC<{
  * SkillsList - Display all skills organized by category
  */
 export const SkillsList: React.FC<SkillsListProps> = ({ skills, themeColor, editable = false, onChange, onRoll }) => {
-  const handleSkillChange = (skillName: string, field: keyof Skill, value: any) => {
+  const handleSkillChange = (
+    skillName: string,
+    field: keyof Skill,
+    value: Skill[keyof Skill],
+  ) => {
     onChange?.(skillName, field, value);
   };
 
@@ -246,7 +265,7 @@ export const SkillsList: React.FC<SkillsListProps> = ({ skills, themeColor, edit
               const skill = skills[skillName];
 
               // Handle special cases
-              if (skillName === 'fighting' && skill?.custom) {
+              if (skillName === 'fighting' && isSpecializedSkills(skill) && skill.custom && skill.brawl) {
                 // Fighting specializations
                 return (
                   <div key={skillName}>
@@ -263,7 +282,7 @@ export const SkillsList: React.FC<SkillsListProps> = ({ skills, themeColor, edit
                 );
               }
 
-              if (skillName === 'firearms' && skill) {
+              if (skillName === 'firearms' && isSpecializedSkills(skill)) {
                 // Firearms specializations
                 return (
                   <div key={skillName} className="space-y-0.5">
@@ -305,7 +324,7 @@ export const SkillsList: React.FC<SkillsListProps> = ({ skills, themeColor, edit
                 // Other languages (array)
                 return (
                   <div key={skillName}>
-                    {skill.map((lang: any, idx: number) => (
+                    {skill.map((lang, idx: number) => (
                       <SkillRow
                         key={`language-${idx}`}
                         name={`languageOther.${idx}`}
@@ -324,7 +343,7 @@ export const SkillsList: React.FC<SkillsListProps> = ({ skills, themeColor, edit
                 // Science specializations (array)
                 return (
                   <div key={skillName}>
-                    {skill.map((sci: any, idx: number) => (
+                    {skill.map((sci, idx: number) => (
                       <SkillRow
                         key={`science-${idx}`}
                         name={`science.${idx}`}
@@ -340,7 +359,7 @@ export const SkillsList: React.FC<SkillsListProps> = ({ skills, themeColor, edit
               }
 
               // Standard skill
-              if (skill && typeof skill === 'object' && 'currentValue' in skill) {
+              if (isSkill(skill)) {
                 return (
                   <SkillRow
                     key={skillName}
@@ -368,7 +387,7 @@ export const SkillsList: React.FC<SkillsListProps> = ({ skills, themeColor, edit
             Custom Skills
           </h4>
           <div className="space-y-0.5">
-            {skills.customSkills.map((skill: any, idx: number) => (
+            {skills.customSkills.map((skill, idx: number) => (
               <SkillRow
                 key={`custom-${idx}`}
                 name={`customSkills.${idx}`}
@@ -406,5 +425,15 @@ export const SkillsList: React.FC<SkillsListProps> = ({ skills, themeColor, edit
     </div>
   );
 };
+
+function isSkill(value: SkillEntry | undefined): value is Skill {
+  return !!value && !Array.isArray(value) && "currentValue" in value;
+}
+
+function isSpecializedSkills(
+  value: SkillEntry | undefined,
+): value is SpecializedSkills {
+  return !!value && !Array.isArray(value) && !("currentValue" in value);
+}
 
 export default SkillsList;

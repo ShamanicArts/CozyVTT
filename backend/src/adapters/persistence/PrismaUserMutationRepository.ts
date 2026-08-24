@@ -20,7 +20,7 @@ export class PrismaUserMutationRepository implements UserMutationRepository {
     })) as ManagedUser | null;
   }
 
-  updateUser(id: string, input: UserProfileUpdate): Promise<unknown> {
+  updateUser(id: string, input: UserProfileUpdate): Promise<object> {
     return this.client.user.update({ where: { id }, data: input as never });
   }
 

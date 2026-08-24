@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // Forgot Password Page
 // Allows unauthenticated users to request a password reset email
@@ -45,7 +46,8 @@ export default function ForgotPasswordPage() {
     try {
       await authService.forgotPassword(email.trim().toLowerCase());
       setSubmitted(true);
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       // The backend always returns 200 for this endpoint to prevent
       // email enumeration — but surface any unexpected errors.
       const msg = err.response?.data?.message;

@@ -85,7 +85,11 @@ function fixture(role: CapabilityGameplayRole = "DM") {
   register(UPDATE_MAP_TOKEN, { token, map });
   register(START_TOKEN_MOVE, { token, map });
   register(FINALIZE_TOKEN_MOVE, { token, map, tokens: [token] });
-  register(SEND_CHAT_MESSAGE, (command: any) => ({
+  register(SEND_CHAT_MESSAGE, (command: {
+    userId: string;
+    speakerName: string;
+    content: string;
+  }) => ({
     id: "message-1",
     userId: command.userId,
     userName: command.speakerName,

@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // AdminPage
 //
@@ -380,11 +381,12 @@ export default function AdminPage() {
       setAppearanceForm({
         themeId: loadedSettings.themeId || "cozy-default",
         fontId: loadedSettings.fontId || "default",
-        customColors: (loadedSettings.customThemeColors as any) || {
+        customColors: {
           primary: "#4A5D4E",
           accent: "#D4A574",
           background: "#FFF9E6",
           text: "#1F2937",
+          ...loadedSettings.customThemeColors,
         },
       });
     } catch (err: unknown) {
@@ -2695,7 +2697,7 @@ export default function AdminPage() {
                       setAppearanceSaving(true);
                       setAppearanceError("");
                       try {
-                        const updateData: Record<string, any> = {
+                        const updateData: Record<string, unknown> = {
                           themeId: appearanceForm.themeId,
                           fontId: appearanceForm.fontId,
                         };
@@ -2706,7 +2708,8 @@ export default function AdminPage() {
                         await adminService.updateSettings(updateData);
                         await refreshAppearance();
                         showToast("Appearance saved!", "success");
-                      } catch (err: any) {
+                      } catch (_caught) {
+      const err = asError(_caught);
                         setAppearanceError(
                           err.response?.data?.message ||
                             "Failed to save appearance",

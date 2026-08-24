@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // Campaign Context
 // Manages campaign state and data
@@ -150,7 +151,7 @@ export function CampaignProvider({ children }: CampaignProviderProps) {
       setActiveSession(data.activeSession ?? null);
 
       // Initialize atmosphere state from saved campaign vibeSettings
-      const vs = data.vibeSettings as Record<string, any> | undefined;
+      const vs = data.vibeSettings;
       setActiveAtmosphereEffect(vs?.atmosphereEffect ?? null);
       if (vs?.atmosphereAudio?.assetId) {
         setActiveAtmosphereAudio({
@@ -193,7 +194,8 @@ export function CampaignProvider({ children }: CampaignProviderProps) {
           }
         }
       }
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       console.error('Failed to load campaign:', err);
 
       // Handle specific errors
@@ -229,7 +231,8 @@ export function CampaignProvider({ children }: CampaignProviderProps) {
       setCurrentMap(map);
       useGameStore.getState().setTokens(map.tokens || []);
       setPlayerSpiritVisible(spiritVisible ?? false);
-    } catch (err) {
+    } catch (_caught) {
+      const err = asError(_caught);
       console.error('[CampaignContext] Failed to refresh current map after reconnect:', err);
       // Non-fatal — user will receive future real-time updates normally
     }

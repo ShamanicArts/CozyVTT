@@ -13,6 +13,7 @@ import {
 } from "../../domain/admin/Admin";
 import { AdminBackupQueryStore, AdminBackupStore } from "../../ports/AdminPorts";
 import { extractArchiveSafely } from "../../utils/archive";
+import { hasErrorCode } from "../../utils/errors";
 
 const execFileAsync = promisify(execFile);
 
@@ -50,8 +51,8 @@ export class FileSystemAdminBackupStore
           "--clean",
           "--if-exists",
         ]);
-      } catch (error: any) {
-        if (error.code === "ENOENT")
+      } catch (error) {
+        if (hasErrorCode(error) && error.code === "ENOENT")
           throw adminError(
             500,
             "Tool Not Available",
@@ -158,8 +159,8 @@ export class FileSystemAdminBackupStore
           "--file",
           sqlPath,
         ]);
-      } catch (error: any) {
-        if (error.code === "ENOENT")
+      } catch (error) {
+        if (hasErrorCode(error) && error.code === "ENOENT")
           throw adminError(
             500,
             "Tool Not Available",

@@ -11,6 +11,7 @@ import { CampaignHttpQueryError } from "../application/campaigns/CampaignHttpQue
 import { productionCampaignHttpQueries } from "../composition/productionQueryHost";
 import { CreateCampaignSchema } from "../validators/campaigns";
 import logger from "../utils/logger";
+import { asError } from "../utils/errors";
 import { productionTransportCommands } from "../composition/productionTransportCommands";
 import {
   CHANGE_CAMPAIGN_MEMBER_ROLE,
@@ -772,13 +773,14 @@ router.get(
       );
       res.setHeader("Content-Length", result.buffer.length);
       return res.send(result.buffer);
-    } catch (error: any) {
+    } catch (error) {
+      const normalizedError = asError(error);
       logger.error("Campaign export failed", {
         campaignId: req.params.campaignId,
-        error: error.message,
+        error: normalizedError.message,
       });
 
-      if (error.message === "Campaign not found") {
+      if (normalizedError.message === "Campaign not found") {
         return res
           .status(404)
           .json({ error: "Not Found", message: "Campaign not found" });
@@ -837,11 +839,12 @@ router.post(
         archive: req.file.buffer,
       });
       return res.status(200).json({ preview });
-    } catch (error: any) {
-      logger.warn("Campaign import preview failed", { error: error.message });
+    } catch (error) {
+      const normalizedError = asError(error);
+      logger.warn("Campaign import preview failed", { error: normalizedError.message });
       return res.status(400).json({
         error: "Invalid Archive",
-        message: error.message || "Could not read archive.",
+        message: normalizedError.message || "Could not read archive.",
       });
     }
   },
@@ -914,9 +917,10 @@ router.post(
         message: "Campaign imported successfully",
         ...result,
       });
-    } catch (error: any) {
+    } catch (error) {
+      const normalizedError = asError(error);
       logger.error("Campaign import failed", {
-        error: error.message,
+        error: normalizedError.message,
         userId: req.session?.userId,
       });
       if (error instanceof CampaignArchiveError) {
@@ -926,7 +930,7 @@ router.post(
       }
       return res.status(400).json({
         error: "Import Failed",
-        message: error.message || "Failed to import campaign.",
+        message: normalizedError.message || "Failed to import campaign.",
       });
     }
   },

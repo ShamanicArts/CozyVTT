@@ -81,7 +81,7 @@ export default function CampaignRoster() {
 
     try {
       setLoading(true);
-      const response = await api.getCampaignCharacters(campaign.id);
+      const response = await api.getCampaignCharacters<RosterMember>(campaign.id);
       setRoster(response.roster);
 
       // Seed the HP cache in CampaignContext so MapCanvas can render player HP bars

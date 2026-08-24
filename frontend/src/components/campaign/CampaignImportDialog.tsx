@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // CampaignImportDialog
 // Multi-step modal: Upload → Preview → Options → Importing → Done
@@ -77,7 +78,8 @@ export default function CampaignImportDialog({
       setPreview(previewData);
       setCampaignName(previewData.campaignName);
       setStep('preview');
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       const msg = err.response?.data?.message || err.message || 'Failed to read archive.';
       setErrorMessage(msg);
       setStep('error');
@@ -110,7 +112,8 @@ export default function CampaignImportDialog({
       setResult(importResult);
       setStep('done');
       onSuccess?.();
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       const msg = err.response?.data?.message || err.message || 'Import failed.';
       setErrorMessage(msg);
       setStep('error');

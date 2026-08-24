@@ -137,7 +137,7 @@ describeDatabase("OAuth platform service", () => {
     );
     expect(requestId).toEqual(expect.any(String));
 
-    const browser = (request as any)["a" + "gent"](app);
+    const browser = request.agent(app);
     await browser.get("/__test/login").expect(204);
     const view = await browser
       .get(`/api/oauth/requests/${requestId}`)

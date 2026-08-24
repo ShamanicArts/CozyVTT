@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 /**
  * Invite Player Modal
  * Fixed: uses /invitable-users endpoint (no admin required); renders via portal to avoid sidebar clipping
@@ -32,7 +33,8 @@ export default function InvitePlayerModal({
         setLoading(true);
         const response = await api.listInvitableUsers(campaignId);
         setUsers(response.users || []);
-      } catch (err: any) {
+      } catch (_caught) {
+      const err = asError(_caught);
         console.error('Error fetching invitable users:', err);
         setError('Failed to load users');
       } finally {
@@ -53,7 +55,8 @@ export default function InvitePlayerModal({
       await api.inviteUserToCampaign(campaignId, selectedUserId);
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       console.error('Error sending invitation:', err);
       setError(err.response?.data?.message || 'Failed to send invitation');
     } finally {

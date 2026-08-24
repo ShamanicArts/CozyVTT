@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 /**
  * DnD5eCharacterEditor Component
  *
@@ -20,11 +21,73 @@ import { Character, AssetType } from "../../../types";
 import { api } from "../../../services/api";
 import { useServerConfigQuery } from "@/hooks/queries";
 import { getUploadLimit, formatUploadLimit } from "@/utils/uploadLimits";
+import type {
+  DnD5eCharacterData,
+  DnD5eAbilityScore,
+  DnD5eSavingThrow,
+  DnD5eSkill,
+  DnD5eSpellcasting,
+  DnD5eSpellSlot,
+  DnD5eAppearance,
+  DnD5ePersonality,
+  DnD5eHitPoints,
+  DnD5eDeathSaves,
+  DnD5eHitDice,
+  DnD5eAttack,
+  DnD5eCurrency,
+  DnD5eInventoryItem,
+} from "@/types/game-systems";
+
+type EditableDnD5eCharacterData = Omit<
+  DnD5eCharacterData,
+  | "stats"
+  | "savingThrows"
+  | "skills"
+  | "spellcasting"
+  | "appearance"
+  | "personality"
+  | "featuresAndTraits"
+  | "hp"
+  | "deathSaves"
+  | "hitDice"
+  | "attacks"
+  | "currency"
+  | "inventory"
+  | "conditions"
+  | "proficienciesAndLanguages"
+> & {
+  stats: Record<string, DnD5eAbilityScore>;
+  savingThrows: Record<string, DnD5eSavingThrow>;
+  skills: Record<string, DnD5eSkill>;
+  spellcasting: Omit<DnD5eSpellcasting, "class" | "slots" | "cantrips"> & {
+    class?: string;
+    slots: Record<string, DnD5eSpellSlot>;
+    cantrips: string | string[];
+  };
+  appearance: Partial<DnD5eAppearance>;
+  personality: Partial<DnD5ePersonality>;
+  hp: DnD5eHitPoints;
+  deathSaves: DnD5eDeathSaves;
+  hitDice: DnD5eHitDice[];
+  attacks: DnD5eAttack[];
+  currency: DnD5eCurrency & Record<string, number>;
+  inventory: DnD5eInventoryItem[];
+  conditions: string[];
+  proficienciesAndLanguages: string[];
+  themeColor?: string;
+  proficiencies?: {
+    armor?: string | string[];
+    weapons?: string | string[];
+    tools?: string | string[];
+    languages?: string | string[];
+  };
+  featuresAndTraits?: string | string[];
+};
 
 interface DnD5eCharacterEditorProps {
   character: Character;
   onSave: (
-    data: any,
+    data: EditableDnD5eCharacterData,
     showToast?: boolean,
     tokenImageUrl?: string,
   ) => Promise<void>;
@@ -185,10 +248,10 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
   const { data: serverConfig } = useServerConfigQuery();
 
   // Type assertion for D&D 5e character data
-  const data = character.data as any;
+  const data = requireDnD5eData(character.data);
 
   // Form state - initialize with character data
-  const [formData, setFormData] = useState<any>(() => ({
+  const [formData, setFormData] = useState<EditableDnD5eCharacterData>(() => ({
     ...data,
     // Ensure nested objects exist
     stats: data.stats || {},
@@ -286,7 +349,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       });
 
       if (hasChanges) {
-        setFormData((prev: any) => ({ ...prev, stats: updatedStats }));
+        setFormData((prev) => ({ ...prev, stats: updatedStats }));
       }
     }
   }, [
@@ -321,7 +384,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       });
 
       if (hasChanges) {
-        setFormData((prev: any) => ({
+        setFormData((prev) => ({
           ...prev,
           savingThrows: updatedSavingThrows,
         }));
@@ -383,7 +446,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       });
 
       if (needsUpdate) {
-        setFormData((prev: any) => ({ ...prev, skills: updatedSkills }));
+        setFormData((prev) => ({ ...prev, skills: updatedSkills }));
       }
     }
   }, []); // Run once on mount
@@ -418,7 +481,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
       });
 
       if (hasChanges) {
-        setFormData((prev: any) => ({ ...prev, skills: updatedSkills }));
+        setFormData((prev) => ({ ...prev, skills: updatedSkills }));
       }
     }
   }, [
@@ -477,7 +540,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
     // Validate ability scores (1-30)
     if (formData.stats) {
       Object.entries(formData.stats).forEach(
-        ([ability, data]: [string, any]) => {
+        ([ability, data]) => {
           if (!data.score || data.score < 1 || data.score > 30) {
             newErrors[`stats.${ability}`] =
               "Ability score must be between 1 and 30";
@@ -582,7 +645,8 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
           // Store the new token URL to pass separately to onSave
           newTokenImageUrl = `/api/assets/tokens/${assetId}`;
-        } catch (uploadError: any) {
+        } catch (_caught) {
+      const uploadError = asError(_caught);
           console.error("Error uploading token image:", uploadError);
           setErrors({
             ...errors,
@@ -597,7 +661,8 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
 
       // Pass the tokenImageUrl as a separate parameter if it was uploaded
       await onSave(updatedData, true, newTokenImageUrl);
-    } catch (error) {
+    } catch (_caught) {
+      const error = asError(_caught);
       console.error("Error saving character:", error);
       setErrors({
         ...errors,
@@ -609,26 +674,28 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
   };
 
   // Update form field
-  const updateField = (path: string, value: any) => {
-    setFormData((prev: any) => {
+  const updateField = (path: string, value: unknown) => {
+    setFormData((prev) => {
       const newData = { ...prev };
       const keys = path.split(".");
-      let current = newData;
+      let current: object = newData;
       for (let i = 0; i < keys.length - 1; i++) {
+        const record = current as Record<string, unknown>;
+        const child = record[keys[i]];
         // CRITICAL: Preserve array types when cloning nested structures
-        if (Array.isArray(current[keys[i]])) {
-          current[keys[i]] = [...current[keys[i]]];
+        if (Array.isArray(child)) {
+          record[keys[i]] = [...child];
         } else if (
-          typeof current[keys[i]] === "object" &&
-          current[keys[i]] !== null
+          typeof child === "object" &&
+          child !== null
         ) {
-          current[keys[i]] = { ...current[keys[i]] };
+          record[keys[i]] = { ...child };
         } else {
-          current[keys[i]] = {};
+          record[keys[i]] = {};
         }
-        current = current[keys[i]];
+        current = record[keys[i]] as object;
       }
-      current[keys[keys.length - 1]] = value;
+      (current as Record<string, unknown>)[keys[keys.length - 1]] = value;
       return newData;
     });
   };
@@ -1326,7 +1393,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
           </button>
         </div>
         <div className="space-y-2">
-          {(formData.hitDice || []).map((die: any, index: number) => (
+          {(formData.hitDice || []).map((die, index: number) => (
             <div key={index} className="flex items-center space-x-2">
               <input
                 type="text"
@@ -1362,7 +1429,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
               <button
                 onClick={() => {
                   const newHitDice = formData.hitDice.filter(
-                    (_: any, i: number) => i !== index,
+                    (_, i: number) => i !== index,
                   );
                   updateField("hitDice", newHitDice);
                 }}
@@ -1501,7 +1568,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
           </button>
         </div>
         <div className="space-y-4">
-          {(formData.attacks || []).map((attack: any, index: number) => (
+          {(formData.attacks || []).map((attack, index: number) => (
             <div
               key={index}
               className="bg-white border border-stone-300 rounded-lg p-3 space-y-2"
@@ -1519,7 +1586,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                 <button
                   onClick={() => {
                     const newAttacks = formData.attacks.filter(
-                      (_: any, i: number) => i !== index,
+                      (_, i: number) => i !== index,
                     );
                     updateField("attacks", newAttacks);
                   }}
@@ -1773,7 +1840,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
         </div>
         <div className="space-y-2">
           {(formData.spellcasting?.spells || []).map(
-            (spell: any, index: number) => (
+            (spell, index: number) => (
               <div
                 key={index}
                 className="bg-white border border-stone-300 rounded-lg p-3 flex items-center space-x-3"
@@ -1858,7 +1925,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                 <button
                   onClick={() => {
                     const newSpells = formData.spellcasting.spells.filter(
-                      (_: any, i: number) => i !== index,
+                      (_, i: number) => i !== index,
                     );
                     updateField("spellcasting.spells", newSpells);
                   }}
@@ -1945,7 +2012,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
           </button>
         </div>
         <div className="space-y-3">
-          {(formData.inventory || []).map((item: any, index: number) => (
+          {(formData.inventory || []).map((item, index: number) => (
             <div
               key={index}
               className="bg-white border border-stone-300 rounded-lg p-3 space-y-2"
@@ -1963,7 +2030,7 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
                 <button
                   onClick={() => {
                     const newInventory = formData.inventory.filter(
-                      (_: any, i: number) => i !== index,
+                      (_, i: number) => i !== index,
                     );
                     updateField("inventory", newInventory);
                   }}
@@ -2527,5 +2594,10 @@ export const DnD5eCharacterEditor: React.FC<DnD5eCharacterEditorProps> = ({
     </div>
   );
 };
+
+function requireDnD5eData(data: Character["data"]): DnD5eCharacterData {
+  if (!("stats" in data)) throw new Error("Expected D&D 5e character data");
+  return data;
+}
 
 export default DnD5eCharacterEditor;

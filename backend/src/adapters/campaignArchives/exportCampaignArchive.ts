@@ -110,9 +110,14 @@ export async function exportCampaign(
     const spiritLayerRef = map.spiritLayerUrl ? await registerAsset(map.spiritLayerUrl) : null;
 
     // Register token image assets
-    const tokens = (includeTokens ? (map.tokens as any[]) || [] : []);
+    const tokens = includeTokens && Array.isArray(map.tokens)
+      ? map.tokens.reduce<Record<string, unknown>[]>((items, token) => {
+          if (isRecord(token)) items.push({ ...token });
+          return items;
+        }, [])
+      : [];
     for (const token of tokens) {
-      if (token.imageUrl) {
+      if (typeof token.imageUrl === 'string') {
         const tokenAssetRef = await registerAsset(token.imageUrl);
         if (tokenAssetRef) token.imageUrl = tokenAssetRef;
       }
@@ -278,6 +283,10 @@ export async function exportCampaign(
   });
 
   return { buffer, filename };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /** Map MIME type to file extension. */

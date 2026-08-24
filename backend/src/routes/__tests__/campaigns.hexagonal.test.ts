@@ -31,7 +31,10 @@ jest.mock('../../config/database', () => ({
 
 jest.mock('../../middleware/compose', () => {
   const permit = (req: express.Request, _res: express.Response, next: express.NextFunction) => {
-    (req as any).session = { userId: 'owner-1', platformRole: 'USER' };
+    req.session = {
+      userId: 'owner-1',
+      platformRole: 'USER',
+    } as express.Request["session"];
     next();
   };
   return { authenticated: permit, campaignMember: permit, campaignDM: permit, adminOnly: permit };

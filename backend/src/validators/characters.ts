@@ -12,7 +12,7 @@ import { GameSystem } from '../game-systems';
 /** POST /api/characters */
 export const CreateCharacterSchema = z.object({
   name: z.string().trim().min(1, 'Character name is required').max(200, 'Character name must be 200 characters or fewer'),
-  data: z.any().optional(),
+  data: z.unknown().optional(),
   tokenImageUrl: z.string().nullish(),
   gameSystem: z.nativeEnum(GameSystem).nullish(),
   campaignId: z.string().nullish(),
@@ -21,7 +21,7 @@ export const CreateCharacterSchema = z.object({
 /** PUT /api/characters/:id */
 export const UpdateCharacterSchema = z.object({
   name: z.string().trim().min(1, 'Character name is required').max(200, 'Character name must be 200 characters or fewer').optional(),
-  data: z.any().optional(),
+  data: z.unknown().optional(),
   tokenImageUrl: z.string().nullish(),
   gameSystem: z.nativeEnum(GameSystem).nullish(),
 });

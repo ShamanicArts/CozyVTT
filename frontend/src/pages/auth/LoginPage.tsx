@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // Login Page
 // Handles user authentication with email/password
@@ -108,7 +109,8 @@ export default function LoginPage() {
 
       // If MFA is not required, user is logged in and will be redirected by auth check above
       // If MFA is required, mfaPending will be true and user will be redirected to MFA page
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       // Handle specific error messages
       if (err.response?.data?.error) {
         setError(err.response.data.error);

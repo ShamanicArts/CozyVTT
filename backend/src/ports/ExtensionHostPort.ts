@@ -1,3 +1,12 @@
+export interface ActiveRendererContribution {
+  extensionId: string;
+  renderer: {
+    id: string;
+    name: string;
+    contractVersion: string;
+  };
+}
+
 export interface ExtensionHostPort {
   listAvailable(): Promise<unknown[]>;
   list(): Promise<unknown[]>;
@@ -5,8 +14,8 @@ export interface ExtensionHostPort {
   activate(extensionId: string): Promise<unknown>;
   deactivate(extensionId: string): Promise<unknown>;
   uninstall(extensionId: string): Promise<void>;
-  listActiveRendererContributions(): Promise<any[]>;
-  listActiveThemeContributions(): Promise<any[]>;
+  listActiveRendererContributions(): Promise<ActiveRendererContribution[]>;
+  listActiveThemeContributions(): Promise<unknown[]>;
   readActiveRendererModule(
     extensionId: string,
     rendererId: string,

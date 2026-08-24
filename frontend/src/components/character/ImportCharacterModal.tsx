@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 /**
  * Import Character Modal
  *
@@ -14,7 +15,7 @@ import { Button, Modal } from '@/components/ui';
 
 interface ImportCharacterModalProps {
   onClose: () => void;
-  onImport: (data: { name: string; gameSystem: string | null; data: any }) => Promise<void>;
+  onImport: (data: { name: string; gameSystem: string | null; data: unknown }) => Promise<void>;
   existingCharacterNames: string[];
 }
 
@@ -30,7 +31,7 @@ export default function ImportCharacterModal({
   const [previewData, setPreviewData] = useState<{
     name: string;
     gameSystem: string | null;
-    data: any;
+    data: unknown;
   } | null>(null);
   const [nameConflict, setNameConflict] = useState(false);
   const [importName, setImportName] = useState('');
@@ -64,7 +65,8 @@ export default function ImportCharacterModal({
           setImportName(characterName);
         }
       }
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       setError(err.message || 'Failed to read file');
     } finally {
       setIsLoading(false);
@@ -115,7 +117,8 @@ export default function ImportCharacterModal({
       });
 
       onClose();
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       setError(err.response?.data?.message || err.message || 'Failed to import character');
     } finally {
       setIsLoading(false);

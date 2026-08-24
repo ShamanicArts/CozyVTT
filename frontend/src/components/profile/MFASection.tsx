@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // MFA Section
 //
@@ -59,7 +60,8 @@ function DisableForm({ onClose }: { onClose: () => void }) {
       await disableMFA(password, token);
       setSuccess(true);
       setTimeout(onClose, 1500);
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       setError(err.response?.data?.message || 'Failed to disable MFA');
     } finally {
       setSubmitting(false);
@@ -152,7 +154,8 @@ function RegenerateForm({ onClose }: { onClose: () => void }) {
       const { api } = await import('@/services/api');
       const result = await api.mfaRegenerateBackupCodes(password);
       setNewCodes(result.backupCodes);
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       setError(err.response?.data?.message || 'Failed to regenerate backup codes');
     } finally {
       setSubmitting(false);

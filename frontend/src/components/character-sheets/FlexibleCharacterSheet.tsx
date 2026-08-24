@@ -15,7 +15,7 @@ export const FlexibleCharacterSheet: React.FC<CharacterSheetProps> = (props) => 
     setCurrentMode('view');
   };
 
-  const handleSave = async (data: any, showToast?: boolean, tokenImageUrl?: string) => {
+  const handleSave = async (data: unknown, showToast?: boolean, tokenImageUrl?: string) => {
     if (onSave) {
       await onSave(data, showToast, tokenImageUrl);
     }

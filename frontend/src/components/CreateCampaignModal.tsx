@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // Create Campaign Modal
 // Modal dialog for creating a new campaign
@@ -71,7 +72,8 @@ export default function CreateCampaignModal({
 
       // Close modal
       onClose();
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       setError(err.response?.data?.message || 'Failed to create campaign');
     } finally {
       setLoading(false);

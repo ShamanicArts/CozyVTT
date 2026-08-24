@@ -457,11 +457,18 @@ export interface Campaign {
     sessionNumber: number;
     startedAt: string;
   } | null;
+  userRole?: CampaignRole;
 }
 
 export interface VibeSettings {
   periods: VibePeriod[];
-  [key: string]: any;
+  enabled?: boolean;
+  atmosphereEffect?: string | null;
+  atmosphereAudio?: {
+    assetId: string;
+    volume?: number;
+    loop?: boolean;
+  } | null;
 }
 
 export interface VibePeriod {
@@ -589,7 +596,7 @@ export interface Token {
   controlledBy: string | null;
   rotation: number;
   conditions: string[];
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   // Token type system
   type: TokenType;
   disposition: TokenDisposition | null;
@@ -622,7 +629,7 @@ export interface Annotation {
   type: "circle" | "line" | "rectangle" | "polygon";
   position: Position;
   color: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // ============================================
@@ -678,7 +685,7 @@ export interface Message {
 }
 
 export interface MessageMetadata {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // ============================================
@@ -752,10 +759,10 @@ export interface ApiError {
   message: string;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   message?: string;
   data?: T;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Login
@@ -819,7 +826,7 @@ export interface UpdateCampaignRequest {
 // Character
 export interface CreateCharacterRequest {
   name: string;
-  data?: CharacterData;
+  data?: unknown;
   tokenImageUrl?: string;
   gameSystem?: GameSystem | null;
   campaignId?: string;
@@ -827,7 +834,7 @@ export interface CreateCharacterRequest {
 
 export interface UpdateCharacterRequest {
   name?: string;
-  data?: CharacterData;
+  data?: unknown;
   tokenImageUrl?: string;
 }
 
@@ -867,7 +874,7 @@ export interface CreateTokenRequest {
   controlledBy?: string | null;
   rotation?: number;
   conditions?: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   // Token type system
   type?: TokenType;
   disposition?: TokenDisposition | null;
@@ -887,7 +894,7 @@ export interface UpdateTokenRequest {
   controlledBy?: string | null;
   rotation?: number;
   conditions?: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   // Token type system
   type?: TokenType;
   disposition?: TokenDisposition | null;
@@ -901,7 +908,7 @@ export interface UpdateTokenRequest {
 // WebSocket Event Types
 // ============================================
 
-export interface WebSocketEvent<T = any> {
+export interface WebSocketEvent<T = unknown> {
   type: string;
   data: T;
   timestamp: string;

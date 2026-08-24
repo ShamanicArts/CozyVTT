@@ -79,7 +79,7 @@ export async function disconnectUser(
 export async function sendSystemMessage(
   campaignId: string,
   content: string,
-  metadata?: Record<string, any>,
+  metadata?: Record<string, unknown>,
 ): Promise<void> {
   try {
     // Save to database

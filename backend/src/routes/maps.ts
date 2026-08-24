@@ -4,7 +4,7 @@ import path from "path";
 import multer from "multer";
 import { AuthenticatedRequest } from "../middleware/rbac";
 import { campaignMember, campaignDM } from "../middleware/compose";
-import { filterMapData } from "../utils/spirit-layer";
+import { filterMapData, MapData } from "../utils/spirit-layer";
 import { productionRealtimeQueries } from "../composition/productionRealtimeQueries";
 import { productionCampaignEvents } from "../composition/productionCampaignEvents";
 import {
@@ -336,7 +336,7 @@ router.get(
       );
 
       // Filter map data based on role and spirit visibility
-      const responseMap = filterMapData(map as any, role, spiritVisible);
+      const responseMap = filterMapData(map as unknown as MapData, role, spiritVisible);
 
       return res.status(200).json({ map: responseMap, spiritVisible });
     } catch (error) {

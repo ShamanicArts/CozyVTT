@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // MFA Verify Page
 // Handles MFA verification during login
@@ -63,7 +64,8 @@ export default function MFAVerifyPage() {
       await verifyMFA(token);
 
       // On success, user is logged in and will be redirected
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       console.error("MFA verification error:", err);
 
       if (err.response?.data?.error) {
@@ -105,7 +107,8 @@ export default function MFAVerifyPage() {
       await verifyMFAWithBackupCode(cleanedCode);
 
       // On success, user is logged in and will be redirected
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       console.error("Backup code verification error:", err);
 
       if (err.response?.data?.error) {

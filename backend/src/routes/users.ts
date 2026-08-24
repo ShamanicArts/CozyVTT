@@ -111,7 +111,7 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
     const isAdmin = req.session.platformRole === "ADMIN";
     const user = await userMutationCommands.dispatch<
       UpdateUserProfileCommand,
-      unknown
+      object
     >({
       type: UPDATE_USER_PROFILE,
       actorId: requestingUserId!,
@@ -123,7 +123,7 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
       .status(200)
       .json({
         message: "User updated successfully",
-        user: publicUser(user as any),
+        user: publicUser(user),
       });
   } catch (error) {
     if (sendUserMutationError(res, error)) return;

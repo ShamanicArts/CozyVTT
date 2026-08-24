@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // Assign Character Modal
 // Assign or reassign character to a campaign
@@ -48,7 +49,8 @@ export default function AssignCharacterModal({
     try {
       const response = await api.listCampaigns();
       setCampaigns(response.campaigns);
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       setError(err.response?.data?.message || 'Failed to load campaigns');
     } finally {
       setLoadingCampaigns(false);
@@ -64,7 +66,8 @@ export default function AssignCharacterModal({
     try {
       await onConfirm(character.id, selectedCampaignId);
       onClose();
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       setError(err.response?.data?.message || 'Failed to assign character');
     } finally {
       setLoading(false);

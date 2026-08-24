@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // Chat Panel Component
 // Real-time chat with message history and WebSocket integration
@@ -171,7 +172,8 @@ export default function ChatPanel() {
 
         // Scroll to bottom after initial load (without smooth)
         setTimeout(() => scrollToBottom(false), 100);
-      } catch (err: any) {
+      } catch (_caught) {
+      const err = asError(_caught);
         console.error("[ChatPanel] Failed to load messages:", err);
         setError(err.message || "Failed to load messages");
       } finally {
@@ -218,7 +220,8 @@ export default function ChatPanel() {
           );
           return merged;
         });
-      } catch (err) {
+      } catch (_caught) {
+      const err = asError(_caught);
         console.error(
           "[ChatPanel] Failed to resync messages after reconnect:",
           err,
@@ -254,7 +257,8 @@ export default function ChatPanel() {
       // Add older messages to the beginning
       setMessages((prev) => [...fetchedMessages.reverse(), ...prev]);
       setHasMore(fetchedMessages.length === 50);
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       console.error("[ChatPanel] Failed to load more messages:", err);
       setError(err.message || "Failed to load more messages");
     } finally {
@@ -336,7 +340,7 @@ export default function ChatPanel() {
     const handleSystemMessage = (data: {
       id?: string;
       content: string;
-      metadata?: any;
+      metadata?: Message["metadata"];
       timestamp: string;
     }) => {
       console.log("[ChatPanel] Received system message:", data);
@@ -489,7 +493,8 @@ export default function ChatPanel() {
 
       // Start rate limit cooldown
       startCooldown();
-    } catch (err) {
+    } catch (_caught) {
+      const err = asError(_caught);
       console.error("[ChatPanel] Failed to send message:", err);
       setError("Failed to send message");
     }

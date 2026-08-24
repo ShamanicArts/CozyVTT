@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 /**
  * Campaign Invitation Modal
  */
@@ -50,7 +51,8 @@ export default function InvitationModal({
         });
 
         setCharacters(compatible);
-      } catch (error) {
+      } catch (_caught) {
+      const error = asError(_caught);
         console.error('Error fetching characters:', error);
       } finally {
         setLoading(false);
@@ -75,7 +77,8 @@ export default function InvitationModal({
       setProcessing(true);
       await api.acceptInvitation(invitation.id, selectedCharacterIds);
       onAccept();
-    } catch (error: any) {
+    } catch (_caught) {
+      const error = asError(_caught);
       console.error('Error accepting invitation:', error);
       showToast(error.response?.data?.message || 'Failed to accept invitation', 'error');
     } finally {
@@ -89,7 +92,8 @@ export default function InvitationModal({
       setProcessing(true);
       await api.declineInvitation(invitation.id);
       onDecline();
-    } catch (error: any) {
+    } catch (_caught) {
+      const error = asError(_caught);
       console.error('Error declining invitation:', error);
       showToast(error.response?.data?.message || 'Failed to decline invitation', 'error');
     } finally {

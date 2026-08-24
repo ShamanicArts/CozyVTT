@@ -23,7 +23,7 @@ export interface CharacterSheetProps {
   mode: CharacterSheetMode;
 
   /** Callback when character data is saved (edit mode only) */
-  onSave?: (data: any, showToast?: boolean, tokenImageUrl?: string) => Promise<void>;
+  onSave?: (data: unknown, showToast?: boolean, tokenImageUrl?: string) => Promise<void>;
 
   /** Callback when edit mode is cancelled */
   onCancel?: () => void;

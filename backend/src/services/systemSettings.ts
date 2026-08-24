@@ -1,4 +1,5 @@
 import { prisma } from '../config/database';
+import { Prisma } from '@prisma/client';
 
 /**
  * System Settings Service
@@ -72,7 +73,7 @@ export async function updateSystemSettings(data: {
   allowRegistration?: boolean;
   requireAdminApproval?: boolean;
   themeId?: string;
-  customThemeColors?: any;
+  customThemeColors?: unknown;
   fontId?: string;
   customLogoUrl?: string | null;
   customFaviconUrl?: string | null;
@@ -82,7 +83,15 @@ export async function updateSystemSettings(data: {
 
   return await prisma.systemSettings.update({
     where: { id: settings.id },
-    data,
+    data: {
+      ...data,
+      customThemeColors:
+        data.customThemeColors === undefined
+          ? undefined
+          : data.customThemeColors === null
+            ? Prisma.JsonNull
+            : (data.customThemeColors as Prisma.InputJsonValue),
+    },
   });
 }
 

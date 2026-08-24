@@ -5,7 +5,7 @@ type SocketSource = { getSocket: () => Socket | null } | null | undefined;
 
 export interface SocketSubscription {
   event: string;
-  handler: (...args: any[]) => void;
+  handler: (...args: never[]) => void;
 }
 
 /**
@@ -18,9 +18,13 @@ export function synchronizeSocketSubscriptions(
   subscriptions: readonly SocketSubscription[],
 ): () => void {
   if (!socket) return () => {};
-  for (const { event, handler } of subscriptions) socket.on(event, handler);
+  for (const { event, handler } of subscriptions) {
+    socket.on(event, handler as (...args: unknown[]) => void);
+  }
   return () => {
-    for (const { event, handler } of subscriptions) socket.off(event, handler);
+    for (const { event, handler } of subscriptions) {
+      socket.off(event, handler as (...args: unknown[]) => void);
+    }
   };
 }
 

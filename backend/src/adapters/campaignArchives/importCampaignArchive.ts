@@ -15,7 +15,7 @@ import { randomUUID } from 'crypto';
 import path from 'path';
 import fs from 'fs';
 import unzipper from 'unzipper';
-import { Prisma, type PrismaClient } from '@prisma/client';
+import { AssetType, GameSystem, Prisma, type PrismaClient } from '@prisma/client';
 import { fileTypeFromBuffer } from 'file-type';
 import {
   ManifestSchema,
@@ -205,7 +205,7 @@ export async function importCampaign(
       id: newCampaignId,
       name: campaignName || campaignSettings.name,
       description: campaignSettings.description || null,
-      gameSystem: campaignSettings.gameSystem as any || null,
+      gameSystem: (campaignSettings.gameSystem as GameSystem | null) || null,
       status: 'PREPARATION',
       ownerId: importingUserId,
       vibeSettings: (campaignSettings.vibeSettings as Prisma.InputJsonValue) || defaultVibeSettings,
@@ -259,7 +259,7 @@ export async function importCampaign(
     await client.asset.create({
       data: {
         id: newId,
-        type: assetInfo.type as any,
+        type: assetInfo.type as AssetType,
         scope: 'CAMPAIGN',
         uploadedById: importingUserId,
         campaignId: newCampaignId,
@@ -357,7 +357,7 @@ export async function importCampaign(
           data: {
             id: randomUUID(),
             name: c.name,
-            gameSystem: c.gameSystem as any || null,
+            gameSystem: (c.gameSystem as GameSystem | null) || null,
             source: 'custom',
             challengeRating: c.challengeRating || null,
             creatureType: c.creatureType || null,

@@ -38,7 +38,7 @@ jest.mock("../../services/creatureSeed", () => ({
   getSrdSeedStatus: status,
 }));
 import routes from "../creatures";
-const creature: any = {
+const creature = {
   id: "c1",
   name: "Goblin",
   source: "custom",
@@ -67,8 +67,8 @@ function app() {
 beforeEach(() => {
   jest.clearAllMocks();
   findUnique.mockResolvedValue(creature);
-  create.mockImplementation(async ({ data }: any) => data);
-  update.mockImplementation(async ({ data }: any) => ({
+  create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => data);
+  update.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
     ...creature,
     ...data,
   }));

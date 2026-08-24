@@ -6,7 +6,6 @@
 
 import { GameSystem } from '@prisma/client';
 import {
-  CharacterTemplate,
   getDnD5eTemplates,
   getDnD5eTemplate,
 } from './dnd5e-templates';
@@ -23,7 +22,12 @@ import {
   getCoC7eTemplate,
 } from './callOfCthulhu7e-templates';
 
-export { CharacterTemplate };
+export interface CharacterTemplate {
+  name: string;
+  description: string;
+  gameSystem: GameSystem;
+  data: object;
+}
 
 /**
  * Get all available templates for a specific game system

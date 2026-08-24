@@ -1,3 +1,4 @@
+import { asError } from "@/utils/errors";
 // ============================================
 // Setup Wizard Page
 // First-time setup for CozyVTT installation
@@ -211,7 +212,8 @@ export default function SetupWizardPage() {
 
       // Redirect to dashboard
       navigate("/dashboard");
-    } catch (err: any) {
+    } catch (_caught) {
+      const err = asError(_caught);
       console.error("Setup error:", err);
 
       if (err.response?.data?.error) {

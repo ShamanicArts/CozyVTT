@@ -49,7 +49,8 @@ const handleTestLogin = async () => {
   try {
     await login('admin@example.com', 'password123');
     console.log('Login successful!');
-  } catch (error) {
+  } catch (_caught) {
+      const error = asError(_caught);
     console.error('Login failed:', error);
   }
 };
@@ -85,7 +86,8 @@ const handleTestRegister = async () => {
   try {
     await register('newuser@example.com', 'SecurePass123!', 'Test User');
     console.log('Registration successful!');
-  } catch (error) {
+  } catch (_caught) {
+      const error = asError(_caught);
     console.error('Registration failed:', error);
   }
 };
@@ -123,7 +125,8 @@ const handleTestLogout = async () => {
   try {
     await logout();
     console.log('Logout successful!');
-  } catch (error) {
+  } catch (_caught) {
+      const error = asError(_caught);
     console.error('Logout failed:', error);
   }
 };
@@ -162,7 +165,8 @@ const handleMFALogin = async () => {
   try {
     await login('mfauser@example.com', 'password123');
     console.log('MFA Pending:', mfaPending);
-  } catch (error) {
+  } catch (_caught) {
+      const error = asError(_caught);
     console.error('Login failed:', error);
   }
 };
@@ -171,7 +175,8 @@ const handleMFAVerify = async () => {
   try {
     await verifyMFA(mfaToken);
     console.log('MFA verification successful!');
-  } catch (error) {
+  } catch (_caught) {
+      const error = asError(_caught);
     console.error('MFA verification failed:', error);
   }
 };
@@ -242,7 +247,8 @@ STEPS:
 const handleTestBadLogin = async () => {
   try {
     await login('admin@example.com', 'wrongpassword');
-  } catch (error: any) {
+  } catch (_caught) {
+      const error = asError(_caught);
     console.error('Expected error:', error.response?.data);
     alert('Login failed: ' + error.response?.data?.message);
   }
@@ -280,7 +286,8 @@ const handlePasswordChange = async () => {
   try {
     await changePassword('oldPassword123', 'newPassword123');
     console.log('Password changed successfully!');
-  } catch (error) {
+  } catch (_caught) {
+      const error = asError(_caught);
     console.error('Password change failed:', error);
   }
 };
@@ -352,7 +359,8 @@ const handleConcurrentLogins = async () => {
       login('user2@example.com', 'password2'),
       login('user3@example.com', 'password3'),
     ]);
-  } catch (error) {
+  } catch (_caught) {
+      const error = asError(_caught);
     console.error('Concurrent login test:', error);
   }
 };
