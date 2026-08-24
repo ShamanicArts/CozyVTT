@@ -10,6 +10,7 @@ import {
 import type {
   CampaignPresentationContext,
   CampaignPresentationContribution,
+  CampaignPresentationCommand,
   CampaignPresentationInstance,
   ImperativeCampaignPresentationContribution,
 } from "./contracts";
@@ -20,6 +21,8 @@ interface PresentationErrorBoundaryProps {
   readonly fallback: ReactNode;
   readonly resetKey: CampaignPresentationContribution;
 }
+
+const ignorePresentationCommands = () => {};
 
 interface PresentationErrorBoundaryState {
   readonly failed: boolean;
@@ -64,9 +67,13 @@ function UnavailablePresentation() {
 function ImperativePresentationMount({
   contribution,
   context,
+  onCommandsChanged,
 }: {
   readonly contribution: ImperativeCampaignPresentationContribution;
   readonly context: CampaignPresentationContext;
+  readonly onCommandsChanged: (
+    commands: readonly CampaignPresentationCommand[],
+  ) => void;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<CampaignPresentationInstance | null>(null);
@@ -98,6 +105,7 @@ function ImperativePresentationMount({
         }
 
         instanceRef.current = instance;
+        onCommandsChanged(instance.commands ?? []);
         instance.setVisible(true);
         const { width, height } = mount.getBoundingClientRect();
         instance.resize({ width, height });
@@ -132,6 +140,7 @@ function ImperativePresentationMount({
       observer?.disconnect();
       const instance = instanceRef.current;
       instanceRef.current = null;
+      onCommandsChanged([]);
       if (instance) {
         try {
           instance.setVisible(false);
@@ -145,7 +154,7 @@ function ImperativePresentationMount({
         }
       }
     };
-  }, [contribution]);
+  }, [contribution, onCommandsChanged]);
 
   useEffect(() => {
     try {
@@ -162,9 +171,13 @@ function ImperativePresentationMount({
 function PresentationView({
   contribution,
   context,
+  onCommandsChanged,
 }: {
   readonly contribution: CampaignPresentationContribution;
   readonly context: CampaignPresentationContext;
+  readonly onCommandsChanged: (
+    commands: readonly CampaignPresentationCommand[],
+  ) => void;
 }) {
   return (
     <div
@@ -177,6 +190,7 @@ function PresentationView({
         <ImperativePresentationMount
           contribution={contribution}
           context={context}
+          onCommandsChanged={onCommandsChanged}
         />
       )}
     </div>
@@ -188,11 +202,15 @@ export function CampaignStageHost({
   activePresentationId,
   fallbackPresentationId,
   context,
+  onCommandsChanged = ignorePresentationCommands,
 }: {
   readonly registry: PresentationRegistry;
   readonly activePresentationId: string;
   readonly fallbackPresentationId: string;
   readonly context: CampaignPresentationContext;
+  readonly onCommandsChanged?: (
+    commands: readonly CampaignPresentationCommand[],
+  ) => void;
 }) {
   useSyncExternalStore(
     registry.subscribe,
@@ -213,7 +231,11 @@ export function CampaignStageHost({
         fallback={<UnavailablePresentation />}
         resetKey={fallback}
       >
-        <PresentationView contribution={fallback} context={context} />
+        <PresentationView
+          contribution={fallback}
+          context={context}
+          onCommandsChanged={onCommandsChanged}
+        />
       </PresentationErrorBoundary>
     ) : (
       <UnavailablePresentation />
@@ -225,7 +247,11 @@ export function CampaignStageHost({
       fallback={fallbackView}
       resetKey={contribution}
     >
-      <PresentationView contribution={contribution} context={context} />
+      <PresentationView
+        contribution={contribution}
+        context={context}
+        onCommandsChanged={onCommandsChanged}
+      />
     </PresentationErrorBoundary>
   );
 }

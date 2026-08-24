@@ -431,6 +431,7 @@ export interface Campaign {
   gameSystem: GameSystem | null;
   status: CampaignStatus;
   currentMapId: string | null;
+  activePresentationId: string;
   vibeSettings: VibeSettings;
   currentVibe: string | null;
   spiritLayerEnabled: boolean;

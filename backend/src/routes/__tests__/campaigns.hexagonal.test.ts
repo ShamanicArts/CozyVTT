@@ -14,6 +14,8 @@ const mockInvitationFindUnique = jest.fn();
 const mockInvitationUpsert = jest.fn();
 const mockUserFindUnique = jest.fn();
 const mockAssetUpdateMany = jest.fn();
+const mockCampaignContributions = jest.fn();
+const mockBroadcastToCampaign = jest.fn();
 
 jest.mock('../../config/database', () => ({
   prisma: {
@@ -42,6 +44,10 @@ jest.mock('../../middleware/compose', () => {
 
 jest.mock('../../services/email', () => ({ isSmtpConfigured: () => false, sendCampaignInvitationEmail: jest.fn() }));
 jest.mock('../../websocket/utils', () => ({ broadcastToUser: jest.fn(), broadcastToCampaign: jest.fn(), sendSystemMessage: jest.fn() }));
+jest.mock('../../websocket/socketInstance', () => ({ broadcastToCampaign: mockBroadcastToCampaign }));
+jest.mock('../../composition/productionExtensionOperations', () => ({
+  productionExtensionOperations: { campaignContributions: mockCampaignContributions },
+}));
 
 import campaignRoutes from '../campaigns';
 
@@ -92,5 +98,50 @@ describe('campaign administration HTTP adapter', () => {
     expect(response.status).toBe(400);
     expect(response.body).toEqual({ error: 'Bad Request', message: 'Campaign already has a Dungeon Master. Only one DM per campaign is allowed.' });
     expect(mockMembershipUpdate).not.toHaveBeenCalled();
+  });
+
+  it('selects an available extension presentation and broadcasts it', async () => {
+    mockCampaignContributions.mockResolvedValue({
+      presentations: [
+        {
+          extensionId: 'cozyvtt.three-map',
+          presentation: { id: 'three-map' },
+        },
+      ],
+    });
+    mockCampaignUpdate.mockResolvedValue({
+      activePresentationId: 'cozyvtt.three-map.three-map',
+    });
+
+    const response = await request(app())
+      .put('/api/campaigns/campaign-1/presentation')
+      .send({ activePresentationId: 'cozyvtt.three-map.three-map' });
+
+    expect(response.status).toBe(200);
+    expect(mockCampaignUpdate).toHaveBeenCalledWith({
+      where: { id: 'campaign-1' },
+      data: { activePresentationId: 'cozyvtt.three-map.three-map' },
+      select: { activePresentationId: true },
+    });
+    expect(mockBroadcastToCampaign).toHaveBeenCalledWith(
+      'campaign-1',
+      'campaign.presentation.changed',
+      { activePresentationId: 'cozyvtt.three-map.three-map' },
+    );
+  });
+
+  it('rejects an unavailable extension presentation before persistence', async () => {
+    mockCampaignContributions.mockResolvedValue({ presentations: [] });
+
+    const response = await request(app())
+      .put('/api/campaigns/campaign-1/presentation')
+      .send({ activePresentationId: 'cozyvtt.missing.presentation' });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: 'Validation Error',
+      message: 'Campaign presentation is not available',
+    });
+    expect(mockCampaignUpdate).not.toHaveBeenCalled();
   });
 });

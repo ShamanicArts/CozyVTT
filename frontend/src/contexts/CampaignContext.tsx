@@ -54,6 +54,7 @@ interface CampaignContextState {
    */
   refreshCurrentMap: () => Promise<void>;
   setCurrentMap: (map: Map | null) => void;
+  updateActivePresentation: (presentationId: string) => void;
   /** Update spirit layer enabled/style in local campaign state (after WS broadcast or API call) */
   updateCampaignSpiritLayer: (enabled: boolean, style?: string) => void;
   /** DM-only local preference: show both planes simultaneously or only the active one */
@@ -112,7 +113,7 @@ export function CampaignProvider({ children }: CampaignProviderProps) {
   const { user } = useAuth();
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [currentMap, setCurrentMap] = useState<Map | null>(null);
+  const [currentMap, setCurrentMapState] = useState<Map | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // DM local view preference — not persisted, resets each session
@@ -182,14 +183,14 @@ export function CampaignProvider({ children }: CampaignProviderProps) {
       if (data.currentMapId) {
         try {
           const { map, spiritVisible } = await api.getMap(data.id, data.currentMapId);
-          setCurrentMap(map);
+          setCurrentMapState(map);
           useGameStore.getState().setTokens(map.tokens || []);
           setPlayerSpiritVisible(spiritVisible ?? false);
         } catch {
           // Fall back to embedded map metadata (no tokens) if the fetch fails
           const mapMeta = data.maps?.find((m: { id: string }) => m.id === data.currentMapId);
           if (mapMeta) {
-            setCurrentMap(mapMeta);
+            setCurrentMapState(mapMeta);
             useGameStore.getState().setTokens([]);
           }
         }
@@ -228,7 +229,7 @@ export function CampaignProvider({ children }: CampaignProviderProps) {
     if (!campaign?.id || !currentMap?.id) return;
     try {
       const { map, spiritVisible } = await api.getMap(campaign.id, currentMap.id);
-      setCurrentMap(map);
+      setCurrentMapState(map);
       useGameStore.getState().setTokens(map.tokens || []);
       setPlayerSpiritVisible(spiritVisible ?? false);
     } catch (_caught) {
@@ -237,6 +238,19 @@ export function CampaignProvider({ children }: CampaignProviderProps) {
       // Non-fatal — user will receive future real-time updates normally
     }
   }, [campaign?.id, currentMap?.id]);
+
+  const setCurrentMap = useCallback((map: Map | null) => {
+    setCurrentMapState(map);
+    setCampaign((previous) =>
+      previous ? { ...previous, currentMapId: map?.id ?? null } : null,
+    );
+  }, []);
+
+  const updateActivePresentation = useCallback((presentationId: string) => {
+    setCampaign((previous) =>
+      previous ? { ...previous, activePresentationId: presentationId } : null,
+    );
+  }, []);
 
   // Update currentVibe + activeVibeEffect when vibe.updated WS event arrives
   const updateVibe = useCallback((period: string, hue: string, filter: string) => {
@@ -330,6 +344,7 @@ export function CampaignProvider({ children }: CampaignProviderProps) {
     refreshCampaign,
     refreshCurrentMap,
     setCurrentMap,
+    updateActivePresentation,
     updateCampaignSpiritLayer,
     dmViewBothPlanes,
     setDmViewBothPlanes,
@@ -357,6 +372,8 @@ export function CampaignProvider({ children }: CampaignProviderProps) {
     loadCampaign,
     refreshCampaign,
     refreshCurrentMap,
+    setCurrentMap,
+    updateActivePresentation,
     updateCampaignSpiritLayer,
     dmViewBothPlanes,
     playerSpiritVisible,

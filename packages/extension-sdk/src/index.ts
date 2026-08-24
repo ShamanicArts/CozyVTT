@@ -26,11 +26,181 @@ export type ExtensionCapability =
   | "capability-publications"
   | "scene-layers"
   | "renderers"
+  | "presentations"
   | "themes"
   | "game-systems"
   | "importers"
   | "exporters"
   | "http-transports";
+
+export type CampaignPresentationRole = "DM" | "PLAYER" | "SPECTATOR";
+
+/** Executable campaign-stage contribution declared by a trusted package. */
+export interface CampaignPresentationContributionDescriptor {
+  readonly id: string;
+  readonly title: string;
+  readonly contractVersion: "1";
+  /** Self-contained JavaScript module exporting `activateCampaignPresentation`. */
+  readonly browserEntrypoint: string;
+  readonly roles: readonly CampaignPresentationRole[];
+}
+
+export type CampaignPresentationBreakpoint = "compact" | "medium" | "wide";
+
+export interface CampaignPresentationSceneAccess {
+  getSnapshot(): CampaignPresentationSceneSnapshot;
+  subscribe(listener: () => void): () => void;
+  selectToken(tokenId: string | null): void;
+  setInteractionMode(mode: CampaignPresentationInteractionMode): void;
+  setRulerOrigin(origin: CampaignPresentationPoint | null): void;
+  setRulerColor(color: "amber" | "purple" | "black"): void;
+  setAoE(input: Partial<CampaignPresentationAoE>): void;
+  ping(position: CampaignPresentationPoint): void;
+  moveToken(input: {
+    readonly tokenId: string;
+    readonly x: number;
+    readonly y: number;
+  }): Promise<void>;
+}
+
+export interface CampaignPresentationSceneSnapshot {
+  readonly version: "1";
+  readonly campaignId: string;
+  readonly role: CampaignPresentationRole;
+  readonly selectedTokenId: string | null;
+  readonly interaction: CampaignPresentationInteractionState;
+  readonly map: CampaignPresentationMap | null;
+}
+
+export type CampaignPresentationInteractionMode = "none" | "ruler" | "aoe" | "ping";
+
+export interface CampaignPresentationPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface CampaignPresentationAoE {
+  readonly origin: CampaignPresentationPoint | null;
+  readonly shape: "sphere" | "cylinder" | "cone" | "line" | "cube";
+  readonly sizeFt: number;
+  readonly widthFt?: number;
+}
+
+export interface CampaignPresentationInteractionState {
+  readonly mode: CampaignPresentationInteractionMode;
+  readonly ruler: {
+    readonly origin: CampaignPresentationPoint | null;
+    readonly color: "amber" | "purple" | "black";
+  };
+  readonly aoe: CampaignPresentationAoE;
+  readonly pings: readonly {
+    readonly id: string;
+    readonly position: CampaignPresentationPoint;
+    readonly name: string;
+    readonly color: string;
+    readonly startedAt: number;
+  }[];
+}
+
+export interface CampaignPresentationMap {
+  readonly id: string;
+  readonly revision: number;
+  readonly name: string;
+  readonly imageUrl: string;
+  readonly width: number;
+  readonly height: number;
+  readonly gridSize: number;
+  readonly feetPerSquare: number;
+  readonly diagonalRule: "flat" | "alternating";
+  readonly lightingEnabled: boolean;
+  readonly tokens: readonly CampaignPresentationToken[];
+  readonly walls: readonly CampaignPresentationWall[];
+  readonly lights: readonly CampaignPresentationLight[];
+  readonly fog:
+    | { readonly kind: "full"; readonly state: CampaignPresentationFogState }
+    | {
+        readonly kind: "revealed";
+        readonly cells: readonly number[];
+        readonly fogCols: number;
+        readonly fogRows: number;
+        readonly cellPx: number;
+      }
+    | { readonly kind: "none" };
+}
+
+export interface CampaignPresentationToken {
+  readonly id: string;
+  readonly name: string;
+  readonly imageUrl: string;
+  readonly position: { readonly x: number; readonly y: number };
+  readonly size: { readonly width: number; readonly height: number };
+  readonly rotation: number;
+  readonly disposition: string | null;
+  readonly canMove: boolean;
+}
+
+export interface CampaignPresentationWall {
+  readonly id: string;
+  readonly x1: number;
+  readonly y1: number;
+  readonly x2: number;
+  readonly y2: number;
+  readonly type: string;
+}
+
+export interface CampaignPresentationLight {
+  readonly id: string;
+  readonly x: number;
+  readonly y: number;
+  readonly brightRadius: number;
+  readonly dimRadius: number;
+  readonly color: string;
+  readonly enabled: boolean;
+}
+
+export interface CampaignPresentationFogState {
+  readonly fogCols: number;
+  readonly fogRows: number;
+  readonly cellPx: number;
+  readonly revealed: readonly boolean[];
+}
+
+export interface CampaignPresentationContext {
+  readonly layout: {
+    readonly breakpoint: CampaignPresentationBreakpoint;
+    readonly role: CampaignPresentationRole;
+  };
+  readonly campaignId: string;
+  readonly scene: CampaignPresentationSceneAccess;
+}
+
+export interface CampaignPresentationInstance {
+  readonly commands?: readonly CampaignPresentationCommand[];
+  update(context: CampaignPresentationContext): void;
+  resize(size: { readonly width: number; readonly height: number }): void;
+  setVisible(visible: boolean): void;
+  dispose(): void;
+}
+
+export interface CampaignPresentationCommand {
+  readonly id: string;
+  readonly title: string;
+  readonly icon: "aoe" | "fit" | "grid" | "ping" | "ruler" | "zoom-in" | "zoom-out";
+  readonly active?: () => boolean;
+  run(): void;
+}
+
+export interface CampaignPresentationPluginApi {
+  readonly contractVersion: "1";
+  registerPresentation(contribution: {
+    readonly id: string;
+    readonly title: string;
+    activate(
+      mount: HTMLElement,
+      context: CampaignPresentationContext,
+    ): CampaignPresentationInstance | Promise<CampaignPresentationInstance>;
+  }): () => void;
+}
 
 export interface ApplicationCommandDescriptor {
   id: string;

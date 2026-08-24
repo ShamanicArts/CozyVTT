@@ -1,4 +1,7 @@
-import type { ExtensionHostPort } from "../../ports/ExtensionHostPort";
+import type {
+  CampaignPresentationRole,
+  ExtensionHostPort,
+} from "../../ports/ExtensionHostPort";
 
 export class ExtensionOperationError extends Error {
   constructor(
@@ -52,6 +55,28 @@ export class ExtensionOperations {
   renderer(extensionId: string, rendererId: string) {
     return this.execute((host) =>
       host.readActiveRendererModule(extensionId, rendererId),
+    );
+  }
+  campaignContributions(campaignId: string, role: CampaignPresentationRole) {
+    return this.execute(async (host) => ({
+      presentations: (
+        await host.listActivePresentationContributions(role)
+      ).map(({ extensionId, presentation }) => ({
+        extensionId,
+        presentation: {
+          ...presentation,
+          moduleUrl: `/api/extensions/campaigns/${encodeURIComponent(campaignId)}/contributions/presentations/${encodeURIComponent(extensionId)}/${encodeURIComponent(presentation.id)}`,
+        },
+      })),
+    }));
+  }
+  presentation(
+    extensionId: string,
+    presentationId: string,
+    role: CampaignPresentationRole,
+  ) {
+    return this.execute((host) =>
+      host.readActivePresentationModule(extensionId, presentationId, role),
     );
   }
 

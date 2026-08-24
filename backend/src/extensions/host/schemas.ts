@@ -71,6 +71,19 @@ const rendererContributionSchema = z
     browserEntrypoint: packageEntrypointSchema,
   })
   .strict();
+export const campaignPresentationContributionSchema = z
+  .object({
+    id: z.string().regex(/^[a-z][a-z0-9-]{2,63}$/),
+    title: z.string().trim().min(1).max(120),
+    contractVersion: z.literal("1"),
+    browserEntrypoint: packageEntrypointSchema,
+    roles: z
+      .array(z.enum(["DM", "PLAYER", "SPECTATOR"]))
+      .min(1)
+      .max(3)
+      .refine((roles) => new Set(roles).size === roles.length),
+  })
+  .strict();
 
 export const extensionPackageManifestSchema: z.ZodType<ExtensionPackageManifest> =
   z
@@ -108,11 +121,28 @@ export const extensionPackageManifestSchema: z.ZodType<ExtensionPackageManifest>
         .object({
           themes: z.array(themeContributionSchema).max(32).default([]),
           renderers: z.array(rendererContributionSchema).max(16).default([]),
+          presentations: z
+            .array(campaignPresentationContributionSchema)
+            .max(16)
+            .default([]),
         })
         .strict()
-        .default({ themes: [], renderers: [] }),
+        .default({ themes: [], renderers: [], presentations: [] }),
     })
-    .strict();
+    .strict()
+    .superRefine((packageManifest, context) => {
+      if (
+        packageManifest.contributions.presentations.length > 0 &&
+        !packageManifest.manifest.capabilities.includes("presentations")
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["manifest", "capabilities"],
+          message:
+            "The presentations capability is required when campaign presentations are declared",
+        });
+      }
+    });
 
 export function parseExtensionPackageManifest(
   input: unknown,

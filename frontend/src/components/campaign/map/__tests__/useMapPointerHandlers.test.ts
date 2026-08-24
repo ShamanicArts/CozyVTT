@@ -123,12 +123,15 @@ function dependencies(overrides: Partial<MapPointerHandlerDependencies> = {}) {
     hoveredDoorId: null,
     showRuler: false,
     showAoE: false,
+    interactionMode: "none",
+    ping: vi.fn(),
     snapToGrid: true,
     mapImage: null,
     mapControls,
     socket,
     canEmit: () => true,
     canMoveToken: () => true,
+    selectToken: vi.fn(),
     getTokenAtPosition: () => null,
     snapPoint: ({ x, y }) => ({ x, y }),
     findWallAtPoint: () => null,
@@ -253,13 +256,19 @@ describe("useMapPointerHandlers", () => {
     });
     const handlers = useMapPointerHandlers(dragged.deps);
     handlers.handleMouseDown(mouse(20, 20));
-    handlers.handleMouseUp(mouse(20, 20));
+    handlers.handleMouseMove(mouse(38.6, 44.4));
+    handlers.handleMouseUp(mouse(38.6, 44.4));
     expect(dragged.emitted.map(({ event }) => event)).toEqual(["light:update"]);
+    expect(dragged.emitted[0]?.payload).toEqual({
+      mapId: map.id,
+      light: { ...existing, x: 39, y: 44 },
+    });
   });
 
   it("starts and ends token movement, then gives tokens context-menu priority over doors", () => {
     const started = dependencies({ getTokenAtPosition: () => token });
     useMapPointerHandlers(started.deps).handleMouseDown(mouse(1, 1));
+    expect(started.deps.selectToken).toHaveBeenCalledWith(token.id);
     expect(started.emitted.map(({ event }) => event)).toEqual([
       "token.move.start",
     ]);
@@ -292,6 +301,17 @@ describe("useMapPointerHandlers", () => {
       mouse(1, 1, { button: 2 }),
     );
     expect(setContextMenu).toHaveBeenCalledWith({ token, x: 1, y: 1 });
+    expect(context.deps.selectToken).toHaveBeenCalledWith(token.id);
     expect(setDoorContextMenu).toHaveBeenCalledWith(null);
+  });
+
+  it("routes ping tool clicks through the host interaction capability", () => {
+    const ping = vi.fn();
+    const configured = dependencies({ interactionMode: "ping", ping });
+
+    useMapPointerHandlers(configured.deps).handleMouseDown(mouse(7, 9));
+
+    expect(ping).toHaveBeenCalledWith({ x: 7, y: 9 });
+    expect(configured.emitted).toEqual([]);
   });
 });

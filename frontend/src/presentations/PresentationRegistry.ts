@@ -54,6 +54,10 @@ export class PresentationRegistry {
     return this.contributions.get(id);
   }
 
+  list(): readonly CampaignPresentationContribution[] {
+    return [...this.contributions.values()];
+  }
+
   resolve(
     activeId: string,
     fallbackId: string,

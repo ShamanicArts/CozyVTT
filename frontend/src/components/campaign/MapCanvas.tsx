@@ -89,6 +89,10 @@ import MapToolbar from '@/components/campaign/MapToolbar';
 import MapAoEToolPanel, { type AoEConfig } from '@/components/campaign/MapAoEToolPanel';
 import { useWallHistory } from '@/hooks/useWallHistory';
 import Toast, { useToast } from '@/components/Toast';
+import type {
+  CampaignPresentationInteractionState,
+  CampaignPresentationSceneAccess,
+} from '@/presentations/scene';
 import '@/styles/spirit-effects.css';
 
 /** Returns the accent color for the spirit layer style string. Used for spirit token ring. */
@@ -107,11 +111,16 @@ function getSpiritAccentColor(style: string | null | undefined): string {
 
 interface MapCanvasProps {
   onEditToken?: (token: Token) => void;
+  sceneAccess?: CampaignPresentationSceneAccess;
   /** A per-canvas extension host; create one with `createMapCanvasRendererHost`. */
   rendererHost?: MapCanvasRendererHost;
 }
 
-export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps) {
+export default function MapCanvas({
+  onEditToken,
+  sceneAccess,
+  rendererHost,
+}: MapCanvasProps) {
   const { currentMap, setCurrentMap, userRole, campaign, updateCampaignSpiritLayer, dmViewBothPlanes, playerSpiritVisible, setPlayerSpiritVisible, activeVibeEffect, updateVibe, activeAtmosphereEffect, characterHpCache } = useCampaign();
   // Live token state comes from the game store, not the campaign context —
   // socket handlers write there directly (outside React), and this
@@ -208,6 +217,33 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
   const [showAoE, setShowAoE] = useState(false);
   const [aoeConfig, setAoEConfig] = useState<AoEConfig>({ shape: 'sphere', sizeFt: 20 });
   const [aoeOrigin, setAoEOrigin] = useState<{ x: number; y: number } | null>(null);
+  const [sharedInteraction, setSharedInteraction] =
+    useState<CampaignPresentationInteractionState | null>(
+      () => sceneAccess?.getSnapshot().interaction ?? null,
+    );
+
+  useEffect(() => {
+    if (!sceneAccess) return;
+    const update = () => setSharedInteraction(sceneAccess.getSnapshot().interaction);
+    update();
+    return sceneAccess.subscribe(update);
+  }, [sceneAccess]);
+
+  useEffect(() => {
+    if (!sharedInteraction) return;
+    setShowRuler(sharedInteraction.mode === 'ruler');
+    setRulerOrigin(sharedInteraction.ruler.origin);
+    setRulerColor(sharedInteraction.ruler.color);
+    setShowAoE(sharedInteraction.mode === 'aoe');
+    setAoEOrigin(sharedInteraction.aoe.origin);
+    setAoEConfig({
+      shape: sharedInteraction.aoe.shape,
+      sizeFt: sharedInteraction.aoe.sizeFt,
+      ...(sharedInteraction.aoe.widthFt === undefined
+        ? {}
+        : { widthFt: sharedInteraction.aoe.widthFt }),
+    });
+  }, [sharedInteraction]);
 
   // Latest-ref to the per-layer draw dispatcher — assigned right after the
   // draw callbacks are defined below. The render loop and the animation hooks
@@ -329,10 +365,20 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
   // Live map pings. Transient and map-local, so they stay component state
   // rather than going in the game store — nothing outside the canvas reads them.
   const [pings, setPings] = useState<ActivePing[]>([]);
+  const visiblePings: readonly ActivePing[] = sharedInteraction
+    ? sharedInteraction.pings.map((ping) => ({
+        id: ping.id,
+        x: ping.position.x * (currentMap?.gridSize ?? 1),
+        y: ping.position.y * (currentMap?.gridSize ?? 1),
+        name: ping.name,
+        color: ping.color,
+        startedAt: ping.startedAt,
+      }))
+    : pings;
 
   // Ping animation repaints the overlay layer (where they're drawn) and keeps
   // running under reduced motion: the rings hold still but still need to fade.
-  useCanvasTicker(pings.length > 0, () => markDirty('overlay'));
+  useCanvasTicker(visiblePings.length > 0, () => markDirty('overlay'));
 
   // Map controls (only initialize if we have a map)
   const mapControls = useMapControls({
@@ -539,6 +585,13 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
   const effectiveRulerOrigin = isDM ? rulerOrigin : (myToken ? myToken.position : null);
 
   const handleToggleRuler = useCallback(() => {
+    if (sceneAccess) {
+      const active = sceneAccess.getSnapshot().interaction.mode === 'ruler';
+      sceneAccess.setInteractionMode(active ? 'none' : 'ruler');
+      if (active) sceneAccess.setRulerOrigin(null);
+      else sceneAccess.setRulerOrigin(rulerOrigin);
+      return;
+    }
     setShowRuler((prev) => {
       if (prev) {
         setRulerOrigin(null);
@@ -548,7 +601,22 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
       }
       return !prev;
     });
-  }, []);
+  }, [rulerOrigin, sceneAccess]);
+
+  const updateRulerOrigin = useCallback((origin: { x: number; y: number } | null) => {
+    if (sceneAccess) sceneAccess.setRulerOrigin(origin);
+    else setRulerOrigin(origin);
+  }, [sceneAccess]);
+
+  const updateAoEOrigin = useCallback((origin: { x: number; y: number } | null) => {
+    if (sceneAccess) sceneAccess.setAoE({ origin });
+    else setAoEOrigin(origin);
+  }, [sceneAccess]);
+
+  const disableRuler = useCallback(() => {
+    if (sceneAccess) sceneAccess.setInteractionMode('none');
+    else setShowRuler(false);
+  }, [sceneAccess]);
 
   /**
    * Play a brief ethereal audio cue when the spirit layer is toggled.
@@ -1007,6 +1075,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
     // Dynamic lighting toggle broadcast from DM
     const handleLightingUpdated = (data: { mapId: string; lightingEnabled: boolean }) => {
       if (!currentMap || data.mapId !== currentMap.id) return;
+      if (sceneAccess) return;
       setCurrentMap({ ...currentMap, lightingEnabled: data.lightingEnabled });
     };
 
@@ -1031,7 +1100,6 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
       setLightSources((prev) => prev.map((l) => l.id === data.light.id ? data.light : l));
     };
     const handleLightsReplaced = (data: { mapId: string; lights: LightSource[] }) => {
-      if (isDM) return;
       if (!currentMap || data.mapId !== currentMap.id) return;
       setLightSources(data.lights);
     };
@@ -1064,7 +1132,7 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
       socketInstance.off('light:updated', handleLightUpdated);
       socketInstance.off('lights:replaced', handleLightsReplaced);
     };
-  }, [socket, currentMap, socketRevision, isDM, setCurrentMap]);
+  }, [socket, currentMap, socketRevision, isDM, sceneAccess, setCurrentMap]);
 
   const resolvePingerName = useCallback(
     (userId: string): string => {
@@ -1517,13 +1585,13 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
     //     so a ping into an unlit corner is still visible. (The turn ring
     //     makes the opposite trade on purpose: it lives on the token layer
     //     so a hidden token's ring stays hidden.)
-    if (pings.length > 0) {
-      drawPings(ctx, { pings, now: Date.now(), reducedMotion: prefersReducedMotion }, viewport);
+    if (visiblePings.length > 0) {
+      drawPings(ctx, { pings: visiblePings, now: Date.now(), reducedMotion: prefersReducedMotion }, viewport);
     }
 
     // Restore context state (back to screen-space)
     ctx.restore();
-  }, [currentMap, imageLoaded, mapImage, mapControls.zoom, mapControls.panOffset, userRole, user?.id, campaign?.characters, tokens, dmPreviewPlayerView, lightSources, selectedLightId, lightMode, wallSegments, wallColor, hoveredWallId, selectedWallId, hoveredDoorId, wallMode, selectedEndpoint, wallInProgress, wallType, snapToGrid, brushSize, splitHoverPoint, polygonPoints, showRuler, rulerColor, effectiveRulerOrigin, showAoE, aoeConfig, aoeOrigin, hoverCoords, fogMode, isDM, fogState, fogDragCurrent, pings, prefersReducedMotion]);
+  }, [currentMap, imageLoaded, mapImage, mapControls.zoom, mapControls.panOffset, userRole, user?.id, campaign?.characters, tokens, dmPreviewPlayerView, lightSources, selectedLightId, lightMode, wallSegments, wallColor, hoveredWallId, selectedWallId, hoveredDoorId, wallMode, selectedEndpoint, wallInProgress, wallType, snapToGrid, brushSize, splitHoverPoint, polygonPoints, showRuler, rulerColor, effectiveRulerOrigin, showAoE, aoeConfig, aoeOrigin, hoverCoords, fogMode, isDM, fogState, fogDragCurrent, visiblePings, prefersReducedMotion]);
 
   // ── Layer draw dispatch + dirty-flag scheduling ──────────
   // A single rAF coalesces every repaint request; only the dirty layers
@@ -1713,6 +1781,8 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
   // ============================================
   const { handleMouseDown, handleMouseMove, handleMouseUp, handleMouseLeave, handleContextMenu } = useMapPointerHandlers({
     canvasRef, currentMap, isDM, wallMode, fogMode, lightMode, wallType, wallSegments, wallInProgress, polygonPoints, lightSources, lightPlacementDefaults, fogState, draggedToken, dragOffset, hoveredDoorId, showRuler, showAoE, snapToGrid, mapImage, mapControls, socket, canEmit, canMoveToken, getTokenAtPosition, snapPoint, findWallAtPoint, buildWallReplace, distToSegment, closestPointOnSegment, closePolygon, pushWallHistory, replaceWallHistory, markDirty, showToast,
+    interactionMode: sharedInteraction?.mode ?? 'none',
+    ping: (point) => sceneAccess?.ping(point),
     beginFogDrag: (point) => {
       fogDragAnchorRef.current = point;
       setFogDragCurrent(point);
@@ -1723,9 +1793,13 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
       if (end) commitFogDrag(end.x, end.y);
     },
     cancelFogDrag,
-    setWallInProgress, setPolygonPoints, setSelectedWallId, setSelectedEndpoint, setNearEndpoint, setHoveredWallId, setSplitHoverPoint, setLightSources, setSelectedLightId, setHoveredDoorId, setHoverCoords, setHoverToken, setRulerOrigin, setAoEOrigin, setShowRuler, setDraggedToken, setDragOffset, setContextMenu, setDoorContextMenu,
+    setWallInProgress, setPolygonPoints, setSelectedWallId, setSelectedEndpoint, setNearEndpoint, setHoveredWallId, setSplitHoverPoint, setLightSources, setSelectedLightId, setHoveredDoorId, setHoverCoords, setHoverToken, setDraggedToken, setDragOffset, setContextMenu, setDoorContextMenu,
     rightPanActiveRef, wallEraseBrushActiveRef, wallErasedIdsRef, wallBrushActiveRef, wallBrushPointsRef, wallDragEndpointRef, draggingLightRef, hoverMapPxRef, lastMoveEmitRef, lightSourcesRef, wallCacheValidRef, polygonCloseRadius: POLYGON_CLOSE_RADIUS, wallEraseRadius: WALL_ERASE_RADIUS,
     applyTokenMove: (tokenId, position) => useGameStore.getState().applyTokenMove(tokenId, position),
+    selectToken: (tokenId) => sceneAccess?.selectToken(tokenId),
+    setRulerOrigin: updateRulerOrigin,
+    setAoEOrigin: updateAoEOrigin,
+    setShowRuler: disableRuler,
   });
 
   /**
@@ -1949,9 +2023,20 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
         showRuler={showRuler}
         rulerColor={rulerColor}
         onToggleRuler={handleToggleRuler}
-        onCycleRulerColor={() => setRulerColor((previous) => previous === 'amber' ? 'purple' : previous === 'purple' ? 'black' : 'amber')}
+        onCycleRulerColor={() => {
+          const color = rulerColor === 'amber' ? 'purple' : rulerColor === 'purple' ? 'black' : 'amber';
+          if (sceneAccess) sceneAccess.setRulerColor(color);
+          else setRulerColor(color);
+        }}
         showAoE={showAoE}
-        onToggleAoE={() => setShowAoE((previous) => {
+        onToggleAoE={() => {
+          if (sceneAccess) {
+            const active = sceneAccess.getSnapshot().interaction.mode === 'aoe';
+            sceneAccess.setInteractionMode(active ? 'none' : 'aoe');
+            if (active) sceneAccess.setAoE({ origin: null });
+            return;
+          }
+          setShowAoE((previous) => {
           if (!previous) {
             setShowRuler(false);
             setRulerOrigin(null);
@@ -1959,7 +2044,8 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
             setAoEOrigin(null);
           }
           return !previous;
-        })}
+          });
+        }}
         showSpiritTokens={dmShowSpiritTokens}
         onToggleSpiritTokens={() => setDmShowSpiritTokens((previous) => !previous)}
       />
@@ -2175,8 +2261,12 @@ export default function MapCanvas({ onEditToken, rendererHost }: MapCanvasProps)
         visible={showAoE && Boolean(currentMap)}
         config={aoeConfig}
         origin={aoeOrigin}
-        onConfigChange={setAoEConfig}
-        onClearOrigin={() => setAoEOrigin(null)}
+        onConfigChange={(update) => {
+          const config = update(aoeConfig);
+          if (sceneAccess) sceneAccess.setAoE(config);
+          else setAoEConfig(config);
+        }}
+        onClearOrigin={() => updateAoEOrigin(null)}
       />
 
       {/* Hover Coordinates */}

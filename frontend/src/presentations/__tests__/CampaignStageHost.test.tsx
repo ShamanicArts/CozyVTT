@@ -9,9 +9,34 @@ import {
   type ImperativeCampaignPresentationContribution,
   type ReactCampaignPresentationContribution,
 } from "@/presentations";
+import { CampaignRole } from "@/types";
 
 const context: CampaignPresentationContext = {
   layout: { breakpoint: "wide", role: "DM" },
+  campaignId: "campaign-1",
+  scene: {
+    getSnapshot: () => ({
+      version: "1",
+      campaignId: "campaign-1",
+      role: CampaignRole.DM,
+      selectedTokenId: null,
+      interaction: {
+        mode: "none",
+        ruler: { origin: null, color: "amber" },
+        aoe: { origin: null, shape: "sphere", sizeFt: 20 },
+        pings: [],
+      },
+      map: null,
+    }),
+    subscribe: () => () => {},
+    selectToken: () => {},
+    setInteractionMode: () => {},
+    setRulerOrigin: () => {},
+    setRulerColor: () => {},
+    setAoE: () => {},
+    ping: () => {},
+    moveToken: async () => {},
+  },
 };
 
 function reactPresentation(
@@ -108,6 +133,49 @@ describe("CampaignStageHost", () => {
     expect(instance.dispose).toHaveBeenCalledOnce();
   });
 
+  it("publishes and clears imperative presentation commands with the lifecycle", async () => {
+    const registry = new PresentationRegistry();
+    const commands = [
+      {
+        id: "fit",
+        title: "Fit map to screen",
+        icon: "fit" as const,
+        run: vi.fn(),
+      },
+    ];
+    const instance: CampaignPresentationInstance = {
+      commands,
+      update: vi.fn(),
+      resize: vi.fn(),
+      setVisible: vi.fn(),
+      dispose: vi.fn(),
+    };
+    const contribution: ImperativeCampaignPresentationContribution = {
+      contractVersion: CAMPAIGN_PRESENTATION_CONTRACT_VERSION,
+      id: "command-map",
+      ownerId: "example.commands",
+      title: "Command map",
+      kind: "imperative",
+      activate: vi.fn(async () => instance),
+    };
+    const onCommandsChanged = vi.fn();
+    registry.register(contribution);
+
+    const { unmount } = render(
+      <CampaignStageHost
+        registry={registry}
+        activePresentationId={contribution.id}
+        fallbackPresentationId={contribution.id}
+        context={context}
+        onCommandsChanged={onCommandsChanged}
+      />,
+    );
+
+    await waitFor(() => expect(onCommandsChanged).toHaveBeenCalledWith(commands));
+    unmount();
+    expect(onCommandsChanged).toHaveBeenLastCalledWith([]);
+  });
+
   it("updates an asynchronously activated presentation with the latest context", async () => {
     const registry = new PresentationRegistry();
     const instance: CampaignPresentationInstance = {
@@ -140,6 +208,7 @@ describe("CampaignStageHost", () => {
       />,
     );
     const compactContext: CampaignPresentationContext = {
+      ...context,
       layout: { breakpoint: "compact", role: "PLAYER" },
     };
     rerender(

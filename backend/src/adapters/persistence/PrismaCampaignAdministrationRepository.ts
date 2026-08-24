@@ -70,6 +70,14 @@ export class PrismaCampaignAdministrationRepository implements CampaignAdministr
     return campaign as unknown as { id: string; vibeSettings: unknown; currentVibe: string | null };
   }
 
+  async setActivePresentation(campaignId: string, activePresentationId: string): Promise<{ activePresentationId: string }> {
+    return this.client.campaign.update({
+      where: { id: campaignId },
+      data: { activePresentationId },
+      select: { activePresentationId: true },
+    });
+  }
+
   async findCampaignOwner(campaignId: string): Promise<{ ownerId: string } | null> {
     return this.client.campaign.findUnique({ where: { id: campaignId }, select: { ownerId: true } });
   }

@@ -21,6 +21,7 @@ import {
   REMOVE_CAMPAIGN_MEMBER,
   UPDATE_CAMPAIGN,
   UPDATE_CAMPAIGN_VIBE,
+  SET_CAMPAIGN_PRESENTATION,
   ChangeCampaignMemberRole,
   ChangeCampaignMemberRoleCommand,
   CreateCampaign,
@@ -33,8 +34,11 @@ import {
   UpdateCampaignCommand,
   UpdateCampaignVibe,
   UpdateCampaignVibeCommand,
+  SetCampaignPresentationCommand,
   isCampaignCommandError,
 } from "../application/campaigns/CampaignCommands";
+import { productionExtensionOperations } from "../composition/productionExtensionOperations";
+import { broadcastToCampaign } from "../websocket/socketInstance";
 import {
   EXPORT_CAMPAIGN_ARCHIVE,
   ExportCampaignArchiveCommand,
@@ -144,6 +148,60 @@ router.get(
       return res.status(500).json({
         error: "Internal Server Error",
         message: "Failed to fetch campaigns",
+      });
+    }
+  },
+);
+
+/** Persist the campaign-wide stage renderer without changing the current map. */
+router.put(
+  "/:campaignId/presentation",
+  campaignDM,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const activePresentationId =
+        typeof req.body?.activePresentationId === "string"
+          ? req.body.activePresentationId.trim()
+          : "";
+      const corePresentationId = "cozyvtt.core.map-2d";
+      if (activePresentationId !== corePresentationId) {
+        const { presentations } =
+          await productionExtensionOperations.campaignContributions(
+            req.params.campaignId,
+            "DM",
+          );
+        const available = presentations.some(
+          ({ extensionId, presentation }) =>
+            `${extensionId}.${presentation.id}` === activePresentationId,
+        );
+        if (!available) {
+          return res.status(400).json({
+            error: "Validation Error",
+            message: "Campaign presentation is not available",
+          });
+        }
+      }
+
+      const result = await campaignCommands.dispatch<
+        SetCampaignPresentationCommand,
+        { activePresentationId: string }
+      >({
+        type: SET_CAMPAIGN_PRESENTATION,
+        campaignId: req.params.campaignId,
+        activePresentationId,
+      });
+      broadcastToCampaign(
+        req.params.campaignId,
+        "campaign.presentation.changed",
+        result,
+      );
+      return res.json(result);
+    } catch (error) {
+      if (sendCampaignCommandError(res, error)) return;
+      logger.error("Error selecting campaign presentation", { err: error });
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to select campaign presentation",
       });
     }
   },

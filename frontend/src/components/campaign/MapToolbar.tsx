@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { useMapControls } from "@/hooks/useMapControls";
 import Button from "@/components/ui/Button";
+import { useCampaignPresentationSwitcher } from "@/presentations";
 
 type RulerColor = "amber" | "purple" | "black";
 
@@ -51,8 +52,13 @@ export default function MapToolbar({
   showSpiritTokens,
   onToggleSpiritTokens,
 }: MapToolbarProps) {
+  const presentationSwitcher = useCampaignPresentationSwitcher();
   return (
-    <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-cozy border border-brand/20 bg-surface-light p-1.5 shadow-lg sm:left-4 sm:top-4 sm:gap-2">
+    <div className="absolute left-2 top-2 z-30 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-cozy border border-brand/20 bg-surface-light p-1.5 shadow-lg sm:left-4 sm:top-4 sm:gap-2">
+      {presentationSwitcher}
+      {presentationSwitcher && (
+        <div className="hidden h-6 w-px bg-moss-green/20 sm:block" />
+      )}
       <Button
         onClick={controls.zoomOut}
         disabled={controls.zoom <= controls.minZoom}

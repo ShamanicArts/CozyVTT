@@ -34,9 +34,22 @@ export interface ActiveExtensionRendererContribution {
   renderer: ExtensionRendererContribution;
 }
 
+export interface ExtensionPresentationContribution {
+  id: string;
+  name: string;
+  contractVersion: "1";
+  moduleUrl: string;
+}
+
+export interface ActiveExtensionPresentationContribution {
+  extensionId: string;
+  presentation: ExtensionPresentationContribution;
+}
+
 export interface ActiveExtensionContributions {
   themes: ActiveExtensionThemeContribution[];
   renderers: ActiveExtensionRendererContribution[];
+  presentations: ActiveExtensionPresentationContribution[];
 }
 
 export interface ExtensionPackage {
@@ -88,6 +101,12 @@ export interface ExtensionInstallation {
         id: string;
         name: string;
         contractVersion: "1.0.0";
+        browserEntrypoint: string;
+      }>;
+      presentations?: Array<{
+        id: string;
+        name: string;
+        contractVersion: "1";
         browserEntrypoint: string;
       }>;
     };

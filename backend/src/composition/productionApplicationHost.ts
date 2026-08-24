@@ -130,6 +130,7 @@ import {
   REMOVE_CAMPAIGN_MEMBER,
   UPDATE_CAMPAIGN,
   UPDATE_CAMPAIGN_VIBE,
+  SET_CAMPAIGN_PRESENTATION,
   ChangeCampaignMemberRole,
   AcceptCampaignInvitation,
   DeclineCampaignInvitation,
@@ -139,6 +140,7 @@ import {
   RemoveCampaignMember,
   UpdateCampaign,
   UpdateCampaignVibe,
+  SetCampaignPresentation,
 } from "../application/campaigns/CampaignCommands";
 import { PrismaCampaignSessionRepository } from "../adapters/persistence/PrismaCampaignSessionRepository";
 import { PrismaCampaignSessionState } from "../adapters/persistence/PrismaCampaignSessionState";
@@ -342,6 +344,10 @@ productionCommandBus.register(UPDATE_CAMPAIGN, new UpdateCampaign(campaigns));
 productionCommandBus.register(
   UPDATE_CAMPAIGN_VIBE,
   new UpdateCampaignVibe(campaigns),
+);
+productionCommandBus.register(
+  SET_CAMPAIGN_PRESENTATION,
+  new SetCampaignPresentation(campaigns),
 );
 productionCommandBus.register(DELETE_CAMPAIGN, new DeleteCampaign(campaigns));
 productionCommandBus.register(

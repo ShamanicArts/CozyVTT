@@ -36,8 +36,10 @@ function packageFor(
   id: string,
   dependencies: Record<string, string> = {},
   renderer = false,
+  presentation = false,
 ): DiscoveredExtensionPackage {
   const extensionManifest = manifest(id);
+  if (presentation) extensionManifest.capabilities.push("presentations");
   const packageManifest: ExtensionPackageManifest = {
     packageFormat: "cozyvtt-extension-package/1",
     manifest: extensionManifest,
@@ -54,6 +56,17 @@ function packageFor(
               name: "Glow",
               contractVersion: "1.0.0",
               browserEntrypoint: "renderer.mjs",
+            },
+          ]
+        : [],
+      presentations: presentation
+        ? [
+            {
+              id: "campaign-stage",
+              title: "Campaign Stage",
+              contractVersion: "1",
+              browserEntrypoint: "presentation.mjs",
+              roles: ["DM", "PLAYER"],
             },
           ]
         : [],
@@ -312,6 +325,46 @@ describe("ExtensionHostService", () => {
     });
     await expect(
       service.readActiveRendererModule("cozyvtt.sandbox-renderer", "glow"),
+    ).rejects.toMatchObject({ code: "UNKNOWN_INSTALLATION" });
+  });
+
+  it("lists and serves trusted presentations only to declared campaign roles", async () => {
+    const trusted = packageFor("cozyvtt.presentation", {}, false, true);
+    const { service } = trustedService(
+      new Map([["cozyvtt.presentation", trusted]]),
+    );
+    await service.install("cozyvtt.presentation");
+    await service.activate("cozyvtt.presentation");
+
+    await expect(
+      service.listActivePresentationContributions("PLAYER"),
+    ).resolves.toEqual([
+      {
+        extensionId: "cozyvtt.presentation",
+        presentation: trusted.packageManifest.contributions.presentations[0],
+      },
+    ]);
+    await expect(
+      service.listActivePresentationContributions("SPECTATOR"),
+    ).resolves.toEqual([]);
+    await expect(
+      service.readActivePresentationModule(
+        "cozyvtt.presentation",
+        "campaign-stage",
+        "PLAYER",
+      ),
+    ).resolves.toEqual({
+      contents: Buffer.from(
+        "export const activateMapRenderer = () => undefined;",
+      ),
+      checksum,
+    });
+    await expect(
+      service.readActivePresentationModule(
+        "cozyvtt.presentation",
+        "campaign-stage",
+        "SPECTATOR",
+      ),
     ).rejects.toMatchObject({ code: "UNKNOWN_INSTALLATION" });
   });
 });

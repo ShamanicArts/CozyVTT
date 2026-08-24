@@ -15,6 +15,7 @@ import { Command, CommandHandler } from '../commands/CommandBus';
 export const CREATE_CAMPAIGN = 'campaign.create' as const;
 export const UPDATE_CAMPAIGN = 'campaign.update' as const;
 export const UPDATE_CAMPAIGN_VIBE = 'campaign.vibe.update' as const;
+export const SET_CAMPAIGN_PRESENTATION = 'campaign.presentation.set' as const;
 export const DELETE_CAMPAIGN = 'campaign.delete' as const;
 export const INVITE_TO_CAMPAIGN = 'campaign.invite' as const;
 export const REMOVE_CAMPAIGN_MEMBER = 'campaign.member.remove' as const;
@@ -40,6 +41,12 @@ export interface UpdateCampaignVibeCommand extends Command<{ vibeSettings: unkno
   readonly type: typeof UPDATE_CAMPAIGN_VIBE;
   readonly campaignId: string;
   readonly vibeSettings: unknown;
+}
+
+export interface SetCampaignPresentationCommand extends Command<{ activePresentationId: string }> {
+  readonly type: typeof SET_CAMPAIGN_PRESENTATION;
+  readonly campaignId: string;
+  readonly activePresentationId: string;
 }
 
 export interface DeleteCampaignCommand extends Command<void> {
@@ -162,6 +169,18 @@ export class UpdateCampaignVibe implements CommandHandler<UpdateCampaignVibeComm
     }
     const updated = await this.repository.updateCampaignVibe(command.campaignId, updateData);
     return { vibeSettings: updated.vibeSettings, currentVibe: updated.currentVibe };
+  }
+}
+
+export class SetCampaignPresentation implements CommandHandler<SetCampaignPresentationCommand, { activePresentationId: string }> {
+  constructor(private readonly repository: CampaignAdministrationRepository) {}
+
+  async execute(command: SetCampaignPresentationCommand): Promise<{ activePresentationId: string }> {
+    const presentationId = command.activePresentationId.trim();
+    if (!/^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$/.test(presentationId) || presentationId.length > 160) {
+      throw campaignValidationError('Invalid campaign presentation ID');
+    }
+    return this.repository.setActivePresentation(command.campaignId, presentationId);
   }
 }
 

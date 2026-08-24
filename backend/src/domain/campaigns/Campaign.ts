@@ -8,6 +8,7 @@ export interface CampaignRecord extends Record<string, unknown> {
   ownerId: string;
   currentVibe: string | null;
   gameSystem: string | null;
+  activePresentationId: string;
 }
 
 export interface CampaignMembershipRecord extends Record<string, unknown> {

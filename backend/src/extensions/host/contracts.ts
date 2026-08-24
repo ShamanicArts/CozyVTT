@@ -15,6 +15,7 @@ export interface ExtensionPackageManifest {
   readonly contributions: {
     readonly themes: readonly ThemeContribution[];
     readonly renderers: readonly RendererContribution[];
+    readonly presentations: readonly CampaignPresentationContribution[];
   };
 }
 
@@ -43,6 +44,18 @@ export interface RendererContribution {
   readonly contractVersion: "1.0.0";
   /** Self-contained JavaScript module exporting `activateMapRenderer`. */
   readonly browserEntrypoint: string;
+}
+
+export type CampaignPresentationRole = "DM" | "PLAYER" | "SPECTATOR";
+
+/** Executable campaign-stage contribution available only from active trusted packages. */
+export interface CampaignPresentationContribution {
+  readonly id: string;
+  readonly title: string;
+  readonly contractVersion: "1";
+  /** Self-contained JavaScript module exporting `activateCampaignPresentation`. */
+  readonly browserEntrypoint: string;
+  readonly roles: readonly CampaignPresentationRole[];
 }
 
 export interface ExtensionBrowserModule {

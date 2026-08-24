@@ -18,11 +18,14 @@ import {
 import { useNavigate } from "react-router-dom";
 import { CampaignProvider, useCampaign } from "@/contexts/CampaignContext";
 import { WebSocketProvider, useWebSocket } from "@/contexts/WebSocketContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useGameStore } from "@/stores/gameStore";
 import { useInitiativeSync } from "@/hooks/useInitiativeSync";
 import {
   ArrowLeft,
+  Grid3x3,
   Loader2,
+  Maximize2,
   Sun,
   PauseCircle,
   PanelLeftClose,
@@ -30,9 +33,14 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Map as MapIcon,
+  MapPin,
+  Ruler,
   Users,
   MessageCircle,
   Wrench,
+  ZoomIn,
+  ZoomOut,
+  Zap,
 } from "lucide-react";
 import {
   Group,
@@ -82,10 +90,15 @@ import {
 } from "@/layout";
 import {
   CAMPAIGN_PRESENTATION_CONTRACT_VERSION,
+  CampaignPresentationProvider,
+  CampaignPresentationSwitcherProvider,
+  CampaignSceneAccess,
   CampaignStageHost,
   PresentationRegistry,
+  type CampaignPresentationCommand,
   type ReactCampaignPresentationContribution,
 } from "@/presentations";
+import { PresentationSelector } from "@/components/campaign/PresentationSelector";
 
 interface CampaignWorkspaceRuntime {
   readonly onEditToken: (token: Token) => void;
@@ -117,7 +130,11 @@ function CoreCampaignNavigator() {
 
 export const CORE_MAP_2D_PRESENTATION_ID = "cozyvtt.core.map-2d";
 
-function CoreMap2DPresentation() {
+function CoreMap2DPresentation({
+  scene,
+}: {
+  readonly scene: CampaignSceneAccess;
+}) {
   const { onEditToken } = useCampaignWorkspaceRuntime();
   return (
     <Suspense
@@ -135,7 +152,7 @@ function CoreMap2DPresentation() {
       }
     >
       <MapRendererProvider>
-        <MapCanvas onEditToken={onEditToken} />
+        <MapCanvas onEditToken={onEditToken} sceneAccess={scene} />
       </MapRendererProvider>
     </Suspense>
   );
@@ -147,23 +164,157 @@ const CORE_MAP_2D_PRESENTATION: ReactCampaignPresentationContribution = {
   ownerId: "cozyvtt.core",
   title: "Map",
   kind: "react",
-  render: () => <CoreMap2DPresentation />,
+  render: (context) => <CoreMap2DPresentation scene={context.scene as CampaignSceneAccess} />,
 };
 
 function CoreCampaignStage({ layoutContext }: WorkspaceContributionProps) {
+  const {
+    campaign,
+    currentMap,
+    userRole,
+    setCurrentMap,
+    setPlayerSpiritVisible,
+    updateActivePresentation,
+  } = useCampaign();
+  const { user } = useAuth();
+  const { socket, status } = useWebSocket();
+  const [presentationCommands, setPresentationCommands] = useState<
+    readonly CampaignPresentationCommand[]
+  >([]);
+  const [, setCommandRevision] = useState(0);
   const registryRef = useRef<PresentationRegistry | null>(null);
   if (registryRef.current === null) {
     registryRef.current = new PresentationRegistry();
     registryRef.current.register(CORE_MAP_2D_PRESENTATION);
   }
+  const sceneRef = useRef<CampaignSceneAccess | null>(null);
+  if (campaign && userRole && sceneRef.current === null) {
+    sceneRef.current = new CampaignSceneAccess(
+      {
+        campaign,
+        map: currentMap,
+        role: userRole,
+        userId: user?.id ?? "",
+      },
+      (map, spiritVisible) => {
+        setCurrentMap(map);
+        if (spiritVisible !== undefined) setPlayerSpiritVisible(spiritVisible);
+      },
+    );
+  }
+  const activePresentationId =
+    campaign?.activePresentationId ?? CORE_MAP_2D_PRESENTATION_ID;
 
-  return (
-    <CampaignStageHost
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene || !campaign || !userRole) return;
+    scene.update(
+      {
+        campaign,
+        map: currentMap,
+        role: userRole,
+        userId: user?.id ?? "",
+      },
+      (map, spiritVisible) => {
+        setCurrentMap(map);
+        if (spiritVisible !== undefined) setPlayerSpiritVisible(spiritVisible);
+      },
+    );
+  }, [
+    campaign,
+    currentMap,
+    setCurrentMap,
+    setPlayerSpiritVisible,
+    user?.id,
+    userRole,
+  ]);
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    scene.setSocket(status === "connected" ? socket : null);
+    return () => scene.setSocket(null);
+  }, [socket, status]);
+
+  useEffect(() => () => sceneRef.current?.dispose(), []);
+
+  const presentationSwitcher = campaign && userRole === "DM" ? (
+    <PresentationSelector
+      campaignId={campaign.id}
+      activePresentationId={activePresentationId}
       registry={registryRef.current}
-      activePresentationId={CORE_MAP_2D_PRESENTATION_ID}
-      fallbackPresentationId={CORE_MAP_2D_PRESENTATION_ID}
-      context={{ layout: layoutContext }}
+      onChanged={updateActivePresentation}
     />
+  ) : null;
+  const commandIcons = {
+    fit: Maximize2,
+    grid: Grid3x3,
+    ruler: Ruler,
+    aoe: Zap,
+    ping: MapPin,
+    "zoom-in": ZoomIn,
+    "zoom-out": ZoomOut,
+  } as const;
+  const stage = campaign && sceneRef.current ? (
+    <div className="relative h-full w-full">
+      <CampaignPresentationSwitcherProvider switcher={presentationSwitcher}>
+        <CampaignStageHost
+          registry={registryRef.current}
+          activePresentationId={activePresentationId}
+          fallbackPresentationId={CORE_MAP_2D_PRESENTATION_ID}
+          context={{
+            layout: layoutContext,
+            campaignId: campaign.id,
+            scene: sceneRef.current,
+          }}
+          onCommandsChanged={setPresentationCommands}
+        />
+      </CampaignPresentationSwitcherProvider>
+      {activePresentationId !== CORE_MAP_2D_PRESENTATION_ID &&
+        (presentationSwitcher || presentationCommands.length > 0) && (
+          <div
+            className="absolute left-2 top-2 z-30 flex max-w-[calc(100%-1rem)] items-center gap-1 overflow-x-auto rounded-cozy border border-brand/20 bg-surface-light p-1.5 shadow-lg sm:left-4 sm:top-4 sm:gap-2"
+            role="toolbar"
+            aria-label="Map controls"
+          >
+            {presentationSwitcher}
+            {presentationCommands.length > 0 && (
+              <div className="hidden h-6 w-px bg-moss-green/20 sm:block" />
+            )}
+            {presentationCommands.map((command) => {
+              const Icon = commandIcons[command.icon];
+              return (
+                <Button
+                  key={command.id}
+                  variant="secondary"
+                  className={`min-h-11 min-w-11 p-2 sm:min-h-9 sm:min-w-9 ${command.active?.() ? "bg-moss-green/20 text-moss-green" : ""}`}
+                  title={command.title}
+                  aria-label={command.title}
+                  aria-pressed={command.active ? command.active() : undefined}
+                  onClick={() => {
+                    command.run();
+                    setCommandRevision((revision) => revision + 1);
+                  }}
+                >
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              );
+            })}
+          </div>
+        )}
+    </div>
+  ) : (
+    <div className="h-full w-full" />
+  );
+  return campaign ? (
+    <CampaignPresentationProvider
+      campaignId={campaign.id}
+      registry={registryRef.current}
+    >
+      {stage}
+    </CampaignPresentationProvider>
+  ) : (
+    stage
   );
 }
 
@@ -275,6 +426,7 @@ function CampaignPageContent() {
     updateCampaignStatus,
     setActiveSession,
     refreshCurrentMap,
+    updateActivePresentation,
   } = useCampaign();
   const { socket, reconnectCount, status } = useWebSocket();
 
@@ -417,11 +569,17 @@ function CampaignPageContent() {
         startedAt: data.startedAt,
       });
     };
+    const handlePresentationChanged = (data: {
+      activePresentationId: string;
+    }) => updateActivePresentation(data.activePresentationId);
 
     socket.onSessionStarted(handleStarted);
     socket.onSessionPaused(handlePaused);
     socket.onSessionEnded(handleEnded);
     socket.onSessionResumed(handleResumed);
+    socket
+      .getSocket()
+      ?.on("campaign.presentation.changed", handlePresentationChanged);
 
     return () => {
       const socketInstance = socket.getSocket();
@@ -430,8 +588,18 @@ function CampaignPageContent() {
       socketInstance.off("session.paused", handlePaused);
       socketInstance.off("session.ended", handleEnded);
       socketInstance.off("session.resumed", handleResumed);
+      socketInstance.off(
+        "campaign.presentation.changed",
+        handlePresentationChanged,
+      );
     };
-  }, [socket, status, updateCampaignStatus, setActiveSession]);
+  }, [
+    socket,
+    status,
+    updateCampaignStatus,
+    setActiveSession,
+    updateActivePresentation,
+  ]);
 
   // Loading state
   if (loading) {

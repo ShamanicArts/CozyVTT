@@ -7,6 +7,7 @@ import {
   INVITE_TO_CAMPAIGN,
   UPDATE_CAMPAIGN,
   UPDATE_CAMPAIGN_VIBE,
+  SET_CAMPAIGN_PRESENTATION,
   AcceptCampaignInvitation,
   ChangeCampaignMemberRole,
   CreateCampaign,
@@ -15,12 +16,13 @@ import {
   InviteToCampaign,
   UpdateCampaign,
   UpdateCampaignVibe,
+  SetCampaignPresentation,
 } from './CampaignCommands';
 import { CampaignCommandError, CampaignRecord, InvitationCampaignRecord } from '../../domain/campaigns/Campaign';
 import { CampaignAdministrationRepository } from '../../ports/CampaignAdministrationRepository';
 
 const campaign = (overrides: Partial<CampaignRecord> = {}): CampaignRecord => ({
-  id: 'campaign-1', ownerId: 'owner-1', currentVibe: 'dawn', gameSystem: 'DND_5E', ...overrides,
+  id: 'campaign-1', ownerId: 'owner-1', currentVibe: 'dawn', gameSystem: 'DND_5E', activePresentationId: 'cozyvtt.core.map-2d', ...overrides,
 });
 
 const invitationCampaign = (overrides: Partial<InvitationCampaignRecord> = {}): InvitationCampaignRecord => ({
@@ -36,6 +38,7 @@ function repository(): jest.Mocked<CampaignAdministrationRepository> {
     updateCampaign: jest.fn(),
     findCampaignVibe: jest.fn(),
     updateCampaignVibe: jest.fn(),
+    setActivePresentation: jest.fn(),
     findCampaignOwner: jest.fn(),
     rehomeCampaignAssets: jest.fn(),
     deleteCampaign: jest.fn(),
@@ -103,6 +106,46 @@ describe('campaign administration commands', () => {
     await new UpdateCampaignVibe(store).execute({ type: UPDATE_CAMPAIGN_VIBE, campaignId: 'campaign-1', vibeSettings });
 
     expect(store.updateCampaignVibe).toHaveBeenCalledWith('campaign-1', { vibeSettings, currentVibe: null });
+  });
+
+  it('persists a validated campaign presentation without changing map state', async () => {
+    const store = repository();
+    store.setActivePresentation.mockResolvedValue({
+      activePresentationId: 'com.cozyvtt.three-map.three-map',
+    });
+
+    const result = await new SetCampaignPresentation(store).execute({
+      type: SET_CAMPAIGN_PRESENTATION,
+      campaignId: 'campaign-1',
+      activePresentationId: 'com.cozyvtt.three-map.three-map',
+    });
+
+    expect(store.setActivePresentation).toHaveBeenCalledWith(
+      'campaign-1',
+      'com.cozyvtt.three-map.three-map',
+    );
+    expect(result.activePresentationId).toBe(
+      'com.cozyvtt.three-map.three-map',
+    );
+  });
+
+  it('rejects malformed campaign presentation IDs before persistence', async () => {
+    const store = repository();
+    await expect(
+      new SetCampaignPresentation(store).execute({
+        type: SET_CAMPAIGN_PRESENTATION,
+        campaignId: 'campaign-1',
+        activePresentationId: '../unsafe',
+      }),
+    ).rejects.toEqual(
+      new CampaignCommandError(
+        'VALIDATION',
+        400,
+        'Validation Error',
+        'Invalid campaign presentation ID',
+      ),
+    );
+    expect(store.setActivePresentation).not.toHaveBeenCalled();
   });
 
   it('re-homes campaign assets before deleting an owner-authorized campaign', async () => {

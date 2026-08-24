@@ -51,6 +51,7 @@ import type {
 import type {
   PluginCredential,
   ActiveExtensionContributions,
+  ActiveExtensionPresentationContribution,
   ActiveExtensionThemeContribution,
   ExtensionGrant,
   ExtensionGrantPermission,
@@ -487,9 +488,34 @@ class ApiClient {
     return (await this.listActiveExtensionContributions()).themes;
   }
 
-  async listActiveExtensionContributions(): Promise<ActiveExtensionContributions> {
+  async listActiveExtensionContributions(
+    campaignId?: string,
+  ): Promise<ActiveExtensionContributions> {
     const response = await this.client.get<ActiveExtensionContributions>(
       "/api/extensions/contributions",
+      { params: campaignId ? { campaignId } : undefined },
+    );
+    return response.data;
+  }
+
+  async listActiveCampaignPresentationContributions(
+    campaignId: string,
+  ): Promise<ActiveExtensionPresentationContribution[]> {
+    const response = await this.client.get<{
+      presentations: ActiveExtensionPresentationContribution[];
+    }>(
+      `/api/extensions/campaigns/${encodeURIComponent(campaignId)}/contributions`,
+    );
+    return response.data.presentations;
+  }
+
+  async setCampaignPresentation(
+    campaignId: string,
+    activePresentationId: string,
+  ): Promise<{ activePresentationId: string }> {
+    const response = await this.client.put<{ activePresentationId: string }>(
+      `/api/campaigns/${encodeURIComponent(campaignId)}/presentation`,
+      { activePresentationId },
     );
     return response.data;
   }

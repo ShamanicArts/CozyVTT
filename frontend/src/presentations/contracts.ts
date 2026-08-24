@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
 import type { WorkspaceLayoutContext } from "@/layout";
+import type { CampaignPresentationSceneAccess } from "./scene";
 
 export const CAMPAIGN_PRESENTATION_CONTRACT_VERSION = "1" as const;
 
 export interface CampaignPresentationContext {
   readonly layout: WorkspaceLayoutContext;
+  readonly campaignId: string;
+  readonly scene: CampaignPresentationSceneAccess;
 }
 
 interface CampaignPresentationContributionBase {
@@ -22,10 +25,19 @@ export interface ReactCampaignPresentationContribution
 }
 
 export interface CampaignPresentationInstance {
+  readonly commands?: readonly CampaignPresentationCommand[];
   update(context: CampaignPresentationContext): void;
   resize(size: { readonly width: number; readonly height: number }): void;
   setVisible(visible: boolean): void;
   dispose(): void;
+}
+
+export interface CampaignPresentationCommand {
+  readonly id: string;
+  readonly title: string;
+  readonly icon: "aoe" | "fit" | "grid" | "ping" | "ruler" | "zoom-in" | "zoom-out";
+  readonly active?: () => boolean;
+  run(): void;
 }
 
 /** Framework-neutral lifecycle for future DOM, Canvas, and WebGL providers. */

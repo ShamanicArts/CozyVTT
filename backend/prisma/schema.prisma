@@ -228,6 +228,10 @@ model Campaign {
   currentMapId String?
   currentMap   Map?    @relation("CurrentMap", fields: [currentMapId], references: [id])
 
+  // Active campaign-stage renderer. Map selection remains independent so a
+  // narrative or alternate renderer can present the same current map.
+  activePresentationId String @default("cozyvtt.core.map-2d")
+
   // Vibe Tracker Settings
   vibeSettings Json // {periods: ["dawn", "day", "dusk", "night"], hues: {...}}
   currentVibe  String? // Current time period

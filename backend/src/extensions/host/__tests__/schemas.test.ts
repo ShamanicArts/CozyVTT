@@ -43,6 +43,7 @@ function packageManifest() {
         },
       ],
       renderers: [],
+      presentations: [],
     },
   };
 }
@@ -65,5 +66,50 @@ describe("extension package theme treatments", () => {
     ];
 
     expect(() => parseExtensionPackageManifest(input)).toThrow();
+  });
+});
+
+describe("extension package campaign presentations", () => {
+  it("defaults presentations to an empty list", () => {
+    const input = packageManifest();
+    delete (input.contributions as { presentations?: unknown }).presentations;
+    expect(
+      parseExtensionPackageManifest(input).contributions.presentations,
+    ).toEqual([]);
+  });
+
+  it("accepts role-filtered presentations with the required capability", () => {
+    const input = packageManifest();
+    (input.manifest.capabilities as string[]).push("presentations");
+    (
+      input.contributions.presentations as Array<Record<string, unknown>>
+    ).push({
+      id: "campaign-stage",
+      title: "Campaign Stage",
+      contractVersion: "1",
+      browserEntrypoint: "presentation.mjs",
+      roles: ["DM", "PLAYER"],
+    });
+
+    expect(
+      parseExtensionPackageManifest(input).contributions.presentations[0],
+    ).toMatchObject({ id: "campaign-stage", roles: ["DM", "PLAYER"] });
+  });
+
+  it("rejects presentation declarations without the capability", () => {
+    const input = packageManifest();
+    (
+      input.contributions.presentations as Array<Record<string, unknown>>
+    ).push({
+      id: "campaign-stage",
+      title: "Campaign Stage",
+      contractVersion: "1",
+      browserEntrypoint: "presentation.mjs",
+      roles: ["DM"],
+    });
+
+    expect(() => parseExtensionPackageManifest(input)).toThrow(
+      "presentations capability",
+    );
   });
 });

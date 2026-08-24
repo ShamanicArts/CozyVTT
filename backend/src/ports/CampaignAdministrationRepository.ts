@@ -20,6 +20,7 @@ export interface CampaignAdministrationRepository {
   updateCampaign(campaignId: string, data: CampaignUpdateData): Promise<CampaignRecord>;
   findCampaignVibe(campaignId: string): Promise<Pick<CampaignRecord, 'currentVibe'> | null>;
   updateCampaignVibe(campaignId: string, data: { vibeSettings: unknown; currentVibe?: null }): Promise<{ id: string; vibeSettings: unknown; currentVibe: string | null }>;
+  setActivePresentation(campaignId: string, presentationId: string): Promise<{ activePresentationId: string }>;
 
   findCampaignOwner(campaignId: string): Promise<{ ownerId: string } | null>;
   rehomeCampaignAssets(campaignId: string): Promise<void>;

@@ -15,6 +15,7 @@ export const EXTENSION_CAPABILITIES = [
   "capability-publications",
   "scene-layers",
   "renderers",
+  "presentations",
   "themes",
   "game-systems",
   "importers",

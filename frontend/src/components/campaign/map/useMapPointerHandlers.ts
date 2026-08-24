@@ -69,12 +69,15 @@ export interface MapPointerHandlerDependencies {
   hoveredDoorId: string | null;
   showRuler: boolean;
   showAoE: boolean;
+  interactionMode: "none" | "ruler" | "aoe" | "ping";
+  ping: (point: Point) => void;
   snapToGrid: boolean;
   mapImage: HTMLImageElement | null;
   mapControls: MapControls;
   socket: SocketGateway | null | undefined;
   canEmit: () => boolean;
   canMoveToken: (token: Token) => boolean;
+  selectToken: (tokenId: string | null) => void;
   applyTokenMove: (tokenId: string, position: Point) => void;
   getTokenAtPosition: (x: number, y: number) => Token | null;
   snapPoint: (point: Point) => Point;
@@ -118,9 +121,9 @@ export interface MapPointerHandlerDependencies {
   setHoveredDoorId: Dispatch<SetStateAction<string | null>>;
   setHoverCoords: Dispatch<SetStateAction<Point | null>>;
   setHoverToken: Dispatch<SetStateAction<Token | null>>;
-  setRulerOrigin: Dispatch<SetStateAction<Point | null>>;
-  setAoEOrigin: Dispatch<SetStateAction<Point | null>>;
-  setShowRuler: Dispatch<SetStateAction<boolean>>;
+  setRulerOrigin: (origin: Point | null) => void;
+  setAoEOrigin: (origin: Point | null) => void;
+  setShowRuler: (visible: boolean) => void;
   setDraggedToken: Dispatch<SetStateAction<Token | null>>;
   setDragOffset: Dispatch<SetStateAction<Point | null>>;
   setContextMenu: Dispatch<
@@ -468,6 +471,10 @@ export function useMapPointerHandlers(deps: MapPointerHandlerDependencies) {
       d.beginFogDrag(screenToMapPx(screenX, screenY));
       return;
     }
+    if (d.interactionMode === "ping") {
+      d.ping(gridCoords);
+      return;
+    }
     if (d.showRuler && d.isDM) {
       d.setRulerOrigin(gridCoords);
       return;
@@ -510,6 +517,7 @@ export function useMapPointerHandlers(deps: MapPointerHandlerDependencies) {
       return;
     }
     const token = d.getTokenAtPosition(gridCoords.x, gridCoords.y);
+    d.selectToken(token?.id ?? null);
     console.log("🔍 Token at click position:", token?.name || "none");
     if (token && d.canMoveToken(token)) {
       if (d.showRuler) {
@@ -657,9 +665,14 @@ export function useMapPointerHandlers(deps: MapPointerHandlerDependencies) {
       if (d.rightPanActiveRef.current) d.mapControls.handleDrag(e);
       if (d.draggingLightRef.current && e.buttons & 1) {
         const id = d.draggingLightRef.current.id;
-        d.setLightSources((lights) =>
-          updateLightPosition(lights, id, mapPoint.x, mapPoint.y),
+        const lights = updateLightPosition(
+          d.lightSourcesRef.current,
+          id,
+          mapPoint.x,
+          mapPoint.y,
         );
+        d.lightSourcesRef.current = lights;
+        d.setLightSources(lights);
         d.markDirty("overlay");
       }
       return;
@@ -842,9 +855,11 @@ export function useMapPointerHandlers(deps: MapPointerHandlerDependencies) {
     const grid = d.mapControls.screenToGrid({ x: screenX, y: screenY });
     const token = d.getTokenAtPosition(grid.x, grid.y);
     if (token) {
+      d.selectToken(token.id);
       d.setContextMenu({ token, x: e.clientX, y: e.clientY });
       return;
     }
+    d.selectToken(null);
     d.setContextMenu(null);
     if (!d.wallMode && !d.fogMode) {
       const point = screenToMapPx(screenX, screenY);

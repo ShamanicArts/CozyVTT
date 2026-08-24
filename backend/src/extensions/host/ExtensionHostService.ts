@@ -99,6 +99,27 @@ export class ExtensionHostService {
     );
   }
 
+  public async listActivePresentationContributions(
+    role: import("./contracts").CampaignPresentationRole,
+  ): Promise<
+    Array<{
+      extensionId: string;
+      presentation: import("./contracts").CampaignPresentationContribution;
+    }>
+  > {
+    const installations = await this.installations.list();
+    return installations.flatMap((installation) =>
+      installation.state === "active" && installation.installMode === "trusted"
+        ? installation.packageManifest.contributions.presentations
+            .filter((presentation) => presentation.roles.includes(role))
+            .map((presentation) => ({
+              extensionId: installation.extensionId,
+              presentation,
+            }))
+        : [],
+    );
+  }
+
   public async readActiveRendererModule(
     extensionId: string,
     rendererId: string,
@@ -135,6 +156,50 @@ export class ExtensionHostService {
       contents: await this.packages.readBrowserModule(
         discovered,
         renderer.browserEntrypoint,
+      ),
+      checksum: installation.packageChecksum,
+    };
+  }
+
+  public async readActivePresentationModule(
+    extensionId: string,
+    presentationId: string,
+    role: import("./contracts").CampaignPresentationRole,
+  ): Promise<import("./contracts").ExtensionBrowserModule> {
+    const installation = await this.requireInstallation(extensionId);
+    if (
+      installation.state !== "active" ||
+      installation.installMode !== "trusted"
+    ) {
+      throw new ExtensionHostError(
+        "Presentation modules require an active trusted installation",
+        "UNKNOWN_INSTALLATION",
+      );
+    }
+    const presentation =
+      installation.packageManifest.contributions.presentations.find(
+        (candidate) =>
+          candidate.id === presentationId && candidate.roles.includes(role),
+      );
+    if (!presentation) {
+      throw new ExtensionHostError(
+        "Presentation contribution is not available",
+        "UNKNOWN_INSTALLATION",
+      );
+    }
+    const discovered = await this.packages.discoverInstalled(
+      installation.packagePath,
+    );
+    if (discovered.computedChecksum !== installation.packageChecksum) {
+      throw new ExtensionHostError(
+        "Extension package changed after installation",
+        "CHECKSUM_MISMATCH",
+      );
+    }
+    return {
+      contents: await this.packages.readBrowserModule(
+        discovered,
+        presentation.browserEntrypoint,
       ),
       checksum: installation.packageChecksum,
     };
