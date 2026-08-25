@@ -10,6 +10,7 @@ import type {
   ExtensionLifecycleRegistry,
   ExtensionPackageCatalog,
   SandboxedExtensionLifecycle,
+  ExtensionGameSystemRegistry,
   ExtensionTrustPolicy,
 } from "./ports";
 
@@ -26,6 +27,7 @@ export class ExtensionHostService {
     private readonly registry: ExtensionLifecycleRegistry,
     private readonly now: () => Date = () => new Date(),
     private readonly sandboxedLifecycle?: SandboxedExtensionLifecycle,
+    private readonly gameSystems?: ExtensionGameSystemRegistry,
   ) {}
 
   public async install(
@@ -120,6 +122,23 @@ export class ExtensionHostService {
     );
   }
 
+  public async listActiveGameSystemContributions(): Promise<
+    Array<{
+      extensionId: string;
+      gameSystem: import("./contracts").GameSystemContribution;
+    }>
+  > {
+    const installations = await this.installations.list();
+    return installations.flatMap((installation) =>
+      installation.state === "active" && installation.installMode === "trusted"
+        ? installation.packageManifest.contributions.gameSystems.map((gameSystem) => ({
+            extensionId: installation.extensionId,
+            gameSystem,
+          }))
+        : [],
+    );
+  }
+
   public async readActiveRendererModule(
     extensionId: string,
     rendererId: string,
@@ -205,6 +224,45 @@ export class ExtensionHostService {
     };
   }
 
+  public async readActiveGameSystemModule(
+    extensionId: string,
+    gameSystemId: string,
+  ): Promise<import("./contracts").ExtensionBrowserModule> {
+    const installation = await this.requireInstallation(extensionId);
+    if (
+      installation.state !== "active" ||
+      installation.installMode !== "trusted"
+    ) {
+      throw new ExtensionHostError(
+        "Game-system modules require an active trusted installation",
+        "UNKNOWN_INSTALLATION",
+      );
+    }
+    const gameSystem = installation.packageManifest.contributions.gameSystems.find(
+      (candidate) => candidate.id === gameSystemId,
+    );
+    if (!gameSystem) {
+      throw new ExtensionHostError(
+        "Game-system contribution is not installed",
+        "UNKNOWN_INSTALLATION",
+      );
+    }
+    const discovered = await this.packages.discoverInstalled(installation.packagePath);
+    if (discovered.computedChecksum !== installation.packageChecksum) {
+      throw new ExtensionHostError(
+        "Extension package changed after installation",
+        "CHECKSUM_MISMATCH",
+      );
+    }
+    return {
+      contents: await this.packages.readBrowserModule(
+        discovered,
+        gameSystem.browserEntrypoint,
+      ),
+      checksum: installation.packageChecksum,
+    };
+  }
+
   public async listAvailable(): Promise<
     Array<{
       id: string;
@@ -270,6 +328,7 @@ export class ExtensionHostService {
       }
       if (this.registry.getExtension(extensionId))
         await this.registry.deactivate(extensionId);
+      this.gameSystems?.unregister(extensionId);
       return await this.persist(installation, "installed", null, null);
     } catch (error) {
       await this.persist(
@@ -414,6 +473,7 @@ export class ExtensionHostService {
     )
       return installation;
     visiting.add(extensionId);
+    let gameSystemsRegistered = false;
     try {
       for (const [dependencyId, requiredRange] of Object.entries(
         installation.packageManifest.dependencies,
@@ -428,9 +488,17 @@ export class ExtensionHostService {
         await this.activateOne(dependencyId, visiting);
       }
       await this.ensureRegistered(installation);
+      if (installation.packageManifest.contributions.gameSystems.length > 0) {
+        this.gameSystems?.register(
+          extensionId,
+          installation.packageManifest.contributions.gameSystems,
+        );
+        gameSystemsRegistered = this.gameSystems !== undefined;
+      }
       await this.registry.activate(extensionId);
       return await this.persist(installation, "active", null, this.now());
     } catch (error) {
+      if (gameSystemsRegistered) this.gameSystems?.unregister(extensionId);
       await this.persist(
         installation,
         "error",

@@ -45,6 +45,59 @@ export interface CampaignPresentationContributionDescriptor {
   readonly roles: readonly CampaignPresentationRole[];
 }
 
+export interface GameSystemCharacterTemplateDescriptor {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly data: Readonly<Record<string, unknown>>;
+}
+
+/** Declarative rules data plus a trusted browser sheet for a game system. */
+export interface GameSystemContributionDescriptor {
+  /** Stable persisted ID. Existing systems retain their historical uppercase IDs. */
+  readonly id: string;
+  readonly name: string;
+  readonly shortName: string;
+  readonly description: string;
+  readonly contractVersion: "1";
+  readonly selectable: boolean;
+  /** Self-contained JavaScript module exporting `activateGameSystem`. */
+  readonly browserEntrypoint: string;
+  /** JSON Schema evaluated by the authoritative backend before character writes. */
+  readonly characterDataSchema: JsonSchema;
+  readonly characterTemplates: readonly GameSystemCharacterTemplateDescriptor[];
+}
+
+export interface GameSystemCharacterSheetContext {
+  readonly character: {
+    readonly id: string;
+    readonly name: string;
+    readonly gameSystem: string;
+    readonly data: Readonly<Record<string, unknown>>;
+    readonly tokenImageUrl?: string | null;
+  };
+  readonly mode: "view" | "edit";
+  save(data: Readonly<Record<string, unknown>>, tokenImageUrl?: string): Promise<void>;
+  cancel(): void;
+  roll?(expression: string, purpose: string): void;
+}
+
+export interface GameSystemCharacterSheetInstance {
+  update(context: GameSystemCharacterSheetContext): void;
+  dispose(): void;
+}
+
+export interface GameSystemPluginApi {
+  readonly contractVersion: "1";
+  registerCharacterSheet(contribution: {
+    readonly id: string;
+    mount(
+      element: HTMLElement,
+      context: GameSystemCharacterSheetContext,
+    ): GameSystemCharacterSheetInstance | Promise<GameSystemCharacterSheetInstance>;
+  }): () => void;
+}
+
 export type CampaignPresentationBreakpoint = "compact" | "medium" | "wide";
 
 export interface CampaignPresentationSceneAccess {

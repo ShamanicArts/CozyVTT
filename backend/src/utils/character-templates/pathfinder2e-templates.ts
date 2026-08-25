@@ -4,7 +4,7 @@
  * Character Management
  */
 
-import { GameSystem } from '@prisma/client';
+import { GameSystem } from '../../game-systems';
 import type { PF2eCharacterData } from '../../game-systems/pathfinder2e';
 
 export interface CharacterTemplate {

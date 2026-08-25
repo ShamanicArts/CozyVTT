@@ -7,13 +7,14 @@ import { asError } from "@/utils/errors";
 import { useState, FormEvent, useEffect } from 'react';
 import { Loader2, User, Sparkles } from 'lucide-react';
 import { Modal } from '@/components/ui';
-import { Character, GameSystem, Campaign } from '@/types';
-import { GAME_SYSTEM_OPTIONS } from '@/constants/game-systems';
+import { Character, Campaign } from '@/types';
+import { getGameSystemOptions } from '@/constants/game-systems';
 import api from '@/services/api';
 import Button from '@/components/ui/Button';
 import {
   getGameSystemUiDefinition,
   type CharacterTemplateOption,
+  useGameSystemRegistry,
 } from '@/game-systems/registry';
 
 interface NewCharacterModalProps {
@@ -23,7 +24,7 @@ interface NewCharacterModalProps {
   /** If provided, character will be assigned to this campaign */
   campaign?: Campaign;
   /** If provided, this game system will be pre-selected and locked */
-  preselectedGameSystem?: GameSystem | null;
+  preselectedGameSystem?: string | null;
 }
 
 export default function NewCharacterModal({
@@ -33,11 +34,12 @@ export default function NewCharacterModal({
   campaign,
   preselectedGameSystem,
 }: NewCharacterModalProps) {
+  useGameSystemRegistry();
   const [name, setName] = useState('');
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(
     campaign?.id || null
   );
-  const [gameSystem, setGameSystem] = useState<GameSystem | null>(
+  const [gameSystem, setGameSystem] = useState<string | null>(
     preselectedGameSystem || campaign?.gameSystem || null
   );
   const [selectedTemplate, setSelectedTemplate] = useState<string>('blank');
@@ -288,14 +290,14 @@ export default function NewCharacterModal({
                     id="gameSystem"
                     value={gameSystem || ''}
                     onChange={(e) => {
-                      setGameSystem((e.target.value as GameSystem) || null);
+                      setGameSystem(e.target.value || null);
                       setSelectedTemplate('blank'); // Reset template when game system changes
                     }}
                     disabled={loading || isGameSystemLocked()}
                     className="input-cozy w-full disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="">Flexible (No System)</option>
-                    {GAME_SYSTEM_OPTIONS.map((option) => (
+                    {getGameSystemOptions().map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>

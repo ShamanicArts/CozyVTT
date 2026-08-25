@@ -13,7 +13,7 @@
  */
 
 import { z } from 'zod';
-import { GameSystem } from '@prisma/client';
+import { GameSystemIdSchema } from './gameSystemId';
 import { NpcStatBlockSchema } from './statBlock';
 
 const SizeSchema = z.object({
@@ -29,7 +29,7 @@ const DisplayModeSchema = z.enum(['pog', 'top-down', 'full-art']);
  * field optional without repeating the constraints.
  */
 const creatureFields = {
-  gameSystem: z.nativeEnum(GameSystem).nullable().optional(),
+  gameSystem: GameSystemIdSchema.nullable().optional(),
   challengeRating: z.string().max(10).nullable().optional(),
   creatureType: z.string().max(200).nullable().optional(),
   alignment: z.string().max(100).nullable().optional(),

@@ -27,6 +27,7 @@ import {
 import { CoreApplicationGatewayFactory } from "../extensions/core/CoreApplicationGateway";
 import { productionApplicationHost } from "./productionApplicationHost";
 import { productionPublicQueryHost } from "./productionQueryHost";
+import { extensionGameSystemRegistry } from "../game-systems/registry";
 
 class DurableBridgePolicy implements ExtensionPolicyPort {
   public constructor(private readonly access: PrismaPluginAccessRepository) {}
@@ -156,6 +157,7 @@ export function productionExtensionRuntime(): ProductionExtensionRuntime {
     trustedRegistry,
     undefined,
     lifecycle,
+    extensionGameSystemRegistry,
   );
   runtime = {
     registry,

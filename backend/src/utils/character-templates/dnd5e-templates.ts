@@ -4,7 +4,7 @@
  * Character Management
  */
 
-import { GameSystem } from '@prisma/client';
+import { GameSystem } from '../../game-systems';
 import type { DnD5eCharacterData } from '../../game-systems/dnd5e';
 
 export interface CharacterTemplate {

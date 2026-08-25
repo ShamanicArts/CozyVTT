@@ -5,7 +5,7 @@
  * Note: the Shadowrun 6e backend is complete; the character sheet UI is not yet built.
  */
 
-import { GameSystem } from '@prisma/client';
+import { GameSystem } from '../../game-systems';
 import type { SR6CharacterData } from '../../game-systems/shadowrun6e';
 
 export interface CharacterTemplate {

@@ -107,6 +107,11 @@ export class CreateCampaign implements CommandHandler<CreateCampaignCommand, { c
   constructor(private readonly repository: CampaignAdministrationRepository) {}
 
   async execute(command: CreateCampaignCommand): Promise<{ campaign: Record<string, unknown> | null }> {
+    if (command.gameSystem && !isSupportedGameSystem(command.gameSystem)) {
+      throw campaignValidationError(
+        `Invalid game system. Must be one of: ${getSupportedGameSystemIds().join(', ')}`,
+      );
+    }
     const campaign = await this.repository.createCampaign({
       name: command.name,
       description: command.description || '',

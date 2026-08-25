@@ -5,6 +5,7 @@
  */
 
 import { z } from 'zod';
+import { GameSystemIdSchema } from './gameSystemId';
 import { createNpcStatBlockSchema, IMPORT_STAT_BLOCK_LIMITS } from './statBlock';
 
 // ── Limits ──────────────────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ export const ManifestSchema = z.object({
   exportedAt: z.string().max(50),
   exportedFrom: z.string().max(100),
   campaignName: z.string().min(1).max(200),
-  gameSystem: z.string().max(50),
+  gameSystem: GameSystemIdSchema,
   mapCount: z.number().int().min(0).max(IMPORT_LIMITS.MAX_MAPS),
   tokenCount: z.number().int().min(0),
   creatureCount: z.number().int().min(0).max(IMPORT_LIMITS.MAX_CREATURES),
@@ -73,7 +74,7 @@ const VibePeriodSchema = z.object({
 export const CampaignSettingsSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(5000).nullable().optional(),
-  gameSystem: z.string().max(50).nullable().optional(),
+  gameSystem: GameSystemIdSchema.nullable().optional(),
   vibeSettings: z.object({
     periods: z.array(VibePeriodSchema).max(20),
   }).passthrough().optional(),
@@ -153,7 +154,7 @@ export const MapDataSchema = z.object({
 
 export const CreatureTemplateSchema = z.object({
   name: z.string().min(1).max(200),
-  gameSystem: z.string().max(50).nullable().optional(),
+  gameSystem: GameSystemIdSchema.nullable().optional(),
   challengeRating: z.string().max(10).nullable().optional(),
   creatureType: z.string().max(200).nullable().optional(),
   alignment: z.string().max(100).nullable().optional(),

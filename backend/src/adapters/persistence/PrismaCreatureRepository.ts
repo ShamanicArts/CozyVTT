@@ -1,6 +1,5 @@
 import {
   type CreatureTemplate as PrismaCreatureTemplate,
-  GameSystem as PrismaGameSystem,
   Prisma,
   PrismaClient,
 } from "@prisma/client";
@@ -29,7 +28,7 @@ function createData(
 ): Prisma.CreatureTemplateUncheckedCreateInput {
   return {
     ...data,
-    gameSystem: data.gameSystem as PrismaGameSystem | null,
+    gameSystem: data.gameSystem,
     statBlock: data.statBlock as Prisma.InputJsonValue,
     size: data.size as unknown as Prisma.InputJsonValue,
   };
@@ -42,7 +41,7 @@ function updateData(
   return {
     ...scalars,
     ...(gameSystem !== undefined && {
-      gameSystem: gameSystem as PrismaGameSystem | null,
+      gameSystem,
     }),
     ...(statBlock !== undefined && {
       statBlock: statBlock as Prisma.InputJsonValue,

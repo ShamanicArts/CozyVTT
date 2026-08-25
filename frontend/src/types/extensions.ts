@@ -46,10 +46,33 @@ export interface ActiveExtensionPresentationContribution {
   presentation: ExtensionPresentationContribution;
 }
 
+export interface ExtensionGameSystemContribution {
+  id: string;
+  name: string;
+  shortName: string;
+  description: string;
+  contractVersion: "1";
+  selectable: boolean;
+  moduleUrl: string;
+  characterDataSchema: Readonly<Record<string, unknown>>;
+  characterTemplates: Array<{
+    id: string;
+    name: string;
+    description: string;
+    data: Readonly<Record<string, unknown>>;
+  }>;
+}
+
+export interface ActiveExtensionGameSystemContribution {
+  extensionId: string;
+  gameSystem: ExtensionGameSystemContribution;
+}
+
 export interface ActiveExtensionContributions {
   themes: ActiveExtensionThemeContribution[];
   renderers: ActiveExtensionRendererContribution[];
   presentations: ActiveExtensionPresentationContribution[];
+  gameSystems: ActiveExtensionGameSystemContribution[];
 }
 
 export interface ExtensionPackage {
@@ -107,6 +130,15 @@ export interface ExtensionInstallation {
         id: string;
         name: string;
         contractVersion: "1";
+        browserEntrypoint: string;
+      }>;
+      gameSystems?: Array<{
+        id: string;
+        name: string;
+        shortName: string;
+        description: string;
+        contractVersion: "1";
+        selectable: boolean;
         browserEntrypoint: string;
       }>;
     };

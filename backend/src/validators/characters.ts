@@ -7,14 +7,14 @@
 // ============================================
 
 import { z } from 'zod';
-import { GameSystem } from '../game-systems';
+import { GameSystemIdSchema } from './gameSystemId';
 
 /** POST /api/characters */
 export const CreateCharacterSchema = z.object({
   name: z.string().trim().min(1, 'Character name is required').max(200, 'Character name must be 200 characters or fewer'),
   data: z.unknown().optional(),
   tokenImageUrl: z.string().nullish(),
-  gameSystem: z.nativeEnum(GameSystem).nullish(),
+  gameSystem: GameSystemIdSchema.nullish(),
   campaignId: z.string().nullish(),
 });
 
@@ -23,5 +23,5 @@ export const UpdateCharacterSchema = z.object({
   name: z.string().trim().min(1, 'Character name is required').max(200, 'Character name must be 200 characters or fewer').optional(),
   data: z.unknown().optional(),
   tokenImageUrl: z.string().nullish(),
-  gameSystem: z.nativeEnum(GameSystem).nullish(),
+  gameSystem: GameSystemIdSchema.nullish(),
 });

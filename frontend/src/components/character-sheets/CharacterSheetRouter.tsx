@@ -5,7 +5,7 @@
  */
 
 import React, { Suspense } from 'react';
-import { getGameSystemUiDefinition } from '@/game-systems/registry';
+import { getGameSystemUiDefinition, useGameSystemRegistry } from '@/game-systems/registry';
 import { CharacterSheetProps } from './types';
 import { FlexibleCharacterSheet } from './FlexibleCharacterSheet';
 import { CharacterSheetLoadingSpinner } from './LoadingSpinner';
@@ -30,6 +30,7 @@ export const CharacterSheetRouter: React.FC<CharacterSheetRouterProps> = (
   props
 ) => {
   const { character } = props;
+  useGameSystemRegistry();
 
   const renderSheet = () => {
     if (!character.gameSystem) return <FlexibleCharacterSheet {...props} />;

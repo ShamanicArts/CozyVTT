@@ -7,9 +7,10 @@ import { asError } from "@/utils/errors";
 import { useState, useCallback, FormEvent } from 'react';
 import { Plus } from 'lucide-react';
 import campaignService from '@/services/campaign.service';
-import type { Campaign, GameSystem } from '@/types';
-import { GAME_SYSTEM_OPTIONS } from '@/constants/game-systems';
+import type { Campaign } from '@/types';
+import { getGameSystemOptions } from '@/constants/game-systems';
 import { Button, Modal, Field, Input, Textarea, Select } from '@/components/ui';
+import { useGameSystemRegistry } from '@/game-systems/registry';
 
 interface CreateCampaignModalProps {
   isOpen: boolean;
@@ -22,8 +23,9 @@ export default function CreateCampaignModal({
   onClose,
   onSuccess,
 }: CreateCampaignModalProps) {
+  useGameSystemRegistry();
   const [name, setName] = useState('');
-  const [gameSystem, setGameSystem] = useState<GameSystem | null>(null);
+  const [gameSystem, setGameSystem] = useState<string | null>(null);
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -114,11 +116,11 @@ export default function CreateCampaignModal({
             <Select
               {...field}
               value={gameSystem || ''}
-              onChange={(e) => setGameSystem((e.target.value as GameSystem) || null)}
+              onChange={(e) => setGameSystem(e.target.value || null)}
               disabled={loading}
             >
               <option value="">Flexible (No System)</option>
-              {GAME_SYSTEM_OPTIONS.map((option) => (
+              {getGameSystemOptions().map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>

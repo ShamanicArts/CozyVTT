@@ -90,6 +90,23 @@ describe("creature commands", () => {
     );
   });
 
+  it("rejects a well-formed game system that is not active", async () => {
+    await expect(
+      new CreateCreature(repository()).execute({
+        type: "creature.create",
+        campaignId: "camp",
+        userId: "u",
+        data: {
+          name: "Unknown",
+          gameSystem: "publisher.unknown",
+          statBlock: validStatBlock,
+        },
+      }),
+    ).rejects.toEqual(
+      new CreatureError(400, "Validation Error", "Game system is not active"),
+    );
+  });
+
   it("normalizes token image references for every creature write", async () => {
     const repo = repository();
     await new CreateCreature(repo).execute({

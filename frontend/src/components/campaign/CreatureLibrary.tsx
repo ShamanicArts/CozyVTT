@@ -665,7 +665,7 @@ interface CreatureRowProps {
   isExpanded: boolean;
   isPlacing: boolean;
   isFavorite: boolean;
-  gameSystem: GameSystem | null;
+  gameSystem: string | null;
   onToggle: () => void;
   onPlace: () => void;
   onDuplicate: () => void;
@@ -880,7 +880,7 @@ function NameDescriptionList({
 
 interface CreatureFormProps {
   campaignId: string;
-  gameSystem: GameSystem | null;
+  gameSystem: string | null;
   editingCreature: CreatureTemplate | null;
   onCreated: (creature: CreatureTemplate) => void;
   onEdited: (creature: CreatureTemplate) => void;

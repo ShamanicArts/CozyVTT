@@ -14,7 +14,7 @@ import { formatSaveList, formatSkillList } from './statBlockProficiency';
 interface StatBlockViewerProps {
   statBlock: NpcStatBlock;
   tokenName: string;
-  gameSystem: GameSystem | null;
+  gameSystem: string | null;
 }
 
 export default function StatBlockViewer({ statBlock, tokenName, gameSystem }: StatBlockViewerProps) {

@@ -18,6 +18,25 @@ export interface ActiveCampaignPresentationContribution {
   };
 }
 
+export interface ActiveGameSystemContribution {
+  extensionId: string;
+  gameSystem: {
+    id: string;
+    name: string;
+    shortName: string;
+    description: string;
+    contractVersion: "1";
+    selectable: boolean;
+    characterDataSchema: Readonly<Record<string, unknown>>;
+    characterTemplates: readonly {
+      id: string;
+      name: string;
+      description: string;
+      data: Readonly<Record<string, unknown>>;
+    }[];
+  };
+}
+
 export interface ExtensionHostPort {
   listAvailable(): Promise<unknown[]>;
   list(): Promise<unknown[]>;
@@ -30,6 +49,7 @@ export interface ExtensionHostPort {
   listActivePresentationContributions(
     role: CampaignPresentationRole,
   ): Promise<ActiveCampaignPresentationContribution[]>;
+  listActiveGameSystemContributions(): Promise<ActiveGameSystemContribution[]>;
   readActiveRendererModule(
     extensionId: string,
     rendererId: string,
@@ -38,5 +58,9 @@ export interface ExtensionHostPort {
     extensionId: string,
     presentationId: string,
     role: CampaignPresentationRole,
+  ): Promise<{ checksum: string; contents: Buffer }>;
+  readActiveGameSystemModule(
+    extensionId: string,
+    gameSystemId: string,
   ): Promise<{ checksum: string; contents: Buffer }>;
 }

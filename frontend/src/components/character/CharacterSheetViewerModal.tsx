@@ -9,14 +9,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import { canEditCharacter } from '@/services/permissions';
 import { api } from '@/services/api';
-import type { Character, GameSystem, CampaignMembership } from '@/types';
-
-// Import view components
-import { DnD5eCharacterView } from '../character-sheets/dnd5e/DnD5eCharacterView';
-import Pathfinder2eCharacterView from '../character-sheets/pathfinder2e/Pathfinder2eCharacterView';
-import Shadowrun6eCharacterSheet from '../character-sheets/shadowrun6e/Shadowrun6eCharacterSheet';
-import CallOfCthulhu7eCharacterView from '../character-sheets/call-of-cthulhu-7e/CallOfCthulhu7eCharacterView';
-import { FlexibleCharacterSheetView } from '../character-sheets/flexible/FlexibleCharacterSheetView';
+import type { Character, CampaignMembership } from '@/types';
+import { CharacterSheetRouter } from '../character-sheets/CharacterSheetRouter';
+import { getGameSystemLabel } from '@/constants/game-systems';
 
 // Import editor modal
 import CharacterSheetEditorModal from './CharacterSheetEditorModal';
@@ -104,44 +99,10 @@ export default function CharacterSheetViewerModal({
 
   const modalRef = useFocusTrap(true, onClose);
 
-  // Get game system display name
-  const getSystemName = (gameSystem: GameSystem | null) => {
-    switch (gameSystem) {
-      case 'DND_5E':
-        return 'D&D 5th Edition';
-      case 'PATHFINDER_2E':
-        return 'Pathfinder 2nd Edition';
-      case 'SHADOWRUN_6E':
-        return 'Shadowrun 6th Edition';
-      case 'CALL_OF_CTHULHU_7E':
-        return 'Call of Cthulhu 7th Edition';
-      case null:
-        return 'Flexible/Custom';
-      default:
-        return gameSystem;
-    }
-  };
-
   // Handle click-to-roll — emit dice roll via WebSocket
   const handleRoll = (expression: string, purpose: string) => {
     if (socket) {
       socket.emitDiceRoll({ expression, purpose });
-    }
-  };
-
-  // Render appropriate character sheet view based on game system
-  const renderCharacterSheet = () => {
-    switch (character.gameSystem) {
-      case 'DND_5E':
-        return <DnD5eCharacterView character={character} onEdit={canEdit ? handleEdit : undefined} onRoll={handleRoll} />;
-      case 'PATHFINDER_2E':
-        return <Pathfinder2eCharacterView character={character} onEdit={canEdit ? handleEdit : undefined} onRoll={handleRoll} />;
-      case 'SHADOWRUN_6E':
-        return <Shadowrun6eCharacterSheet character={character} mode="view" />;
-      case 'CALL_OF_CTHULHU_7E':
-        return <CallOfCthulhu7eCharacterView character={character} onEdit={canEdit ? handleEdit : undefined} onRoll={handleRoll} />;
-      default:
-        return <FlexibleCharacterSheetView character={character} onEdit={canEdit ? handleEdit : undefined} />;
     }
   };
 
@@ -169,7 +130,7 @@ export default function CharacterSheetViewerModal({
                 <div className="flex items-center gap-3 text-sm text-warm-gray">
                   <span>Player: {ownerName}</span>
                   <span>•</span>
-                  <span>{getSystemName(character.gameSystem)}</span>
+                  <span>{getGameSystemLabel(character.gameSystem)}</span>
                 </div>
               </div>
             </div>
@@ -208,7 +169,11 @@ export default function CharacterSheetViewerModal({
 
         {/* Character Sheet Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {renderCharacterSheet()}
+          <CharacterSheetRouter
+            character={character}
+            mode="view"
+            onRoll={handleRoll}
+          />
         </div>
 
         {/* Footer */}

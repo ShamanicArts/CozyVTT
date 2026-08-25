@@ -85,6 +85,49 @@ export const campaignPresentationContributionSchema = z
   })
   .strict();
 
+const boundedJsonObjectSchema = z
+  .record(z.string().min(1).max(120), z.unknown())
+  .refine(
+    (value) => JSON.stringify(value).length <= 65_536,
+    "JSON object exceeds the 64 KiB contribution limit",
+  );
+
+export const gameSystemContributionSchema = z
+  .object({
+    id: z
+      .string()
+      .max(128)
+      .regex(/^(?:[A-Z][A-Z0-9_]{2,127}|[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+)$/),
+    name: z.string().trim().min(1).max(120),
+    shortName: z.string().trim().min(1).max(24),
+    description: z.string().trim().min(1).max(1_000),
+    contractVersion: z.literal("1"),
+    selectable: z.boolean(),
+    browserEntrypoint: packageEntrypointSchema,
+    characterDataSchema: boundedJsonObjectSchema.refine(
+      (schema) => schema.type === "object",
+      "Character data schema must describe an object",
+    ),
+    characterTemplates: z
+      .array(
+        z
+          .object({
+            id: z.string().regex(/^[a-z][a-z0-9-]{0,63}$/),
+            name: z.string().trim().min(1).max(120),
+            description: z.string().trim().min(1).max(500),
+            data: boundedJsonObjectSchema,
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(32)
+      .refine(
+        (templates) => new Set(templates.map((template) => template.id)).size === templates.length,
+        "Character template IDs must be unique",
+      ),
+  })
+  .strict();
+
 export const extensionPackageManifestSchema: z.ZodType<ExtensionPackageManifest> =
   z
     .object({
@@ -125,9 +168,17 @@ export const extensionPackageManifestSchema: z.ZodType<ExtensionPackageManifest>
             .array(campaignPresentationContributionSchema)
             .max(16)
             .default([]),
+          gameSystems: z
+            .array(gameSystemContributionSchema)
+            .max(16)
+            .refine(
+              (systems) => new Set(systems.map((system) => system.id)).size === systems.length,
+              "Game-system IDs must be unique within a package",
+            )
+            .default([]),
         })
         .strict()
-        .default({ themes: [], renderers: [], presentations: [] }),
+        .default({ themes: [], renderers: [], presentations: [], gameSystems: [] }),
     })
     .strict()
     .superRefine((packageManifest, context) => {
@@ -140,6 +191,17 @@ export const extensionPackageManifestSchema: z.ZodType<ExtensionPackageManifest>
           path: ["manifest", "capabilities"],
           message:
             "The presentations capability is required when campaign presentations are declared",
+        });
+      }
+      if (
+        packageManifest.contributions.gameSystems.length > 0 &&
+        !packageManifest.manifest.capabilities.includes("game-systems")
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["manifest", "capabilities"],
+          message:
+            "The game-systems capability is required when game systems are declared",
         });
       }
     });

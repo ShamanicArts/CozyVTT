@@ -11,6 +11,7 @@ import {
   CreateCreatureSchema,
   UpdateCreatureSchema,
 } from "../../validators/creatures";
+import { isSupportedGameSystem } from "../../game-systems/registry";
 import type { Command, CommandHandler } from "../commands/CommandBus";
 
 export const CREATE_CREATURE = "creature.create" as const;
@@ -124,6 +125,9 @@ export class CreateCreature implements CommandHandler<
       );
     }
     const data = parsed.data;
+    if (data.gameSystem && !isSupportedGameSystem(data.gameSystem)) {
+      throw new CreatureError(400, "Validation Error", "Game system is not active");
+    }
 
     return this.repository.create({
       name: data.name,
@@ -164,6 +168,9 @@ export class UpdateCreature implements CommandHandler<
       command.creatureId,
       "edit",
     );
+    if (parsed.data.gameSystem && !isSupportedGameSystem(parsed.data.gameSystem)) {
+      throw new CreatureError(400, "Validation Error", "Game system is not active");
+    }
     return this.repository.update(command.creatureId, {
       ...parsed.data,
       ...(parsed.data.imageUrl !== undefined && {

@@ -7,7 +7,8 @@
  *   npm run migrate:characters -- --execute  (apply changes)
  */
 
-import { PrismaClient, GameSystem } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import { GameSystem } from '../game-systems';
 
 const prisma = new PrismaClient();
 

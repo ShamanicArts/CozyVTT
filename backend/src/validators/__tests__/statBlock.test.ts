@@ -239,8 +239,13 @@ describe('CreateCreatureSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects an unknown game system', () => {
+  it('accepts a well-formed extension game-system ID', () => {
     const result = CreateCreatureSchema.safeParse({ ...valid, gameSystem: 'MADE_UP' });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a malformed game-system ID', () => {
+    const result = CreateCreatureSchema.safeParse({ ...valid, gameSystem: 'not valid' });
     expect(result.success).toBe(false);
   });
 });

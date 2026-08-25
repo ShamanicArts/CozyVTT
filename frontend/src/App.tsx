@@ -14,6 +14,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
 import ToastContainer from "@/components/common/ToastContainer";
 import Button from "@/components/ui/Button";
+import { GameSystemContributionProvider } from "@/game-systems/GameSystemContributionProvider";
 
 // Lazy-loaded pages — each becomes its own JS chunk so the browser only downloads
 // code for the page the user actually visits.
@@ -79,6 +80,7 @@ function App() {
           <ThemeProvider>
             <ToastProvider>
               <AuthProvider>
+                <GameSystemContributionProvider>
                 {/* Sync per-user theme prefs with auth state */}
                 <ThemeSyncBridge />
                 {/* Skip to main content — WCAG 2.4.1 Bypass Blocks */}
@@ -206,6 +208,7 @@ function App() {
                     </Routes>
                   </Suspense>
                 </div>
+                </GameSystemContributionProvider>
               </AuthProvider>
             </ToastProvider>
           </ThemeProvider>

@@ -13,7 +13,7 @@ import { CallOfCthulhu7eCharacterEditor } from './CallOfCthulhu7eCharacterEditor
  * CallOfCthulhu7eCharacterSheet - Mode switcher for Call of Cthulhu 7e character sheet
  */
 export const CallOfCthulhu7eCharacterSheet: React.FC<CharacterSheetProps> = (props) => {
-  const { mode, character, onSave } = props;
+  const { mode, character, onSave, onRoll } = props;
   const [currentMode, setCurrentMode] = useState<'view' | 'edit'>(mode);
 
   // Handle cancel - return to view mode
@@ -41,7 +41,13 @@ export const CallOfCthulhu7eCharacterSheet: React.FC<CharacterSheetProps> = (pro
   }
 
   // View mode - pass a callback to switch to edit mode
-  return <CallOfCthulhu7eCharacterView character={character} onEdit={() => setCurrentMode('edit')} />;
+  return (
+    <CallOfCthulhu7eCharacterView
+      character={character}
+      onEdit={onSave ? () => setCurrentMode('edit') : undefined}
+      onRoll={onRoll}
+    />
+  );
 };
 
 export default CallOfCthulhu7eCharacterSheet;

@@ -12,10 +12,7 @@ import type { Character } from '@/types';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 
 // Import editor components
-import DnD5eCharacterEditor from '../character-sheets/dnd5e/DnD5eCharacterEditor';
-import Pathfinder2eCharacterEditor from '../character-sheets/pathfinder2e/Pathfinder2eCharacterEditor';
-import CallOfCthulhu7eCharacterEditor from '../character-sheets/call-of-cthulhu-7e/CallOfCthulhu7eCharacterEditor';
-import { FlexibleCharacterSheetEdit } from '../character-sheets/flexible/FlexibleCharacterSheetEdit';
+import { CharacterSheetRouter } from '../character-sheets/CharacterSheetRouter';
 
 interface CharacterSheetEditorModalProps {
   character: Character;
@@ -77,65 +74,6 @@ export default function CharacterSheetEditorModal({
 
   const modalRef = useFocusTrap(true, onClose);
 
-  // Render appropriate character sheet editor based on game system
-  const renderCharacterEditor = () => {
-    switch (character.gameSystem) {
-      case 'DND_5E':
-        return (
-          <DnD5eCharacterEditor
-            character={character}
-            onSave={handleSave}
-            onCancel={handleCancel}
-          />
-        );
-      case 'PATHFINDER_2E':
-        return (
-          <Pathfinder2eCharacterEditor
-            character={character}
-            onSave={handleSave}
-            onCancel={handleCancel}
-          />
-        );
-      case 'CALL_OF_CTHULHU_7E':
-        return (
-          <CallOfCthulhu7eCharacterEditor
-            character={character}
-            onSave={handleSave}
-            onCancel={handleCancel}
-          />
-        );
-      case 'SHADOWRUN_6E':
-        // Shadowrun editor not yet implemented
-        return (
-          <div className="glass-panel p-6">
-            <div className="flex flex-col items-center justify-center py-12 space-y-4">
-              <h3 className="text-xl font-semibold text-warm-gray">
-                Shadowrun 6e Character Editor
-              </h3>
-              <p className="text-stone-gray text-center max-w-md">
-                The Shadowrun 6th Edition character editor is not yet implemented.
-              </p>
-              <button
-                onClick={onClose}
-                className="px-6 py-2 rounded-lg bg-moss-green text-white hover:bg-moss-green/90 transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        );
-      default:
-        // Flexible character sheet
-        return (
-          <FlexibleCharacterSheetEdit
-            character={character}
-            onSave={handleSave}
-            onCancel={handleCancel}
-          />
-        );
-    }
-  };
-
   return (
     <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" aria-hidden="true">
@@ -165,7 +103,12 @@ export default function CharacterSheetEditorModal({
 
         {/* Editor Content */}
         <div className="flex-1 overflow-y-auto">
-          {renderCharacterEditor()}
+          <CharacterSheetRouter
+            character={character}
+            mode="edit"
+            onSave={handleSave}
+            onCancel={handleCancel}
+          />
         </div>
       </div>
     </div>

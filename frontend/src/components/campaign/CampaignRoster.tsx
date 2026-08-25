@@ -29,7 +29,7 @@ import CharacterContextMenu from "./CharacterContextMenu";
 import CharacterRollPicker from "./CharacterRollPicker";
 import Toast, { useToast } from "@/components/Toast";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
-import type { CampaignRole, GameSystem, Character } from "@/types";
+import type { CampaignRole, Character } from "@/types";
 
 interface RosterMember {
   userId: string;
@@ -41,7 +41,7 @@ interface RosterMember {
     id: string;
     name: string;
     tokenImageUrl: string | null;
-    gameSystem: GameSystem | null;
+    gameSystem: string | null;
     userId: string;
     hp: CharacterHpInfo | null;
   }[];
@@ -229,7 +229,7 @@ export default function CampaignRoster() {
   };
 
   // Get game system badge color
-  const getSystemBadgeColor = (gameSystem: GameSystem | null) => {
+  const getSystemBadgeColor = (gameSystem: string | null) => {
     switch (gameSystem) {
       case "DND_5E":
         return "bg-danger/10 text-danger";
@@ -245,7 +245,7 @@ export default function CampaignRoster() {
   };
 
   // Get game system short name
-  const getSystemShortName = (gameSystem: GameSystem | null) => {
+  const getSystemShortName = (gameSystem: string | null) => {
     switch (gameSystem) {
       case "DND_5E":
         return "D&D 5e";
@@ -483,8 +483,8 @@ export default function CampaignRoster() {
 interface MemberCardProps {
   member: RosterMember;
   getRoleIcon: (role: CampaignRole) => LucideIcon;
-  getSystemBadgeColor: (gameSystem: GameSystem | null) => string;
-  getSystemShortName: (gameSystem: GameSystem | null) => string;
+  getSystemBadgeColor: (gameSystem: string | null) => string;
+  getSystemShortName: (gameSystem: string | null) => string;
   onCharacterClick: (characterId: string) => void;
   onCharacterRightClick: (
     e: React.MouseEvent,

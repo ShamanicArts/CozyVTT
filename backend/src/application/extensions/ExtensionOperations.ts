@@ -38,6 +38,7 @@ export class ExtensionOperations {
   contributions() {
     return this.execute(async (host) => {
       const renderers = await host.listActiveRendererContributions();
+      const gameSystems = await host.listActiveGameSystemContributions();
       return {
         themes: await host.listActiveThemeContributions(),
         renderers: renderers.map(({ extensionId, renderer }) => ({
@@ -49,12 +50,24 @@ export class ExtensionOperations {
             moduleUrl: `/api/extensions/contributions/renderers/${encodeURIComponent(extensionId)}/${encodeURIComponent(renderer.id)}`,
           },
         })),
+        gameSystems: gameSystems.map(({ extensionId, gameSystem }) => ({
+          extensionId,
+          gameSystem: {
+            ...gameSystem,
+            moduleUrl: `/api/extensions/contributions/game-systems/${encodeURIComponent(extensionId)}/${encodeURIComponent(gameSystem.id)}`,
+          },
+        })),
       };
     });
   }
   renderer(extensionId: string, rendererId: string) {
     return this.execute((host) =>
       host.readActiveRendererModule(extensionId, rendererId),
+    );
+  }
+  gameSystem(extensionId: string, gameSystemId: string) {
+    return this.execute((host) =>
+      host.readActiveGameSystemModule(extensionId, gameSystemId),
     );
   }
   campaignContributions(campaignId: string, role: CampaignPresentationRole) {

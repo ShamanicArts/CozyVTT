@@ -4,7 +4,7 @@
  * Character Management
  */
 
-import { GameSystem } from '@prisma/client';
+import { GameSystem } from '../../game-systems';
 import type { CoC7eCharacterData } from '../../game-systems/callOfCthulhu7e';
 
 export interface CharacterTemplate {

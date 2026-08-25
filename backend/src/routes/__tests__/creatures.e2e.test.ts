@@ -10,7 +10,7 @@
  */
 
 import request from 'supertest';
-import { GameSystem } from '@prisma/client';
+import { GameSystem } from '../../game-systems';
 import { createTestApp } from '../../__tests__/helpers/test-app';
 import {
   prisma,

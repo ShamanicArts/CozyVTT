@@ -1,7 +1,6 @@
 /** Transport- and persistence-neutral creature-library records. */
 
-export type CreatureGameSystem =
-  "DND_5E" | "PATHFINDER_2E" | "SHADOWRUN_6E" | "CALL_OF_CTHULHU_7E";
+export type CreatureGameSystem = string;
 
 export interface CreatureSize {
   width: number;

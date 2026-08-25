@@ -4,7 +4,6 @@
  * Character Management
  */
 
-import { GameSystem } from '@prisma/client';
 import {
   getGameSystemDefinition,
   listGameSystemDefinitions,
@@ -13,7 +12,7 @@ import {
 export interface CharacterTemplate {
   name: string;
   description: string;
-  gameSystem: GameSystem;
+  gameSystem: string;
   data: object;
 }
 
@@ -23,7 +22,7 @@ export interface CharacterTemplate {
  * @returns Array of available templates
  */
 export function getTemplatesForGameSystem(
-  gameSystem: GameSystem
+  gameSystem: string
 ): CharacterTemplate[] {
   return getGameSystemDefinition(gameSystem)?.getCharacterTemplates() ?? [];
 }
@@ -35,7 +34,7 @@ export function getTemplatesForGameSystem(
  * @returns The character template
  */
 export function getCharacterTemplate(
-  gameSystem: GameSystem,
+  gameSystem: string,
   templateName?: string
 ): CharacterTemplate {
   const definition = getGameSystemDefinition(gameSystem);
@@ -48,7 +47,7 @@ export function getCharacterTemplate(
  * @param gameSystem - The game system
  * @returns The blank character template
  */
-export function getBlankTemplate(gameSystem: GameSystem): CharacterTemplate {
+export function getBlankTemplate(gameSystem: string): CharacterTemplate {
   return getCharacterTemplate(gameSystem, 'blank');
 }
 

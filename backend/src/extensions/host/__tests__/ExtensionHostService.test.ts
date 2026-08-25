@@ -37,9 +37,11 @@ function packageFor(
   dependencies: Record<string, string> = {},
   renderer = false,
   presentation = false,
+  gameSystem = false,
 ): DiscoveredExtensionPackage {
   const extensionManifest = manifest(id);
   if (presentation) extensionManifest.capabilities.push("presentations");
+  if (gameSystem) extensionManifest.capabilities.push("game-systems");
   const packageManifest: ExtensionPackageManifest = {
     packageFormat: "cozyvtt-extension-package/1",
     manifest: extensionManifest,
@@ -67,6 +69,28 @@ function packageFor(
               contractVersion: "1",
               browserEntrypoint: "presentation.mjs",
               roles: ["DM", "PLAYER"],
+            },
+          ]
+        : [],
+      gameSystems: gameSystem
+        ? [
+            {
+              id: "DND_5E",
+              name: "Dungeons & Dragons 5th Edition",
+              shortName: "D&D 5e",
+              description: "D&D character sheets and validation.",
+              contractVersion: "1",
+              selectable: true,
+              browserEntrypoint: "dnd5e.mjs",
+              characterDataSchema: { type: "object" },
+              characterTemplates: [
+                {
+                  id: "blank",
+                  name: "Blank Character",
+                  description: "An empty character.",
+                  data: {},
+                },
+              ],
             },
           ]
         : [],
@@ -182,27 +206,48 @@ class FakeRegistry implements ExtensionLifecycleRegistry {
   }
 }
 
+class FakeGameSystemRegistry {
+  public readonly calls: string[] = [];
+
+  register(
+    extensionId: string,
+    contributions: readonly import("../contracts").GameSystemContribution[],
+  ): void {
+    this.calls.push(`register:${extensionId}:${contributions.map((item) => item.id).join(",")}`);
+  }
+
+  unregister(extensionId: string): void {
+    this.calls.push(`unregister:${extensionId}`);
+  }
+}
+
 function trustedService(packages: Map<string, DiscoveredExtensionPackage>): {
   service: ExtensionHostService;
   catalog: FakeCatalog;
   repository: MemoryRepository;
   registry: FakeRegistry;
+  gameSystems: FakeGameSystemRegistry;
 } {
   const allowlist: ExtensionTrustAllowlist = { allows: async () => true };
   const verifier: ExtensionSignatureVerifier = { verify: async () => true };
   const catalog = new FakeCatalog(packages);
   const repository = new MemoryRepository();
   const registry = new FakeRegistry();
+  const gameSystems = new FakeGameSystemRegistry();
   return {
     service: new ExtensionHostService(
       catalog,
       new ReviewedExtensionTrustPolicy(allowlist, verifier),
       repository,
       registry,
+      undefined,
+      undefined,
+      gameSystems,
     ),
     catalog,
     repository,
     registry,
+    gameSystems,
   };
 }
 
@@ -366,5 +411,32 @@ describe("ExtensionHostService", () => {
         "SPECTATOR",
       ),
     ).rejects.toMatchObject({ code: "UNKNOWN_INSTALLATION" });
+  });
+
+  it("lists and serves game-system modules only from active trusted packages", async () => {
+    const trusted = packageFor("cozyvtt.dnd5e", {}, false, false, true);
+    const { service, gameSystems } = trustedService(new Map([["cozyvtt.dnd5e", trusted]]));
+    await service.install("cozyvtt.dnd5e");
+    await service.activate("cozyvtt.dnd5e");
+    expect(gameSystems.calls).toEqual(["register:cozyvtt.dnd5e:DND_5E"]);
+
+    await expect(service.listActiveGameSystemContributions()).resolves.toEqual([
+      {
+        extensionId: "cozyvtt.dnd5e",
+        gameSystem: trusted.packageManifest.contributions.gameSystems[0],
+      },
+    ]);
+    await expect(
+      service.readActiveGameSystemModule("cozyvtt.dnd5e", "DND_5E"),
+    ).resolves.toEqual({
+      contents: Buffer.from("export const activateMapRenderer = () => undefined;"),
+      checksum,
+    });
+
+    await service.deactivate("cozyvtt.dnd5e");
+    expect(gameSystems.calls).toEqual([
+      "register:cozyvtt.dnd5e:DND_5E",
+      "unregister:cozyvtt.dnd5e",
+    ]);
   });
 });

@@ -11,7 +11,7 @@ router.get("/contributions", requireAuth, async (_req, res) => {
   try {
     return res.json(await productionExtensionOperations.contributions());
   } catch {
-    return res.json({ themes: [], renderers: [] });
+    return res.json({ themes: [], renderers: [], gameSystems: [] });
   }
 });
 
@@ -35,6 +35,31 @@ router.get(
       return res.status(404).json({
         error: "Not Found",
         message: "Active renderer contribution not found",
+      });
+    }
+  },
+);
+
+router.get(
+  "/contributions/game-systems/:extensionId/:gameSystemId",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const module = await productionExtensionOperations.gameSystem(
+        req.params.extensionId,
+        req.params.gameSystemId,
+      );
+      res.set({
+        "Content-Type": "text/javascript; charset=utf-8",
+        "Cache-Control": "private, no-store",
+        ETag: `\"${module.checksum}\"`,
+        "X-Content-Type-Options": "nosniff",
+      });
+      return res.send(module.contents);
+    } catch {
+      return res.status(404).json({
+        error: "Not Found",
+        message: "Active game-system contribution not found",
       });
     }
   },

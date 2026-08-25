@@ -6,7 +6,8 @@
  * with existing data in the dev database.
  */
 
-import { PrismaClient, PlatformRole, GameSystem } from '@prisma/client';
+import { PrismaClient, PlatformRole } from '@prisma/client';
+import { GameSystem } from '../../game-systems';
 import { hashPassword } from '../../services/auth';
 
 export const prisma = new PrismaClient();

@@ -44,6 +44,7 @@ function packageManifest() {
       ],
       renderers: [],
       presentations: [],
+      gameSystems: [],
     },
   };
 }
@@ -110,6 +111,83 @@ describe("extension package campaign presentations", () => {
 
     expect(() => parseExtensionPackageManifest(input)).toThrow(
       "presentations capability",
+    );
+  });
+});
+
+describe("extension package game systems", () => {
+  const dndContribution = {
+    id: "DND_5E",
+    name: "Dungeons & Dragons 5th Edition",
+    shortName: "D&D 5e",
+    description: "Compatibility contribution for the existing persisted system.",
+    contractVersion: "1",
+    selectable: true,
+    browserEntrypoint: "dnd5e.mjs",
+    characterDataSchema: {
+      type: "object",
+      required: ["characterName"],
+      properties: { characterName: { type: "string" } },
+    },
+    characterTemplates: [
+      {
+        id: "blank",
+        name: "Blank Character",
+        description: "An empty character sheet.",
+        data: { characterName: "New Character" },
+      },
+    ],
+  };
+
+  it("defaults game systems to an empty list", () => {
+    const input = packageManifest();
+    delete (input.contributions as { gameSystems?: unknown }).gameSystems;
+    expect(parseExtensionPackageManifest(input).contributions.gameSystems).toEqual([]);
+  });
+
+  it("accepts bounded game systems with the required capability", () => {
+    const input = packageManifest();
+    (input.manifest.capabilities as string[]).push("game-systems");
+    (input.contributions.gameSystems as Array<Record<string, unknown>>).push(dndContribution);
+
+    expect(parseExtensionPackageManifest(input).contributions.gameSystems[0]).toMatchObject({
+      id: "DND_5E",
+      contractVersion: "1",
+      characterTemplates: [{ id: "blank" }],
+    });
+  });
+
+  it("rejects game systems without the capability", () => {
+    const input = packageManifest();
+    (input.contributions.gameSystems as Array<Record<string, unknown>>).push(dndContribution);
+
+    expect(() => parseExtensionPackageManifest(input)).toThrow("game-systems capability");
+  });
+
+  it("rejects duplicate template IDs", () => {
+    const input = packageManifest();
+    (input.manifest.capabilities as string[]).push("game-systems");
+    (input.contributions.gameSystems as Array<Record<string, unknown>>).push({
+      ...dndContribution,
+      characterTemplates: [
+        dndContribution.characterTemplates[0],
+        dndContribution.characterTemplates[0],
+      ],
+    });
+
+    expect(() => parseExtensionPackageManifest(input)).toThrow("template IDs must be unique");
+  });
+
+  it("rejects duplicate game-system IDs", () => {
+    const input = packageManifest();
+    (input.manifest.capabilities as string[]).push("game-systems");
+    (input.contributions.gameSystems as Array<Record<string, unknown>>).push(
+      dndContribution,
+      dndContribution,
+    );
+
+    expect(() => parseExtensionPackageManifest(input)).toThrow(
+      "Game-system IDs must be unique",
     );
   });
 });

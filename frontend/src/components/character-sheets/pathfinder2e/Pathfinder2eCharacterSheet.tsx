@@ -11,7 +11,7 @@ import Pathfinder2eCharacterView from './Pathfinder2eCharacterView';
 import Pathfinder2eCharacterEditor from './Pathfinder2eCharacterEditor';
 
 export const Pathfinder2eCharacterSheet: React.FC<CharacterSheetProps> = (props) => {
-  const { mode, character, onSave } = props;
+  const { mode, character, onSave, onRoll } = props;
   const [currentMode, setCurrentMode] = useState<'view' | 'edit'>(mode);
 
   const handleSave = async (data: unknown, showToast?: boolean, tokenImageUrl?: string) => {
@@ -42,7 +42,8 @@ export const Pathfinder2eCharacterSheet: React.FC<CharacterSheetProps> = (props)
   return (
     <Pathfinder2eCharacterView
       character={character}
-      onEdit={handleEdit}
+      onEdit={onSave ? handleEdit : undefined}
+      onRoll={onRoll}
     />
   );
 };

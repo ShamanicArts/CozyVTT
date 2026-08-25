@@ -5,6 +5,8 @@ import request from "supertest";
 const campaignMembership = jest.fn();
 const campaignContributions = jest.fn();
 const presentation = jest.fn();
+const contributions = jest.fn();
+const gameSystem = jest.fn();
 
 jest.mock("../../composition/productionAccessQueries", () => ({
   productionAccessQueries: { campaignMembership },
@@ -13,6 +15,8 @@ jest.mock("../../composition/productionExtensionOperations", () => ({
   productionExtensionOperations: {
     campaignContributions,
     presentation,
+    contributions,
+    gameSystem,
   },
 }));
 
@@ -85,5 +89,24 @@ describe("campaign extension contribution HTTP adapter", () => {
       "campaign-stage",
       "PLAYER",
     );
+  });
+
+  it("serves only host-approved active game-system modules", async () => {
+    contributions.mockResolvedValue({ themes: [], renderers: [], gameSystems: [] });
+    gameSystem.mockResolvedValue({
+      checksum: "sha256:test",
+      contents: Buffer.from("export const activateGameSystem = () => {}"),
+    });
+
+    const listing = await request(app()).get("/api/extensions/contributions");
+    expect(listing.status).toBe(200);
+    expect(listing.body.gameSystems).toEqual([]);
+
+    const moduleResponse = await request(app()).get(
+      "/api/extensions/contributions/game-systems/cozyvtt.dnd5e/DND_5E",
+    );
+    expect(moduleResponse.status).toBe(200);
+    expect(moduleResponse.headers["content-type"]).toContain("text/javascript");
+    expect(gameSystem).toHaveBeenCalledWith("cozyvtt.dnd5e", "DND_5E");
   });
 });

@@ -16,6 +16,7 @@ export interface ExtensionPackageManifest {
     readonly themes: readonly ThemeContribution[];
     readonly renderers: readonly RendererContribution[];
     readonly presentations: readonly CampaignPresentationContribution[];
+    readonly gameSystems: readonly GameSystemContribution[];
   };
 }
 
@@ -56,6 +57,26 @@ export interface CampaignPresentationContribution {
   /** Self-contained JavaScript module exporting `activateCampaignPresentation`. */
   readonly browserEntrypoint: string;
   readonly roles: readonly CampaignPresentationRole[];
+}
+
+export interface GameSystemCharacterTemplateContribution {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly data: Readonly<Record<string, unknown>>;
+}
+
+/** Declarative backend contract with a trusted browser character-sheet module. */
+export interface GameSystemContribution {
+  readonly id: string;
+  readonly name: string;
+  readonly shortName: string;
+  readonly description: string;
+  readonly contractVersion: "1";
+  readonly selectable: boolean;
+  readonly browserEntrypoint: string;
+  readonly characterDataSchema: Readonly<Record<string, unknown>>;
+  readonly characterTemplates: readonly GameSystemCharacterTemplateContribution[];
 }
 
 export interface ExtensionBrowserModule {

@@ -56,7 +56,7 @@ export type ValidationResult<T> =
  * @returns Validation result with typed data or errors
  */
 export function validateCharacterData(
-  gameSystem: GameSystem,
+  gameSystem: string,
   data: unknown
 ): ValidationResult<RegisteredCharacterData> {
   const definition = getGameSystemDefinition(gameSystem);

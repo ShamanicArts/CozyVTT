@@ -13,6 +13,7 @@ import {
   NodeBubblewrapSandbox,
   SandboxedExtensionSupervisor,
 } from "../sandbox";
+import { extensionGameSystemRegistry } from "../../game-systems/registry";
 
 /**
  * Composition helper for a process-local trusted host. It intentionally does
@@ -41,5 +42,6 @@ export function createTrustedExtensionHost(
     registry,
     undefined,
     new SandboxedExtensionSupervisor(new NodeBubblewrapSandbox(catalog)),
+    extensionGameSystemRegistry,
   );
 }

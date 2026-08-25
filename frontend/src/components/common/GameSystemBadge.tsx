@@ -3,11 +3,10 @@
 // Display badge for game system with color coding
 // ============================================
 
-import type { GameSystem } from '@/types';
 import { getGameSystemLabel } from '@/constants/game-systems';
 
 interface GameSystemBadgeProps {
-  gameSystem: GameSystem | null;
+  gameSystem: string | null;
   size?: 'sm' | 'md' | 'lg';
   showFull?: boolean; // Show full label vs short label
 }
@@ -19,7 +18,7 @@ interface GameSystemBadgeProps {
  * hues — a D&D badge is not "danger", it just needs to look different from a
  * Pathfinder one and stay readable on every theme.
  */
-const GAME_SYSTEM_COLORS: Record<GameSystem, { bg: string; text: string; border: string }> = {
+const GAME_SYSTEM_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   DND_5E: {
     bg: 'bg-danger/10',
     text: 'text-danger-ink',
@@ -45,13 +44,6 @@ const GAME_SYSTEM_COLORS: Record<GameSystem, { bg: string; text: string; border:
 /**
  * Short labels for badges
  */
-const SHORT_LABELS: Record<GameSystem, string> = {
-  DND_5E: 'D&D 5e',
-  PATHFINDER_2E: 'PF2e',
-  SHADOWRUN_6E: 'SR6',
-  CALL_OF_CTHULHU_7E: 'CoC 7e',
-};
-
 export default function GameSystemBadge({
   gameSystem,
   size = 'md',
@@ -70,8 +62,12 @@ export default function GameSystemBadge({
     );
   }
 
-  const colors = GAME_SYSTEM_COLORS[gameSystem];
-  const label = showFull ? getGameSystemLabel(gameSystem) : SHORT_LABELS[gameSystem];
+  const colors = GAME_SYSTEM_COLORS[gameSystem] ?? {
+    bg: 'bg-surface',
+    text: 'text-ink',
+    border: 'border-ink/20',
+  };
+  const label = getGameSystemLabel(gameSystem, !showFull);
 
   return (
     <span

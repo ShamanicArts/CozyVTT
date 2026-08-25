@@ -202,7 +202,7 @@ export interface NpcStatBlock {
 export interface CreatureTemplate {
   id: string;
   name: string;
-  gameSystem: GameSystem | null;
+  gameSystem: string | null;
   source: string;
   challengeRating: string | null;
   creatureType: string | null;
@@ -428,7 +428,7 @@ export interface Campaign {
   name: string;
   description: string | null;
   ownerId: string;
-  gameSystem: GameSystem | null;
+  gameSystem: string | null;
   status: CampaignStatus;
   currentMapId: string | null;
   activePresentationId: string;
@@ -500,7 +500,7 @@ export interface CampaignInvitation {
     id: string;
     name: string;
     description: string | null;
-    gameSystem: GameSystem | null;
+    gameSystem: string | null;
     status: CampaignStatus;
     owner?: {
       displayName: string;
@@ -540,7 +540,7 @@ export interface Character {
   id: string;
   userId: string;
   campaignId: string | null;
-  gameSystem: GameSystem | null;
+  gameSystem: string | null;
   name: string;
   data: CharacterData;
   tokenImageUrl: string | null;
@@ -808,13 +808,13 @@ export interface ChangePasswordRequest {
 // Campaign
 export interface CreateCampaignRequest {
   name: string;
-  gameSystem?: GameSystem;
+  gameSystem?: string;
   description?: string;
 }
 
 export interface UpdateCampaignRequest {
   name?: string;
-  gameSystem?: GameSystem | null;
+  gameSystem?: string | null;
   description?: string;
   status?: CampaignStatus;
   vibeSettings?: VibeSettings;
@@ -829,7 +829,7 @@ export interface CreateCharacterRequest {
   name: string;
   data?: unknown;
   tokenImageUrl?: string;
-  gameSystem?: GameSystem | null;
+  gameSystem?: string | null;
   campaignId?: string;
 }
 

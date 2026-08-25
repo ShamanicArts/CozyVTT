@@ -27,4 +27,7 @@ export interface CharacterSheetProps {
 
   /** Callback when edit mode is cancelled */
   onCancel?: () => void;
+
+  /** Host-owned campaign dice execution. Omitted outside campaign context. */
+  onRoll?: (expression: string, purpose: string) => void;
 }

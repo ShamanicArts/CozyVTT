@@ -64,6 +64,14 @@ export interface ExtensionLifecycleRegistry {
   getExtension(extensionId: string): unknown | undefined;
 }
 
+export interface ExtensionGameSystemRegistry {
+  register(
+    extensionId: string,
+    contributions: readonly import("./contracts").GameSystemContribution[],
+  ): void;
+  unregister(extensionId: string): void;
+}
+
 export interface SandboxedExtensionLifecycle {
   activate(
     installation: import("./contracts").ExtensionInstallation,

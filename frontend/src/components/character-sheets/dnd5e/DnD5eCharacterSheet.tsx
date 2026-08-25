@@ -13,7 +13,7 @@ import { DnD5eCharacterEditor } from './DnD5eCharacterEditor';
  * DnD5eCharacterSheet - Mode switcher for D&D 5e character sheet
  */
 export const DnD5eCharacterSheet: React.FC<CharacterSheetProps> = (props) => {
-  const { mode, character, onSave } = props;
+  const { mode, character, onSave, onRoll } = props;
   const [currentMode, setCurrentMode] = useState<'view' | 'edit'>(mode);
 
   // Handle cancel - return to view mode
@@ -41,7 +41,13 @@ export const DnD5eCharacterSheet: React.FC<CharacterSheetProps> = (props) => {
   }
 
   // View mode - pass a callback to switch to edit mode
-  return <DnD5eCharacterView character={character} onEdit={() => setCurrentMode('edit')} />;
+  return (
+    <DnD5eCharacterView
+      character={character}
+      onEdit={onSave ? () => setCurrentMode('edit') : undefined}
+      onRoll={onRoll}
+    />
+  );
 };
 
 export default DnD5eCharacterSheet;
