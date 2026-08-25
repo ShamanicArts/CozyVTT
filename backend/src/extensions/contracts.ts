@@ -8,7 +8,7 @@
  */
 
 export const EXTENSION_API_VERSION = "1.0.0";
-export const COZYVTT_PLATFORM_VERSION = "1.1.1";
+export const COZYVTT_PLATFORM_VERSION = "1.2.0-preview.1";
 
 export const EXTENSION_CAPABILITIES = [
   "commands",
