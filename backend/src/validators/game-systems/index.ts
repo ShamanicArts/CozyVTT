@@ -6,6 +6,10 @@
 import { z } from 'zod';
 import { GameSystem } from '../../game-systems';
 import {
+  getGameSystemDefinition,
+  type RegisteredCharacterData,
+} from '../../game-systems/registry';
+import {
   dnd5eCharacterDataSchema,
   type DnD5eCharacterData,
 } from './dnd5e.schema';
@@ -54,49 +58,20 @@ export type ValidationResult<T> =
 export function validateCharacterData(
   gameSystem: GameSystem,
   data: unknown
-): ValidationResult<
-  | DnD5eCharacterData
-  | PF2eCharacterData
-  | SR6CharacterData
-  | CoC7eCharacterData
-> {
-  try {
-    switch (gameSystem) {
-      case GameSystem.DND_5E: {
-        const validated = dnd5eCharacterDataSchema.parse(data);
-        return { success: true, data: validated };
-      }
-      case GameSystem.PATHFINDER_2E: {
-        const validated = pathfinder2eCharacterDataSchema.parse(data);
-        return { success: true, data: validated };
-      }
-      case GameSystem.SHADOWRUN_6E: {
-        const validated = shadowrun6eCharacterDataSchema.parse(data);
-        return { success: true, data: validated };
-      }
-      case GameSystem.CALL_OF_CTHULHU_7E: {
-        const validated = callOfCthulhu7eCharacterDataSchema.parse(data);
-        return { success: true, data: validated };
-      }
-      default: {
-        // TypeScript should prevent this, but handle it anyway
-        const error = new z.ZodError([
-          {
-            code: 'custom',
-            message: `Unknown game system: ${gameSystem}`,
-            path: ['gameSystem'],
-          },
-        ]);
-        return { success: false, errors: error };
-      }
-    }
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return { success: false, errors: error };
-    }
-    // Re-throw unexpected errors
-    throw error;
-  }
+): ValidationResult<RegisteredCharacterData> {
+  const definition = getGameSystemDefinition(gameSystem);
+  if (definition) return definition.validateCharacterData(data);
+
+  return {
+    success: false,
+    errors: new z.ZodError([
+      {
+        code: 'custom',
+        message: `Unknown game system: ${gameSystem}`,
+        path: ['gameSystem'],
+      },
+    ]),
+  };
 }
 
 /**

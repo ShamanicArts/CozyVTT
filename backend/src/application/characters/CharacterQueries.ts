@@ -1,4 +1,5 @@
 import { GameSystem } from "../../game-systems";
+import { isSupportedGameSystem } from "../../game-systems/registry";
 import type { CharacterQueryRepository } from "../../ports/CharacterQueryRepository";
 import { validateCharacterData } from "../../validators/game-systems";
 import { getCharacterTemplate } from "../../utils/character-templates";
@@ -48,7 +49,7 @@ export class CharacterQueries {
         );
       return template;
     }
-    if (!Object.values(GameSystem).includes(gameSystem as GameSystem))
+    if (!isSupportedGameSystem(gameSystem))
       throw new CharacterQueryError(
         400,
         "Validation Error",

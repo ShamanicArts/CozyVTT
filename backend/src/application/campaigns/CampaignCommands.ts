@@ -9,6 +9,7 @@ import {
 } from '../../domain/campaigns/Campaign';
 import { CampaignAdministrationRepository } from '../../ports/CampaignAdministrationRepository';
 import { CampaignInvitationNotifier } from '../../ports/CampaignInvitationNotifier';
+import { getSupportedGameSystemIds, isSupportedGameSystem } from '../../game-systems/registry';
 import { DEFAULT_VIBE_SETTINGS, findVibePeriod, validateVibeSettings, VibeSettings } from '../../utils/vibe-presets';
 import { Command, CommandHandler } from '../commands/CommandBus';
 
@@ -138,8 +139,8 @@ export class UpdateCampaign implements CommandHandler<UpdateCampaignCommand, { c
     let gameSystemCharacterCount: number | undefined;
     if (input.gameSystem !== undefined) {
       if (input.gameSystem !== null) {
-        const validSystems = ['DND_5E', 'PATHFINDER_2E', 'SHADOWRUN_6E', 'CALL_OF_CTHULHU_7E'];
-        if (!validSystems.includes(input.gameSystem as string)) {
+        const validSystems = getSupportedGameSystemIds();
+        if (!isSupportedGameSystem(input.gameSystem as string)) {
           throw campaignValidationError(`Invalid game system. Must be one of: ${validSystems.join(', ')}`);
         }
       }

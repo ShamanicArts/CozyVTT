@@ -1,5 +1,6 @@
 import { Command, CommandHandler } from '../commands/CommandBus';
 import { GameSystem } from '../../game-systems';
+import { getSupportedGameSystemIds, isSupportedGameSystem } from '../../game-systems/registry';
 import { validateCharacterData } from '../../validators/game-systems';
 import { CreateCharacterSchema, UpdateCharacterSchema } from '../../validators/characters';
 import { CharacterError, CharacterRecord } from '../../domain/characters/Character';
@@ -46,13 +47,6 @@ export interface CopyCharacterCommand extends Command<CharacterMutationResult> {
   readonly userId: string;
   readonly characterId: string;
 }
-
-const validSystems: string[] = [
-  GameSystem.DND_5E,
-  GameSystem.PATHFINDER_2E,
-  GameSystem.SHADOWRUN_6E,
-  GameSystem.CALL_OF_CTHULHU_7E,
-];
 
 function schemaError(
   message: string,
@@ -108,8 +102,8 @@ export class CreateCharacter extends CharacterCommandBase implements CommandHand
       if (campaign) finalGameSystem = campaign.gameSystem as GameSystem | null;
     }
     if (finalGameSystem !== undefined && finalGameSystem !== null) {
-      if (!validSystems.includes(finalGameSystem as string)) {
-        throw new CharacterError(400, 'Validation Error', `Invalid game system. Must be one of: ${validSystems.join(', ')}`);
+      if (!isSupportedGameSystem(finalGameSystem as string)) {
+        throw new CharacterError(400, 'Validation Error', `Invalid game system. Must be one of: ${getSupportedGameSystemIds().join(', ')}`);
       }
       const validated = validateCharacterData(finalGameSystem as GameSystem, data || {});
       if (!validated.success) {

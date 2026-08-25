@@ -4,40 +4,31 @@
  */
 
 import { GameSystem } from '../types';
+import {
+  listGameSystemUiDefinitions,
+  listSelectableGameSystemUiDefinitions,
+} from '../game-systems/registry';
 
 /**
  * Display labels for each game system
  */
-export const GAME_SYSTEM_LABELS: Record<GameSystem, string> = {
-  [GameSystem.DND_5E]: 'Dungeons & Dragons 5th Edition',
-  [GameSystem.PATHFINDER_2E]: 'Pathfinder 2nd Edition',
-  [GameSystem.SHADOWRUN_6E]: 'Shadowrun 6th Edition',
-  [GameSystem.CALL_OF_CTHULHU_7E]: 'Call of Cthulhu 7th Edition',
-};
+export const GAME_SYSTEM_LABELS = Object.fromEntries(
+  listGameSystemUiDefinitions().map((definition) => [definition.id, definition.label]),
+) as Record<GameSystem, string>;
 
 /**
  * Short display labels for each game system
  */
-export const GAME_SYSTEM_SHORT_LABELS: Record<GameSystem, string> = {
-  [GameSystem.DND_5E]: 'D&D 5e',
-  [GameSystem.PATHFINDER_2E]: 'PF2e',
-  [GameSystem.SHADOWRUN_6E]: 'SR6',
-  [GameSystem.CALL_OF_CTHULHU_7E]: 'CoC 7e',
-};
+export const GAME_SYSTEM_SHORT_LABELS = Object.fromEntries(
+  listGameSystemUiDefinitions().map((definition) => [definition.id, definition.shortLabel]),
+) as Record<GameSystem, string>;
 
 /**
  * Descriptions for each game system
  */
-export const GAME_SYSTEM_DESCRIPTIONS: Record<GameSystem, string> = {
-  [GameSystem.DND_5E]:
-    'The world\'s most popular tabletop RPG. High fantasy adventures with heroic characters.',
-  [GameSystem.PATHFINDER_2E]:
-    'A deep and customizable fantasy RPG with tactical combat and character building.',
-  [GameSystem.SHADOWRUN_6E]:
-    'Cyberpunk meets fantasy in a dystopian future with magic, technology, and corporate intrigue.',
-  [GameSystem.CALL_OF_CTHULHU_7E]:
-    'Investigate cosmic horror in the style of H.P. Lovecraft. Sanity-testing mystery and dread.',
-};
+export const GAME_SYSTEM_DESCRIPTIONS = Object.fromEntries(
+  listGameSystemUiDefinitions().map((definition) => [definition.id, definition.description]),
+) as Record<GameSystem, string>;
 
 /**
  * Options array for form selects
@@ -49,33 +40,14 @@ export interface GameSystemOption {
   description: string;
 }
 
-export const GAME_SYSTEM_OPTIONS: GameSystemOption[] = [
-  {
-    value: GameSystem.DND_5E,
-    label: GAME_SYSTEM_LABELS[GameSystem.DND_5E],
-    shortLabel: GAME_SYSTEM_SHORT_LABELS[GameSystem.DND_5E],
-    description: GAME_SYSTEM_DESCRIPTIONS[GameSystem.DND_5E],
-  },
-  {
-    value: GameSystem.PATHFINDER_2E,
-    label: GAME_SYSTEM_LABELS[GameSystem.PATHFINDER_2E],
-    shortLabel: GAME_SYSTEM_SHORT_LABELS[GameSystem.PATHFINDER_2E],
-    description: GAME_SYSTEM_DESCRIPTIONS[GameSystem.PATHFINDER_2E],
-  },
-  // Shadowrun 6e - Temporarily disabled until further notice
-  // {
-  //   value: GameSystem.SHADOWRUN_6E,
-  //   label: GAME_SYSTEM_LABELS[GameSystem.SHADOWRUN_6E],
-  //   shortLabel: GAME_SYSTEM_SHORT_LABELS[GameSystem.SHADOWRUN_6E],
-  //   description: GAME_SYSTEM_DESCRIPTIONS[GameSystem.SHADOWRUN_6E],
-  // },
-  {
-    value: GameSystem.CALL_OF_CTHULHU_7E,
-    label: GAME_SYSTEM_LABELS[GameSystem.CALL_OF_CTHULHU_7E],
-    shortLabel: GAME_SYSTEM_SHORT_LABELS[GameSystem.CALL_OF_CTHULHU_7E],
-    description: GAME_SYSTEM_DESCRIPTIONS[GameSystem.CALL_OF_CTHULHU_7E],
-  },
-];
+export const GAME_SYSTEM_OPTIONS: GameSystemOption[] = listSelectableGameSystemUiDefinitions().map(
+  (definition) => ({
+    value: definition.id,
+    label: definition.label,
+    shortLabel: definition.shortLabel,
+    description: definition.description,
+  }),
+);
 
 /**
  * Get display label for a game system

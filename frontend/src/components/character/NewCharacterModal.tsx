@@ -11,6 +11,10 @@ import { Character, GameSystem, Campaign } from '@/types';
 import { GAME_SYSTEM_OPTIONS } from '@/constants/game-systems';
 import api from '@/services/api';
 import Button from '@/components/ui/Button';
+import {
+  getGameSystemUiDefinition,
+  type CharacterTemplateOption,
+} from '@/game-systems/registry';
 
 interface NewCharacterModalProps {
   isOpen: boolean;
@@ -21,63 +25,6 @@ interface NewCharacterModalProps {
   /** If provided, this game system will be pre-selected and locked */
   preselectedGameSystem?: GameSystem | null;
 }
-
-interface TemplateOption {
-  value: string;
-  label: string;
-  description: string;
-}
-
-const TEMPLATE_OPTIONS_BY_SYSTEM: Record<string, TemplateOption[]> = {
-  [GameSystem.DND_5E]: [
-    {
-      value: 'blank',
-      label: 'Blank Character Sheet',
-      description: 'Start with an empty Level 1 character',
-    },
-    {
-      value: 'fighter',
-      label: 'Level 1 Fighter (Example)',
-      description: 'A pre-built Fighter with standard array stats',
-    },
-  ],
-  [GameSystem.PATHFINDER_2E]: [
-    {
-      value: 'blank',
-      label: 'Blank Character Sheet',
-      description: 'Start with an empty Level 1 character',
-    },
-    {
-      value: 'fighter',
-      label: 'Level 1 Fighter (Example)',
-      description: 'A pre-built Dwarf Fighter',
-    },
-  ],
-  [GameSystem.SHADOWRUN_6E]: [
-    {
-      value: 'blank',
-      label: 'Blank Character Sheet',
-      description: 'Start with an empty character',
-    },
-    {
-      value: 'streetsamurai',
-      label: 'Street Samurai (Example)',
-      description: 'A combat-focused runner with cyberware',
-    },
-  ],
-  [GameSystem.CALL_OF_CTHULHU_7E]: [
-    {
-      value: 'blank',
-      label: 'Blank Investigator Sheet',
-      description: 'Start with an empty investigator',
-    },
-    {
-      value: 'privateinvestigator',
-      label: 'Private Investigator (Example)',
-      description: 'A gritty private eye ready for mysteries',
-    },
-  ],
-};
 
 export default function NewCharacterModal({
   isOpen,
@@ -148,7 +95,7 @@ export default function NewCharacterModal({
     return false;
   };
 
-  const getTemplateOptions = (): TemplateOption[] => {
+  const getTemplateOptions = (): readonly CharacterTemplateOption[] => {
     if (!gameSystem) {
       return [
         {
@@ -164,7 +111,7 @@ export default function NewCharacterModal({
       ];
     }
 
-    return TEMPLATE_OPTIONS_BY_SYSTEM[gameSystem] || [];
+    return getGameSystemUiDefinition(gameSystem)?.characterTemplates ?? [];
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
